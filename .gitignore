@@ -1,0 +1,4 @@
+# nunca subir para o repositório público:
+build.js
+fonts-inline.css
+*.local.html
