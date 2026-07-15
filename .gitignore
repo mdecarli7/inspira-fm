@@ -2,3 +2,9 @@
 build.js
 fonts-inline.css
 *.local.html
+
+# versão Firebase — nunca commitar:
+seed.html
+site-src/
+firestore.rules
+build-firebase.js
