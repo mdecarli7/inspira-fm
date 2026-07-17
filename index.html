@@ -601,9 +601,25 @@ footer small{color:var(--muted)}
   .pg-row{grid-template-columns:1fr 1fr 2rem}
 }
 .parc-badge{background:#DDF0E9;color:#0A5B47}
-/* planilhas do Radar: sem hifenização, texto alinhado à esquerda */
-#embTable td{text-align:left;-webkit-hyphens:none;hyphens:none}
-#embTable table{min-width:56rem}
+/* Radar: navegação em quadros clicáveis, 2 por linha */
+.radar-tiles{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
+.radar-tiles button{
+  text-align:left;cursor:pointer;font-family:var(--display);font-weight:700;font-size:1.02rem;
+  color:var(--teal-900);background:#fff;border:1px solid var(--line);border-radius:.9rem;
+  padding:.95rem 1.15rem;display:flex;flex-direction:column;gap:.2rem;
+}
+.radar-tiles button small{font-family:inherit;font-weight:500;font-size:.8rem;color:var(--muted);text-align:left}
+.radar-tiles button:hover{border-color:var(--teal-700)}
+.radar-tiles button.on{background:var(--teal-900);border-color:var(--teal-900);color:#fff}
+.radar-tiles button.on small{color:#BFE0D2}
+@media (max-width:640px){.radar-tiles{grid-template-columns:1fr}}
+/* planilhas do Radar: coluna longa absorve o espaço, as curtas ficam justas,
+   nada de hifenização — quebra só em palavra inteira */
+#embTable th,#embTable td{text-align:left;-webkit-hyphens:none;hyphens:none;padding-right:1.1rem}
+#embTable th{white-space:nowrap}
+#embTable td.tight{white-space:nowrap}
+#embTable th.num,#embTable td.num{text-align:right;white-space:nowrap}
+#embTable td.grow{width:99%;min-width:11rem}
 /* quadros em grade vertical */
 .qd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(17rem,100%),1fr));gap:1rem}
 .qd-card{
@@ -1325,12 +1341,13 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
     </div>
     <div class="section" style="padding-top:1.4rem;padding-bottom:0">
       <div class="wrap">
-        <div class="camp-tabs">
-          <button type="button" data-embtab="rademb" class="on">Radar de embaixadores</button>
-          <button type="button" data-embtab="nossosemb">Nossos embaixadores</button>
-          <button type="button" data-embtab="radinf">Radar de influenciadores</button>
-          <button type="button" data-embtab="nossosinf">Nossos influenciadores</button>
-          <button type="button" data-embtab="colunistas">Nossos colunistas</button>
+        <div class="radar-tiles">
+          <button type="button" data-embtab="rademb" class="on">Radar de embaixadores<small>quem queremos por perto</small></button>
+          <button type="button" data-embtab="nossosemb">Nossos embaixadores<small>parceiros ativos da Inspira</small></button>
+          <button type="button" data-embtab="radinf">Radar de influenciadores<small>perfis mapeados na região</small></button>
+          <button type="button" data-embtab="nossosinf">Nossos influenciadores<small>quem já trabalha com a gente</small></button>
+          <button type="button" data-embtab="radcol">Radar de colunistas<small>nomes em prospecção para o site</small></button>
+          <button type="button" data-embtab="colunistas">Nossos colunistas<small>quem já publica no site</small></button>
         </div>
       </div>
     </div>
@@ -1376,6 +1393,10 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
             <div class="field"><label for="rcFreq">Frequência</label><input id="rcFreq" class="fin-input" placeholder="ex.: semanal, quinzenal"></div>
           </div>
           <div class="field"><label for="rcObs">Sobre a coluna</label><input id="rcObs" class="fin-input" placeholder="do que a coluna trata"></div>
+          <div class="field" style="display:flex;align-items:center;gap:.5rem">
+            <input id="rcRadar" type="checkbox" style="accent-color:var(--teal-700);width:1.1rem;height:1.1rem">
+            <label for="rcRadar" style="margin:0">Ainda em prospecção (fica no Radar de colunistas)</label>
+          </div>
           <div class="proj-actions">
             <button type="button" class="btn primary" id="rcSalvar">Salvar colunista</button>
             <button type="button" class="btn ghost" id="rcCancelarBtn">Cancelar</button>
@@ -1804,6 +1825,6 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="runtime.js?v=1c86df29"></script>
+<script src="runtime.js?v=f504e21b"></script>
 </body>
 </html>

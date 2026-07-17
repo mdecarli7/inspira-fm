@@ -2101,7 +2101,7 @@ function clListen(){
     clRows = [];
     qs.forEach(function(doc){ clRows.push({ id: doc.id, d: doc.data() }); });
     renderColunistas();
-    if(EMB_TAB === 'colunistas') renderEmb();
+    if(EMB_TAB === 'colunistas' || EMB_TAB === 'radcol') renderEmb();
   }, function(){
     document.getElementById('clTable').innerHTML =
       '<div class="proj-empty">Não foi possível carregar os colunistas.</div>';
@@ -2234,6 +2234,7 @@ function colOpen(pfx, id, d){
   document.getElementById(pfx + 'Dia').value = d.dia || '';
   document.getElementById(pfx + 'Freq').value = d.freq || '';
   document.getElementById(pfx + 'Obs').value = d.obs || '';
+  if(pfx === 'rc') document.getElementById('rcRadar').checked = d.radar === true;
   document.getElementById(pfx + 'Excluir').hidden = !id;
   var f = document.getElementById(pfx + 'Form');
   f.hidden = false;
@@ -2255,6 +2256,7 @@ function colSave(){
     obs: document.getElementById(pfx + 'Obs').value.trim(),
     atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
   };
+  if(pfx === 'rc') doc.radar = document.getElementById('rcRadar').checked;
   var btn = document.getElementById(pfx + 'Salvar');
   btn.disabled = true;
   var op = CL.id
@@ -2283,7 +2285,7 @@ var embUnsub = null, embBound = false, embRows = [], EMB_TAB = 'rademb', EB = nu
 var EMB_TITULOS = {
   rademb: 'Radar de embaixadores', nossosemb: 'Nossos embaixadores',
   radinf: 'Radar de influenciadores', nossosinf: 'Nossos influenciadores',
-  colunistas: 'Nossos colunistas'
+  radcol: 'Radar de colunistas', colunistas: 'Nossos colunistas'
 };
 function ebTipoDe(d){ return d.tipo === 'influenciador' ? 'influenciador' : 'embaixador'; }
 function embTabSet(t){
@@ -2292,7 +2294,7 @@ function embTabSet(t){
   document.getElementById('embTitulo').textContent = EMB_TITULOS[t];
   var btn = document.getElementById('embNovo');
   btn.hidden = !canRe();
-  btn.textContent = '+ Adicionar ' + (t === 'colunistas' ? 'colunista'
+  btn.textContent = '+ Adicionar ' + (t === 'colunistas' || t === 'radcol' ? 'colunista'
     : (t === 'radinf' || t === 'nossosinf' ? 'influenciador' : 'embaixador'));
   document.getElementById('embForm').hidden = true;
   document.getElementById('rcForm').hidden = true;
@@ -2308,6 +2310,7 @@ function embInit(){
     });
     document.getElementById('embNovo').addEventListener('click', function(){
       if(EMB_TAB === 'colunistas') colOpen('rc', null, {});
+      else if(EMB_TAB === 'radcol') colOpen('rc', null, { radar: true });
       else ebOpen(null, {});
     });
     document.getElementById('ebCancelarBtn').addEventListener('click', function(){
@@ -2343,19 +2346,22 @@ function fmtSeg(n){
 function renderEmb(){
   var host = document.getElementById('embTable');
   if(!host) return;
-  if(EMB_TAB === 'colunistas'){
-    if(!clRows.length){
-      host.innerHTML = '<div class="proj-empty">Nenhum colunista cadastrado ainda.' +
-        (canRe() ? ' Clique em <b>+ Adicionar colunista</b>.' : '') + '</div>';
+  if(EMB_TAB === 'colunistas' || EMB_TAB === 'radcol'){
+    var querRadar = EMB_TAB === 'radcol';
+    var crows = clRows.filter(function(r){ return (r.d.radar === true) === querRadar; });
+    if(!crows.length){
+      host.innerHTML = '<div class="proj-empty">' + (querRadar
+        ? 'Nenhum colunista em prospecção ainda.' + (canRe() ? ' Clique em <b>+ Adicionar colunista</b> e marque <b>“Ainda em prospecção”</b>.' : '')
+        : 'Nenhum colunista cadastrado ainda.' + (canRe() ? ' Clique em <b>+ Adicionar colunista</b>.' : '')) + '</div>';
       return;
     }
     host.innerHTML = '<table><thead><tr><th>Nome</th><th>Perfil</th><th>Coluna</th><th>Dia</th><th>Frequência</th><th>Sobre a coluna</th>' +
       (canRe() ? '<th></th>' : '') + '</tr></thead><tbody>' +
-      clRows.map(function(r){
+      crows.map(function(r){
         var d = r.d;
         return '<tr><td><b>' + escHtml(d.nome || '') + '</b></td><td>' + escHtml(d.perfil || '—') +
-          '</td><td>' + escHtml(d.tema || '—') + '</td><td>' + escHtml(d.dia || 'a definir') +
-          '</td><td>' + escHtml(d.freq || 'a definir') + '</td><td>' + escHtml(d.obs || '—') + '</td>' +
+          '</td><td>' + escHtml(d.tema || '—') + '</td><td class="tight">' + escHtml(d.dia || 'a definir') +
+          '</td><td class="tight">' + escHtml(d.freq || 'a definir') + '</td><td class="grow">' + escHtml(d.obs || '—') + '</td>' +
           (canRe() ? '<td><button type="button" class="mini" data-rcedit="' + r.id + '">Editar</button></td>' : '') + '</tr>';
       }).join('') + '</tbody></table>';
     host.onclick = function(ev){
@@ -2383,9 +2389,9 @@ function renderEmb(){
     rows.map(function(r){
       var d = r.d;
       return '<tr><td><b>' + escHtml(d.nome || '') + '</b></td><td>' + escHtml(d.perfil || '—') +
-        '</td><td>' + escHtml(d.plataforma || '—') + '</td><td class="num">' + (+d.seguidores > 0 ? fmtSeg(d.seguidores) : 'a definir') +
-        '</td><td>' + escHtml(d.nicho || '—') + '</td><td>' + escHtml(d.cidade || '—') +
-        '</td><td>' + (d.parceiro ? '<span class="st-pill parc-badge">PARCEIRO</span>' : '<span class="st-pill st-encerrada">radar</span>') + '</td>' +
+        '</td><td class="tight">' + escHtml(d.plataforma || '—') + '</td><td class="num">' + (+d.seguidores > 0 ? fmtSeg(d.seguidores) : 'a definir') +
+        '</td><td class="grow">' + escHtml(d.nicho || '—') + '</td><td class="tight">' + escHtml(d.cidade || '—') +
+        '</td><td class="tight">' + (d.parceiro ? '<span class="st-pill parc-badge">PARCEIRO</span>' : '<span class="st-pill st-encerrada">radar</span>') + '</td>' +
         (canRe() ? '<td><button type="button" class="mini" data-ebedit="' + r.id + '">Editar</button></td>' : '') + '</tr>';
     }).join('') + '</tbody></table>';
   host.onclick = function(ev){
