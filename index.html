@@ -601,6 +601,9 @@ footer small{color:var(--muted)}
   .pg-row{grid-template-columns:1fr 1fr 2rem}
 }
 .parc-badge{background:#DDF0E9;color:#0A5B47}
+/* planilhas do Radar: sem hifenização, texto alinhado à esquerda */
+#embTable td{text-align:left;-webkit-hyphens:none;hyphens:none}
+#embTable table{min-width:56rem}
 /* quadros em grade vertical */
 .qd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(17rem,100%),1fr));gap:1rem}
 .qd-card{
@@ -1362,6 +1365,24 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
             <span class="fin-msg" id="ebMsg"></span>
           </div>
         </div>
+        <div id="rcForm" hidden style="margin-bottom:1.6rem">
+          <div class="cp-row">
+            <div class="field"><label for="rcNome">Nome</label><input id="rcNome" class="fin-input"></div>
+            <div class="field"><label for="rcPerfil">Perfil</label><input id="rcPerfil" class="fin-input" placeholder="@perfil"></div>
+            <div class="field" style="flex:1.6"><label for="rcTema">Coluna</label><input id="rcTema" class="fin-input" placeholder="nome da coluna"></div>
+          </div>
+          <div class="cp-row">
+            <div class="field"><label for="rcDia">Dia da publicação</label><input id="rcDia" class="fin-input" placeholder="ex.: toda quarta"></div>
+            <div class="field"><label for="rcFreq">Frequência</label><input id="rcFreq" class="fin-input" placeholder="ex.: semanal, quinzenal"></div>
+          </div>
+          <div class="field"><label for="rcObs">Sobre a coluna</label><input id="rcObs" class="fin-input" placeholder="do que a coluna trata"></div>
+          <div class="proj-actions">
+            <button type="button" class="btn primary" id="rcSalvar">Salvar colunista</button>
+            <button type="button" class="btn ghost" id="rcCancelarBtn">Cancelar</button>
+            <button type="button" class="btn ghost danger" id="rcExcluir" hidden>Excluir</button>
+            <span class="fin-msg" id="rcMsg"></span>
+          </div>
+        </div>
         <div class="tbl-scroll" id="embTable"><div class="load-note">Carregando…</div></div>
       </div>
     </div>
@@ -1783,6 +1804,6 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="runtime.js?v=69e412e9"></script>
+<script src="runtime.js?v=1c86df29"></script>
 </body>
 </html>

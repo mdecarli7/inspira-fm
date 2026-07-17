@@ -2225,52 +2225,58 @@ function renderColunistas(){
     if(row) clOpen(row.id, row.d);
   };
 }
-function clOpen(id, d){
-  CL = { id: id };
-  document.getElementById('clNome').value = d.nome || '';
-  document.getElementById('clPerfil').value = d.perfil || '';
-  document.getElementById('clTema').value = d.tema || '';
-  document.getElementById('clDia').value = d.dia || '';
-  document.getElementById('clFreq').value = d.freq || '';
-  document.getElementById('clObs').value = d.obs || '';
-  document.getElementById('clExcluir').hidden = !id;
-  var f = document.getElementById('clForm');
+/* prefixo 'cl' = form em Quadros→Site; 'rc' = form no Radar→Nossos colunistas */
+function colOpen(pfx, id, d){
+  CL = { id: id, pfx: pfx };
+  document.getElementById(pfx + 'Nome').value = d.nome || '';
+  document.getElementById(pfx + 'Perfil').value = d.perfil || '';
+  document.getElementById(pfx + 'Tema').value = d.tema || '';
+  document.getElementById(pfx + 'Dia').value = d.dia || '';
+  document.getElementById(pfx + 'Freq').value = d.freq || '';
+  document.getElementById(pfx + 'Obs').value = d.obs || '';
+  document.getElementById(pfx + 'Excluir').hidden = !id;
+  var f = document.getElementById(pfx + 'Form');
   f.hidden = false;
   f.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
-  document.getElementById('clNome').focus();
+  document.getElementById(pfx + 'Nome').focus();
 }
-function clSave(){
+function clOpen(id, d){ colOpen('cl', id, d); }
+function colSave(){
   if(!CL) return;
-  var nome = document.getElementById('clNome').value.trim();
-  if(!nome){ flashMsg('clMsg', 'Informe o nome do colunista.'); return; }
+  var pfx = CL.pfx || 'cl';
+  var nome = document.getElementById(pfx + 'Nome').value.trim();
+  if(!nome){ flashMsg(pfx + 'Msg', 'Informe o nome do colunista.'); return; }
   var doc = {
     nome: nome,
-    perfil: document.getElementById('clPerfil').value.trim(),
-    tema: document.getElementById('clTema').value.trim(),
-    dia: document.getElementById('clDia').value.trim(),
-    freq: document.getElementById('clFreq').value.trim(),
-    obs: document.getElementById('clObs').value.trim(),
+    perfil: document.getElementById(pfx + 'Perfil').value.trim(),
+    tema: document.getElementById(pfx + 'Tema').value.trim(),
+    dia: document.getElementById(pfx + 'Dia').value.trim(),
+    freq: document.getElementById(pfx + 'Freq').value.trim(),
+    obs: document.getElementById(pfx + 'Obs').value.trim(),
     atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
   };
-  var btn = document.getElementById('clSalvar');
+  var btn = document.getElementById(pfx + 'Salvar');
   btn.disabled = true;
   var op = CL.id
     ? db.collection('colunistas').doc(CL.id).set(doc, { merge: true })
     : db.collection('colunistas').add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp() }, doc));
   op.then(function(){
     CL = null;
-    document.getElementById('clForm').hidden = true;
-  }).catch(function(){ flashMsg('clMsg', 'Sem permissão para salvar.'); })
+    document.getElementById(pfx + 'Form').hidden = true;
+  }).catch(function(){ flashMsg(pfx + 'Msg', 'Sem permissão para salvar.'); })
     .finally(function(){ btn.disabled = false; });
 }
-function clDelete(){
+function clSave(){ colSave(); }
+function colDelete(){
   if(!CL || !CL.id) return;
+  var pfx = CL.pfx || 'cl';
   if(!confirm('Excluir este colunista para todos?')) return;
   db.collection('colunistas').doc(CL.id).delete().then(function(){
     CL = null;
-    document.getElementById('clForm').hidden = true;
-  }).catch(function(){ flashMsg('clMsg', 'Sem permissão para excluir.'); });
+    document.getElementById(pfx + 'Form').hidden = true;
+  }).catch(function(){ flashMsg(pfx + 'Msg', 'Sem permissão para excluir.'); });
 }
+function clDelete(){ colDelete(); }
 
 /* =================== Radar (embaixadores, influenciadores e colunistas) =================== */
 var embUnsub = null, embBound = false, embRows = [], EMB_TAB = 'rademb', EB = null;
@@ -2285,10 +2291,13 @@ function embTabSet(t){
   document.querySelectorAll('[data-embtab]').forEach(function(x){ x.classList.toggle('on', x.dataset.embtab === t); });
   document.getElementById('embTitulo').textContent = EMB_TITULOS[t];
   var btn = document.getElementById('embNovo');
-  btn.hidden = t === 'colunistas' || !canRe();
-  btn.textContent = '+ Adicionar ' + (t === 'radinf' || t === 'nossosinf' ? 'influenciador' : 'embaixador');
+  btn.hidden = !canRe();
+  btn.textContent = '+ Adicionar ' + (t === 'colunistas' ? 'colunista'
+    : (t === 'radinf' || t === 'nossosinf' ? 'influenciador' : 'embaixador'));
   document.getElementById('embForm').hidden = true;
+  document.getElementById('rcForm').hidden = true;
   EB = null;
+  CL = null;
   renderEmb();
 }
 function embInit(){
@@ -2297,13 +2306,22 @@ function embInit(){
     document.querySelectorAll('[data-embtab]').forEach(function(b){
       b.addEventListener('click', function(){ embTabSet(b.dataset.embtab); });
     });
-    document.getElementById('embNovo').addEventListener('click', function(){ ebOpen(null, {}); });
+    document.getElementById('embNovo').addEventListener('click', function(){
+      if(EMB_TAB === 'colunistas') colOpen('rc', null, {});
+      else ebOpen(null, {});
+    });
     document.getElementById('ebCancelarBtn').addEventListener('click', function(){
       EB = null;
       document.getElementById('embForm').hidden = true;
     });
     document.getElementById('ebSalvar').addEventListener('click', ebSave);
     document.getElementById('ebExcluir').addEventListener('click', ebDelete);
+    document.getElementById('rcSalvar').addEventListener('click', colSave);
+    document.getElementById('rcCancelarBtn').addEventListener('click', function(){
+      CL = null;
+      document.getElementById('rcForm').hidden = true;
+    });
+    document.getElementById('rcExcluir').addEventListener('click', colDelete);
   }
   clListen();
   if(embUnsub) return;
@@ -2326,9 +2344,26 @@ function renderEmb(){
   var host = document.getElementById('embTable');
   if(!host) return;
   if(EMB_TAB === 'colunistas'){
-    host.innerHTML = clRows.length
-      ? '<div class="qd-grid">' + clRows.map(function(r){ return clCardHtml(r, false); }).join('') + '</div>'
-      : '<div class="proj-empty">Nenhum colunista cadastrado ainda. Eles são gerenciados em <b>Quadros da Inspira → Site</b>.</div>';
+    if(!clRows.length){
+      host.innerHTML = '<div class="proj-empty">Nenhum colunista cadastrado ainda.' +
+        (canRe() ? ' Clique em <b>+ Adicionar colunista</b>.' : '') + '</div>';
+      return;
+    }
+    host.innerHTML = '<table><thead><tr><th>Nome</th><th>Perfil</th><th>Coluna</th><th>Dia</th><th>Frequência</th><th>Sobre a coluna</th>' +
+      (canRe() ? '<th></th>' : '') + '</tr></thead><tbody>' +
+      clRows.map(function(r){
+        var d = r.d;
+        return '<tr><td><b>' + escHtml(d.nome || '') + '</b></td><td>' + escHtml(d.perfil || '—') +
+          '</td><td>' + escHtml(d.tema || '—') + '</td><td>' + escHtml(d.dia || 'a definir') +
+          '</td><td>' + escHtml(d.freq || 'a definir') + '</td><td>' + escHtml(d.obs || '—') + '</td>' +
+          (canRe() ? '<td><button type="button" class="mini" data-rcedit="' + r.id + '">Editar</button></td>' : '') + '</tr>';
+      }).join('') + '</tbody></table>';
+    host.onclick = function(ev){
+      var b = ev.target.closest('[data-rcedit]'); if(!b) return;
+      var row = null;
+      clRows.forEach(function(r){ if(r.id === b.dataset.rcedit) row = r; });
+      if(row) colOpen('rc', row.id, row.d);
+    };
     return;
   }
   var querInf = EMB_TAB === 'radinf' || EMB_TAB === 'nossosinf';
