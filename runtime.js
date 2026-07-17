@@ -948,13 +948,14 @@ function projDelete(){
 /* =================== Campanhas =================== */
 var CANAIS = ['Spots no ar','Instagram','Site e app','WhatsApp','Eventos presenciais','Parceiros e permutas','Imprensa local'];
 var CUSTO_CATS = ['Brindes','Prêmios','Mão de obra','Terceirizados','Mídia / Divulgação','Outros'];
-var campUnsub = null, campRows = [], CP = null, campBound = false, CTAB = 'ativas';
-var ST_LBL = { rascunho:['EM DISCUSSÃO','st-rascunho'], ativa:['ATIVA','st-ativa'], encerrada:['ENCERRADA','st-encerrada'] };
+var campUnsub = null, campRows = [], CP = null, campBound = false, CTAB = 'brainstorm';
+var ST_LBL = { rascunho:['EM DISCUSSÃO','st-rascunho'], comercializacao:['EM COMERCIALIZAÇÃO','st-comerc'], ativa:['ATIVA','st-ativa'], encerrada:['ENCERRADA','st-encerrada'] };
 
 function campBlank(){
   return { nome:'', status:'rascunho', foco:'', publico:'', inicio:'', fim:'', setorLider:'',
     descricao:'', custos:[], parceiros:[], canais:[], metaTxt:'', medicao:'', retorno:0,
     planoB:'', riscos:'', timing:'', envolvimento:[], fotos:[], relatorio:null,
+    comPrazo:'', comMeta:0, comVendido:0, comObs:'',
     autor: ME ? (ME.nome || ME.email) : '', autorEmail: ME ? ME.email : '' };
 }
 function campCustoTotal(d){ return (d.custos || []).reduce(function(s,c){ return s + (+c.v || 0); }, 0); }
@@ -1042,9 +1043,9 @@ function fotoGridRender(host, arr, editable, max){
 
 /* ---- abas ---- */
 function campTab(t){
-  if((t === 'criar' || t === 'relatorios') && !canRe()) t = 'ativas';
+  if((t === 'criar' || t === 'relatorios' || t === 'comerc') && !canRe()) t = 'ativas';
   CTAB = t;
-  ['ativas','criar','relatorios','brainstorm'].forEach(function(x){
+  ['ativas','criar','comerc','relatorios','brainstorm'].forEach(function(x){
     var pane = document.getElementById('ctab-' + x);
     if(pane) pane.hidden = x !== t;
     document.querySelectorAll('.camp-tabs [data-ctab="' + x + '"]').forEach(function(b){
@@ -1106,6 +1107,7 @@ function campListen(){
     qs.forEach(function(doc){ campRows.push({ id: doc.id, d: doc.data() }); });
     renderCampAtivas();
     renderCampHub();
+    renderCampComerc();
     renderRepHub();
     renderHomeCamps();
   }, function(){
@@ -1190,6 +1192,116 @@ function campShowHub(){
   window.scrollTo(0,0);
 }
 
+/* ---- aba Comercializar campanha ---- */
+function flashMsgEl(el, t){
+  if(!el) return;
+  el.textContent = t;
+  clearTimeout(el._t);
+  el._t = setTimeout(function(){ el.textContent = ''; }, 4000);
+}
+function comercMeta(d){ var m = +d.comMeta; return m > 0 ? m : campCustoTotal(d); }
+function comercDias(prazo){
+  if(!prazo) return { txt:'', cls:'' };
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
+  var p = String(prazo).split('-');
+  var alvo = new Date(+p[0], (+p[1] - 1), +p[2]);
+  var diff = Math.round((alvo - hoje) / 86400000);
+  if(diff > 1) return { txt: 'faltam ' + diff + ' dias (até ' + fmtData(prazo) + ')', cls:'ok' };
+  if(diff === 1) return { txt: 'falta 1 dia (até ' + fmtData(prazo) + ')', cls:'ok' };
+  if(diff === 0) return { txt: 'prazo é hoje (' + fmtData(prazo) + ')', cls:'atras' };
+  return { txt: 'prazo vencido há ' + (-diff) + ' dia' + (-diff === 1 ? '' : 's') + ' (' + fmtData(prazo) + ')', cls:'atras' };
+}
+function comercBarTxt(vend, meta){
+  var falta = Math.max(0, meta - vend);
+  return 'R$ ' + fmtBRL(vend) + ' de R$ ' + fmtBRL(meta) + ' comercializados · faltam R$ ' + fmtBRL(falta);
+}
+function comercForm(d, meta, vend){
+  var pct = meta > 0 ? Math.min(100, Math.round(vend / meta * 100)) : 0;
+  return '<div class="com-grid">' +
+      '<div class="field"><label>Prazo do comercial</label><input type="date" class="fin-input" data-comprazo value="' + escHtml(d.comPrazo || '') + '"></div>' +
+      '<div class="field"><label>Meta de viabilidade (R$)</label><input type="number" min="0" step="0.01" class="fin-input" data-commeta value="' + meta + '"></div>' +
+      '<div class="field"><label>Já comercializado (R$)</label><input type="number" min="0" step="0.01" class="fin-input" data-comvend value="' + vend + '"></div>' +
+    '</div>' +
+    '<div class="field"><label>Observações do comercial</label><input class="fin-input" data-comobs value="' + escHtml(d.comObs || '') + '" placeholder="quem está sendo prospectado, cotas fechadas, pendências…"></div>' +
+    '<div class="com-bar"><i data-combarfill style="width:' + pct + '%"></i></div>' +
+    '<p class="lead" data-combartxt style="margin:.1rem 0 .8rem">' + comercBarTxt(vend, meta) + '</p>' +
+    '<div class="proj-actions">' +
+      '<button type="button" class="btn primary" data-comsave>Salvar comercialização</button>' +
+      '<button type="button" class="btn publish" data-comativar>' + ic('raio') + ' Ativar campanha</button>' +
+      '<span class="fin-msg" data-commsg></span>' +
+    '</div>';
+}
+function comercCard(r){
+  var d = r.d, id = r.id;
+  var meta = comercMeta(d), vend = +d.comVendido || 0;
+  var pct = meta > 0 ? Math.min(100, Math.round(vend / meta * 100)) : 0;
+  var dias = comercDias(d.comPrazo);
+  return '<div class="com-card" data-id="' + id + '">' +
+    '<h4>' + escHtml(d.nome || '(sem nome)') + ' <span class="st-pill st-comerc">EM COMERCIALIZAÇÃO</span></h4>' +
+    '<div class="com-meta">' +
+      '<span>' + escHtml(d.setorLider || 'setor líder não definido') + '</span>' +
+      '<span>' + escHtml(fmtPeriodo(d)) + '</span>' +
+      (d.comPrazo ? '<span class="com-dias ' + dias.cls + '">' + dias.txt + '</span>'
+                  : '<span class="com-dias atras">prazo do comercial não definido</span>') +
+    '</div>' +
+    (canRe()
+      ? comercForm(d, meta, vend)
+      : '<div class="com-bar"><i style="width:' + pct + '%"></i></div><p class="lead" style="margin:.1rem 0 0">' + comercBarTxt(vend, meta) + '</p>') +
+    '</div>';
+}
+function renderCampComerc(){
+  var host = document.getElementById('campComercList');
+  if(!host) return;
+  var rows = campRows.filter(function(r){ return r.d.status === 'comercializacao'; });
+  if(!rows.length){
+    host.innerHTML = '<div class="proj-empty">Nenhuma campanha em comercialização.' +
+      (canRe() ? ' Na aba <b>Criar campanha</b>, abra uma campanha planejada e clique em <b>Enviar para comercialização</b>.' : '') + '</div>';
+    return;
+  }
+  host.innerHTML = rows.map(comercCard).join('');
+  host.querySelectorAll('.com-card').forEach(function(card){
+    var id = card.dataset.id;
+    var s = card.querySelector('[data-comsave]'); if(s) s.addEventListener('click', function(){ comercSave(id, card); });
+    var a = card.querySelector('[data-comativar]'); if(a) a.addEventListener('click', function(){ comercAtivar(id, card); });
+    var mm = card.querySelector('[data-commeta]'); if(mm) mm.addEventListener('input', function(){ comercUpdateBar(card); });
+    var vv = card.querySelector('[data-comvend]'); if(vv) vv.addEventListener('input', function(){ comercUpdateBar(card); });
+  });
+}
+function comercUpdateBar(card){
+  var meta = parseFloat(card.querySelector('[data-commeta]').value) || 0;
+  var vend = parseFloat(card.querySelector('[data-comvend]').value) || 0;
+  var pct = meta > 0 ? Math.min(100, Math.round(vend / meta * 100)) : 0;
+  var fill = card.querySelector('[data-combarfill]'); if(fill) fill.style.width = pct + '%';
+  var txt = card.querySelector('[data-combartxt]'); if(txt) txt.textContent = comercBarTxt(vend, meta);
+}
+function comercPatch(card){
+  return {
+    comPrazo: card.querySelector('[data-comprazo]').value || '',
+    comMeta: parseFloat(card.querySelector('[data-commeta]').value) || 0,
+    comVendido: parseFloat(card.querySelector('[data-comvend]').value) || 0,
+    comObs: card.querySelector('[data-comobs]').value || '',
+    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  };
+}
+function comercSave(id, card){
+  var msg = card.querySelector('[data-commsg]');
+  db.collection('campanhas').doc(id).set(comercPatch(card), { merge: true })
+    .then(function(){ flashMsgEl(msg, 'Comercialização salva ✓'); })
+    .catch(function(){ flashMsgEl(msg, 'Sem permissão para salvar.'); });
+}
+function comercAtivar(id, card){
+  var meta = parseFloat(card.querySelector('[data-commeta]').value) || 0;
+  var vend = parseFloat(card.querySelector('[data-comvend]').value) || 0;
+  var aviso = vend < meta
+    ? 'Ativar mesmo sem bater a meta de viabilidade?\nComercializado R$ ' + fmtBRL(vend) + ' de R$ ' + fmtBRL(meta) + '.'
+    : 'Ativar a campanha? Ela vai para “Campanhas ativas” para toda a equipe.';
+  if(!confirm(aviso)) return;
+  var patch = comercPatch(card);
+  patch.status = 'ativa';
+  db.collection('campanhas').doc(id).set(patch, { merge: true })
+    .catch(function(){ flashMsgEl(card.querySelector('[data-commsg]'), 'Sem permissão para ativar.'); });
+}
+
 /* ---- editor de campanha ---- */
 function campOpen(id, data){
   CP = { id: id, data: JSON.parse(JSON.stringify(data)) };
@@ -1229,8 +1341,11 @@ function cpStatusUI(){
   var pill = document.getElementById('cpStatusPill');
   pill.textContent = lbl[0];
   pill.className = 'st-pill ' + lbl[1];
-  document.getElementById('cpStatusBtn').innerHTML =
-    st === 'ativa' ? 'Encerrar campanha' : (st === 'encerrada' ? 'Reativar campanha' : ic('raio') + ' Ativar campanha');
+  var btn = document.getElementById('cpStatusBtn');
+  if(st === 'ativa') btn.innerHTML = 'Encerrar campanha';
+  else if(st === 'encerrada') btn.innerHTML = 'Reativar campanha';
+  else if(st === 'comercializacao') btn.innerHTML = ic('raio') + ' Ativar campanha';
+  else btn.innerHTML = ic('alvo') + ' Enviar para comercialização';
   document.getElementById('cpExcluir').hidden = !CP.id;
 }
 function cpRenderCustos(){
@@ -1315,17 +1430,28 @@ function cpRecalc(){
     '<div class="kpi"><div class="v">' + nParc + '</div><div class="k">parceiro' + (nParc === 1 ? '' : 's') + ' envolvido' + (nParc === 1 ? '' : 's') + '</div></div>';
   document.getElementById('cpCustoTotal').textContent = tot ? '· total R$ ' + fmtBRL(tot) + '/campanha' : '';
 }
+function nomeFocoOk(){
+  if(!CP.data.nome.trim()){ cpMsgShow('Dê um nome à campanha antes de avançar.'); return false; }
+  if(!(CP.data.foco || '').trim()){ cpMsgShow('Defina o foco da campanha antes de avançar.'); return false; }
+  return true;
+}
 function campToggleStatus(){
   if(!CP) return;
   var st = CP.data.status || 'rascunho';
   if(st === 'ativa'){
     if(!confirm('Encerrar a campanha "' + CP.data.nome + '"?\nDepois preencha o relatório na aba Relatórios para medir o resultado.')) return;
     CP.data.status = 'encerrada';
-  }else{
-    if(!CP.data.nome.trim()){ cpMsgShow('Dê um nome à campanha antes de ativar.'); return; }
-    if(!(CP.data.foco || '').trim()){ cpMsgShow('Defina o foco da campanha antes de ativar.'); return; }
+  }else if(st === 'encerrada'){
+    if(!confirm('Reativar a campanha "' + CP.data.nome + '"? Ela volta para “Campanhas ativas”.')) return;
+    CP.data.status = 'ativa';
+  }else if(st === 'comercializacao'){
+    if(!nomeFocoOk()) return;
     if(!confirm('Ativar a campanha "' + CP.data.nome + '"?\nEla aparece em “Campanhas ativas” para toda a equipe, com as tarefas de cada setor.')) return;
     CP.data.status = 'ativa';
+  }else{
+    if(!nomeFocoOk()) return;
+    if(!confirm('Enviar "' + CP.data.nome + '" para comercialização?\nO comercial passa a ter um prazo para vender patrocínio e tornar a campanha viável, na aba “Comercializar campanha”.')) return;
+    CP.data.status = 'comercializacao';
   }
   cpStatusUI();
   campSave(true);
@@ -1345,6 +1471,7 @@ function campSave(auto){
     planoB: d.planoB || '', riscos: d.riscos || '', timing: d.timing || '',
     envolvimento: d.envolvimento.filter(function(e){ return (e.tarefa || '').trim(); }),
     fotos: d.fotos || [],
+    comPrazo: d.comPrazo || '', comMeta: +d.comMeta || 0, comVendido: +d.comVendido || 0, comObs: d.comObs || '',
     autor: d.autor || (ME.nome || ME.email), autorEmail: d.autorEmail || ME.email,
     atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
   };

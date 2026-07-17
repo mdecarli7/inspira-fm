@@ -839,6 +839,17 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
 .st-rascunho{background:#FDF3DC;color:#7A5A10}
 .st-ativa{background:#DDF0E9;color:#0A5B47}
 .st-encerrada{background:#E8E8E8;color:#4A4A4A}
+.st-comerc{background:#FBE7C6;color:#8A5A12}
+/* aba comercializar campanha */
+.com-card{background:#fff;border:1px solid var(--line);border-radius:1rem;padding:1.2rem 1.3rem;margin-bottom:1rem}
+.com-card h4{margin:0 0 .3rem}
+.com-meta{display:flex;flex-wrap:wrap;gap:.3rem 1.2rem;color:var(--muted);font-size:.9rem;margin:.1rem 0 .7rem}
+.com-dias{font-weight:700}
+.com-dias.ok{color:#0A5B47}
+.com-dias.atras{color:#B23B2E}
+.com-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(12rem,100%),1fr));gap:.7rem;margin:.4rem 0}
+.com-bar{height:.7rem;background:var(--paper-2);border-radius:999px;overflow:hidden;margin:.6rem 0 .3rem}
+.com-bar > i{display:block;height:100%;background:var(--teal-700);border-radius:999px;transition:width .25s ease}
 .camp-card{border:1px solid var(--line);border-radius:.9rem;background:#fff;margin-bottom:1.4rem;overflow:hidden}
 .camp-card>header{display:flex;justify-content:space-between;gap:.4rem 1rem;flex-wrap:wrap;align-items:baseline;padding:1rem 1.3rem;background:var(--teal-900)}
 .camp-card>header h4{margin:0;color:#fff;font-size:1.12rem}
@@ -969,7 +980,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
     <p class="sn-cap">Gestão</p>
     <a href="#organograma" data-nav="organograma"><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="8.5" y="3" width="7" height="4.5" rx="1"/><rect x="3" y="16.5" width="7" height="4.5" rx="1"/><rect x="14" y="16.5" width="7" height="4.5" rx="1"/><path d="M12 7.5V11"/><path d="M6.5 16.5V14h11v2.5"/><path d="M12 11v3"/></svg></span><span>Organograma</span></a>
     <a href="#processos" data-nav="processos"><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 4v6h-6"/><path d="M3 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 15-3.3L21 8"/><path d="M20.5 15a9 9 0 0 1-15 3.3L3 16"/></svg></span><span>Processos</span></a>
-    <a href="#reestruturacao" data-nav="reestruturacao" data-need="re" hidden><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M1.5 14h5"/><path d="M9.5 8h5"/><path d="M17.5 16h5"/></svg></span><span>Reestruturações</span></a>
+    <a href="#reestruturacao" data-nav="reestruturacao" data-need="re" hidden><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M1.5 14h5"/><path d="M9.5 8h5"/><path d="M17.5 16h5"/></svg></span><span>Estruturação</span></a>
     <a href="#financeiro" data-nav="financeiro" data-need="fin" hidden><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Equipe</span></a>
     <p class="sn-cap" data-need="re" hidden>Administração</p>
     <a href="#juridico" data-nav="juridico" data-need="re" hidden><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg></span><span>Jurídico</span></a>
@@ -1047,7 +1058,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
     </div>
   </section>
   <section id="view-analise" class="view" aria-label="Análise Social"><div class="load-note">Carregando…</div></section>
-  <section id="view-reestruturacao" class="view" aria-label="Reestruturações">
+  <section id="view-reestruturacao" class="view" aria-label="Estruturação">
     <div class="page-hero">
       <svg class="waves" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
         <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="#06443C"/>
@@ -1055,7 +1066,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
       </svg>
       <div class="wrap">
         <p class="crumb">Diretoria · Simulador de equipe</p>
-        <h2>Reestruturações</h2>
+        <h2>Estruturação</h2>
         <p class="sub">Cada projeto simula uma mudança de equipe — contratação, desligamento ou ajuste de salário — e calcula o impacto no custo fixo antes de a decisão ser tomada. Tudo fica salvo e editável.</p>
       </div>
     </div>
@@ -1161,7 +1172,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
       <div class="wrap">
         <p class="crumb">Operação · Como trabalhamos</p>
         <h2 id="pc-title">Processos</h2>
-        <p class="sub">O processo de trabalho ativo de cada setor, validado pela diretoria. Publicados a partir dos projetos de Reestruturação.</p>
+        <p class="sub">O processo de trabalho ativo de cada setor, validado pela diretoria. Publicados a partir dos projetos de Estruturação.</p>
       </div>
     </div>
     <div class="section">
@@ -1594,10 +1605,11 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
     <div class="section" style="padding-top:1.4rem;padding-bottom:0">
       <div class="wrap">
         <div class="camp-tabs">
-          <button type="button" data-ctab="ativas" class="on">Campanhas ativas</button>
+          <button type="button" data-ctab="brainstorm" class="on">Brainstorm</button>
           <button type="button" data-ctab="criar" data-need="re" hidden>Criar campanha</button>
+          <button type="button" data-ctab="comerc" data-need="re" hidden>Comercializar campanha</button>
+          <button type="button" data-ctab="ativas">Campanhas ativas</button>
           <button type="button" data-ctab="relatorios" data-need="re" hidden>Relatórios</button>
-          <button type="button" data-ctab="brainstorm">Brainstorm</button>
         </div>
       </div>
     </div>
@@ -1710,8 +1722,18 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
               <button type="button" class="btn ghost danger" id="cpExcluir" hidden>Excluir campanha</button>
               <span class="fin-msg" id="cpMsg"></span>
             </div>
-            <p class="chart-note">“Ativar” publica a campanha na aba Campanhas ativas, com as tarefas de cada setor visíveis para toda a equipe. “Encerrar” move a campanha para os Relatórios.</p>
+            <p class="chart-note">“Enviar para comercialização” manda a campanha ao comercial, que tem um prazo para vendê-la na aba “Comercializar campanha”. Depois de viável, ela é ativada e aparece em “Campanhas ativas” com as tarefas de cada setor. “Encerrar” move a campanha para os Relatórios.</p>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- aba: comercializar campanha (diretoria) -->
+    <div id="ctab-comerc" class="ctab" hidden>
+      <div class="section">
+        <div class="wrap">
+          <p class="lead">Depois de planejada, a campanha passa pelo comercial. Aqui o time tem um prazo para vender patrocínio e cotas e tornar a campanha viável. Ao alcançar a meta de viabilidade, a campanha é ativada e vai para o ar.</p>
+          <div id="campComercList"><div class="load-note">Carregando…</div></div>
         </div>
       </div>
     </div>
@@ -1798,7 +1820,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
     <div class="section">
       <div class="wrap users-wrap">
         <h3>Contas</h3>
-        <p class="lead">Nível <b>Pendente</b> não vê nada · <b>Colaborador</b> vê Início, Análise Social e Organograma · <b>Diretor</b> vê também a Reestruturação · <b>Admin</b> vê e administra tudo. A caixa “Balanço” libera o Balanço Financeiro para qualquer nível.</p>
+        <p class="lead">Nível <b>Pendente</b> não vê nada · <b>Colaborador</b> vê Início, Análise Social e Organograma · <b>Diretor</b> vê também a Estruturação · <b>Admin</b> vê e administra tudo. A caixa “Balanço” libera o Balanço Financeiro para qualquer nível.</p>
         <div class="tbl-scroll" id="usersTable"><div class="load-note">Carregando usuários…</div></div>
         <p class="chart-note">Alterações são salvas ao clicar em “Salvar” na linha. Para remover o acesso de alguém, mude o nível para Pendente.</p>
       </div>
@@ -1825,6 +1847,6 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="runtime.js?v=49a862d7"></script>
+<script src="runtime.js?v=db64b30c"></script>
 </body>
 </html>
