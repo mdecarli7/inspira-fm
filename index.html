@@ -636,6 +636,39 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
 .btn.danger{color:var(--al-alto);border-color:#E4C2BE}
 .btn.danger:hover{border-color:var(--al-alto)}
 @media(max-width:720px){.pp-item{flex-wrap:wrap}.pp-item .i-valor{flex:1 1 6rem}}
+/* etapas do processo no editor */
+.proc-grid-head,.proc-row{display:grid;grid-template-columns:2rem 2fr 2fr 2fr 2rem;gap:.5rem;align-items:center}
+.proc-grid-head{font-size:.78rem;font-weight:800;color:var(--muted);margin-bottom:.35rem;padding:0 .1rem}
+.proc-row{margin-bottom:.4rem}
+.proc-row .n{font-family:var(--display);font-weight:700;color:var(--lime);background:var(--teal-900);border-radius:.5rem;text-align:center;padding:.25rem 0;font-size:.85rem}
+@media(max-width:720px){
+  .proc-grid-head{display:none}
+  .proc-row{grid-template-columns:2rem 1fr 2rem;grid-auto-rows:auto}
+  .proc-row .i-etapa{grid-column:2}
+  .proc-row .i-antes,.proc-row .i-depois{grid-column:2}
+}
+.btn.publish{background:var(--dv-orange);color:#fff}
+.btn.publish:hover{background:#B25012}
+/* página Processos */
+.proc-card{border:1px solid var(--line);border-radius:.9rem;background:#fff;margin-bottom:1.2rem;overflow:hidden}
+.proc-card>header{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;flex-wrap:wrap;padding:.9rem 1.2rem;background:var(--teal-900)}
+.proc-card>header h4{margin:0;color:#fff;font-size:1.05rem}
+.proc-card>header small{color:var(--muted-inverse);font-size:.8rem}
+.proc-card ol{margin:0;padding:.4rem 0;list-style:none;counter-reset:et}
+.proc-card li{counter-increment:et;display:flex;gap:.85rem;padding:.65rem 1.2rem;border-top:1px solid var(--line);align-items:baseline}
+.proc-card li::before{
+  content:counter(et);font-family:var(--display);font-weight:700;color:var(--lime);
+  background:var(--teal-900);border-radius:.5rem;min-width:1.6rem;height:1.6rem;
+  display:inline-flex;align-items:center;justify-content:center;font-size:.9rem;flex:none;position:relative;top:.2rem;
+}
+.proc-card li b{display:block;font-size:.95rem;color:var(--teal-900)}
+.proc-card li span{display:block;font-size:.86rem;color:var(--muted)}
+.proc-card li.vazio::before{display:none}
+.proc-pend{
+  border:2px dashed #E0B470;background:#FDF6E7;border-radius:.9rem;
+  padding:1rem 1.3rem;margin-bottom:1.2rem;color:#7A5A10;font-weight:600;font-size:.95rem;
+}
+.proc-pend b{color:#5F4700}
 </style>
 </head>
 <body>
@@ -668,6 +701,18 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
       <p class="auth-msg" id="authMsg" role="alert"></p>
     </div>
 
+    <div id="setorBox" hidden>
+      <p style="font-family:var(--display);font-weight:800;font-size:1.2rem;color:#fff;margin:0">Quase lá!</p>
+      <p style="color:var(--muted-inverse);max-width:32ch;margin:.4rem auto 1.1rem">Para concluir seu cadastro, diga em qual setor da Inspira você atua:</p>
+      <div class="authbox">
+        <select id="setorSelect" class="fin-input" style="background:rgba(255,255,255,.07);color:var(--ink-inverse);border:2px solid rgba(255,255,255,.25)">
+          <option value="">Selecione o setor…</option>
+        </select>
+        <div class="auth-row"><button type="button" id="setorSalvar" style="background:var(--lime);color:var(--teal-950)">Confirmar setor</button></div>
+        <p class="auth-msg" id="setorMsg" role="alert"></p>
+      </div>
+    </div>
+
     <div id="pendingBox" hidden>
       <p style="font-family:var(--display);font-weight:800;font-size:1.2rem;color:#fff;margin:0">Acesso pendente</p>
       <p>Sua conta <span class="pendmail" id="pendMail"></span> foi criada e aguarda aprovação do administrador. Avise o Matheus e recarregue a página depois de aprovado.</p>
@@ -687,7 +732,8 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
     <nav aria-label="Relatórios">
       <a href="#inicio" data-nav="inicio">Início</a>
       <a href="#analise" data-nav="analise">Análise Social</a>
-      <a href="#reestruturacao" data-nav="reestruturacao" data-need="re" hidden>Reestruturação</a>
+      <a href="#processos" data-nav="processos">Processos</a>
+      <a href="#reestruturacao" data-nav="reestruturacao" data-need="re" hidden>Reestruturações</a>
       <a href="#organograma" data-nav="organograma">Organograma</a>
       <a href="#financeiro" data-nav="financeiro" data-need="fin" hidden>Equipe</a>
       <a href="#usuarios" data-nav="usuarios" data-need="admin" hidden>Usuários</a>
@@ -732,7 +778,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
             <div class="field" style="flex:2;min-width:14rem"><label for="pjNome">Nome do projeto</label>
               <input id="pjNome" class="fin-input" placeholder="ex.: Contratação de social mídia"></div>
             <div class="field" style="flex:1;min-width:9rem"><label for="pjSetor">Setor</label>
-              <input id="pjSetor" class="fin-input" placeholder="ex.: Marketing"></div>
+              <select id="pjSetor" class="fin-input"></select></div>
           </div>
           <div class="field"><label for="pjContexto">Contexto (opcional)</label>
             <textarea id="pjContexto" class="fin-input" rows="2" placeholder="Por que essa mudança está sendo estudada?"></textarea></div>
@@ -775,7 +821,11 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
 
       <div class="section">
         <div class="wrap">
-          <div class="chart cost-chart">
+          <h3>Processo de trabalho — etapas</h3>
+          <p class="lead">Como o fluxo funciona hoje e como ficaria com a mudança. É essa versão "depois" que vira o processo oficial do setor quando você publica.</p>
+          <div class="proc-grid-head"><span></span><span>Etapa</span><span>Responsável hoje</span><span>Como ficaria</span><span></span></div>
+          <div id="pjProcesso"></div>
+          <div class="chart cost-chart" style="margin-top:2.2rem">
             <p class="chart-title">Comparativo de custo mensal</p>
             <div class="legend" aria-hidden="true">
               <span><i style="background:var(--dv-blue)"></i>Antes</span>
@@ -787,10 +837,12 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
           <div id="pjAtencao"></div>
           <div class="proj-actions">
             <button type="button" class="btn primary" id="pjSalvar">Salvar projeto</button>
+            <button type="button" class="btn publish" id="pjPublicar">Publicar processo do setor</button>
             <button type="button" class="btn ghost" id="pjLegacy" hidden>Ver relatório completo original</button>
             <button type="button" class="btn ghost danger" id="pjExcluir" hidden>Excluir projeto</button>
             <span class="fin-msg" id="pjMsg"></span>
           </div>
+          <p class="chart-note">“Publicar processo” torna as etapas da coluna “como ficaria” o processo oficial do setor na página Processos — visível para toda a equipe.</p>
         </div>
       </div>
     </div>
@@ -804,7 +856,27 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
     </div>
   </section>
   <section id="view-organograma" class="view" aria-label="Organograma"><div class="load-note">Carregando…</div></section>
-  <section id="view-financeiro" class="view" aria-label="Balanço Financeiro"><div class="load-note">Carregando…</div></section>
+  <section id="view-financeiro" class="view" aria-label="Equipe"><div class="load-note">Carregando…</div></section>
+
+  <section id="view-processos" class="view" aria-labelledby="pc-title">
+    <div class="page-hero">
+      <svg class="waves" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="#06443C"/>
+        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="#032723"/>
+      </svg>
+      <div class="wrap">
+        <p class="crumb">Operação · Como trabalhamos</p>
+        <h2 id="pc-title">Processos</h2>
+        <p class="sub">O processo de trabalho ativo de cada setor, validado pela diretoria. Publicados a partir dos projetos de Reestruturação.</p>
+      </div>
+    </div>
+    <div class="section">
+      <div class="wrap">
+        <div id="procAlert"></div>
+        <div id="procList"><div class="load-note">Carregando processos…</div></div>
+      </div>
+    </div>
+  </section>
 
   <section id="view-usuarios" class="view" aria-labelledby="us-title">
     <div class="page-hero">

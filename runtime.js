@@ -25,6 +25,12 @@ var auth = firebase.auth();
 var db = firebase.firestore();
 auth.useDeviceLanguage();
 
+/* =================== setores oficiais (organograma) =================== */
+var SETORES = ['Marketing','Comercial','Adm/Financeiro','Rádio Ao Vivo','Eventos','Agência Externa'];
+function setorSlug(s){
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+}
+
 /* =================== estado =================== */
 var ME = null;            // {uid,email,role,setor,verFinanceiro,nome}
 var CONTENT = {};         // {base:{inicio,analise,organograma}, re:{html,cost}, fin:{html,defaults}}
@@ -113,6 +119,7 @@ auth.onAuthStateChanged(function(user){
     if(user.email === ADMIN_EMAIL){ d.role = 'admin'; d.verFinanceiro = true; }
     ME = { uid: user.uid, email: user.email, nome: d.nome || user.displayName || '',
            setor: d.setor || '', role: d.role || 'pendente', verFinanceiro: !!d.verFinanceiro };
+    if(!ME.setor && ME.role !== 'admin'){ showSetorPicker(); return; }
     if(ME.role === 'pendente'){ showPending(); return; }
     loadContent();
   }).catch(function(){
@@ -123,10 +130,39 @@ auth.onAuthStateChanged(function(user){
 function showPending(extra){
   gate.style.display = 'flex';
   authBox.hidden = true; pendingBox.hidden = false;
+  document.getElementById('setorBox').hidden = true;
   document.getElementById('pendMail').textContent = (auth.currentUser && auth.currentUser.email) || '';
   if(extra) pendingBox.querySelector('p:nth-of-type(2)').textContent = extra;
   app.hidden = true;
 }
+
+/* cadastro: escolha do setor no primeiro acesso */
+function showSetorPicker(){
+  gate.style.display = 'flex';
+  authBox.hidden = true; pendingBox.hidden = true;
+  app.hidden = true;
+  var box = document.getElementById('setorBox');
+  box.hidden = false;
+  var sel = document.getElementById('setorSelect');
+  if(sel.options.length <= 1){
+    sel.innerHTML = '<option value="">Selecione o setor…</option>' + SETORES.map(function(s){
+      return '<option value="' + escHtml(s) + '">' + escHtml(s) + '</option>';
+    }).join('');
+  }
+}
+document.getElementById('setorSalvar').addEventListener('click', function(){
+  var s = document.getElementById('setorSelect').value;
+  var msgEl = document.getElementById('setorMsg');
+  if(!s){ msgEl.textContent = 'Escolha um setor da lista.'; msgEl.className = 'auth-msg err'; return; }
+  var btn = this; btn.disabled = true;
+  db.collection('users').doc(ME.uid).update({ setor: s }).then(function(){
+    ME.setor = s;
+    document.getElementById('setorBox').hidden = true;
+    if(ME.role === 'pendente') showPending(); else loadContent();
+  }).catch(function(){
+    msgEl.textContent = 'Não foi possível salvar. Tente de novo.'; msgEl.className = 'auth-msg err';
+  }).finally(function(){ btn.disabled = false; });
+});
 
 function canRe(){ return ME && (ME.role === 'diretor' || ME.role === 'admin'); }
 function canFin(){ return ME && (ME.role === 'admin' || ME.verFinanceiro === true); }
@@ -167,7 +203,7 @@ function enterApp(){
 }
 
 /* =================== router =================== */
-var VIEWS = ['inicio','analise','reestruturacao','organograma','financeiro','usuarios'];
+var VIEWS = ['inicio','analise','processos','reestruturacao','organograma','financeiro','usuarios'];
 var counted = false;
 
 function viewAllowed(id){
@@ -193,6 +229,7 @@ function route(){
   if(id === 'inicio') runCountUps();
   if(id === 'usuarios') buildUsers();
   if(id === 'reestruturacao') projInit();
+  if(id === 'processos') buildProcessos();
   requestAnimationFrame(armCharts);
 }
 window.addEventListener('hashchange', route);
@@ -550,7 +587,10 @@ function buildUsers(){
         return '<tr data-uid="' + r.id + '">' +
           '<td>' + escHtml(d.email || '') + (lock ? ' 🔑' : '') + '</td>' +
           '<td>' + escHtml(d.nome || '—') + '</td>' +
-          '<td><input class="fin-input u-setor" value="' + escHtml(d.setor || '') + '" placeholder="setor"' + (lock ? ' disabled' : '') + '></td>' +
+          '<td><select class="fin-input u-setor"' + (lock ? ' disabled' : '') + '><option value="">—</option>' +
+            ['Diretoria'].concat(SETORES).map(function(s){
+              return '<option value="' + escHtml(s) + '"' + (d.setor === s ? ' selected' : '') + '>' + escHtml(s) + '</option>';
+            }).join('') + '</select></td>' +
           '<td><select class="fin-input u-role"' + (lock ? ' disabled' : '') + '>' + roleOpts + '</select></td>' +
           '<td style="text-align:center"><input type="checkbox" class="u-fin"' + (d.verFinanceiro ? ' checked' : '') + (lock ? ' disabled' : '') + '></td>' +
           '<td><span class="pill role-' + (d.role || 'pendente') + '">' + (d.role || 'pendente').toUpperCase() + '</span></td>' +
@@ -578,7 +618,7 @@ var projUnsub = null;
 var PJ = null; // projeto aberto: {id, data}
 var PROJ_BLANK = function(){
   return { nome:'', setor:'', contexto:'', autor: ME ? (ME.nome || ME.email) : '', autorEmail: ME ? ME.email : '',
-           antes:{pessoas:[],extras:[]}, depois:{pessoas:[],extras:[]}, atencao:[], legacy:false };
+           antes:{pessoas:[],extras:[]}, depois:{pessoas:[],extras:[]}, processo:[], atencao:[], legacy:false };
 };
 
 function projInit(){
@@ -601,12 +641,19 @@ function projInit(){
   document.getElementById('pjSalvar').addEventListener('click', projSave);
   document.getElementById('pjExcluir').addEventListener('click', projDelete);
   document.getElementById('pjLegacy').addEventListener('click', openLegacy);
+  document.getElementById('pjPublicar').addEventListener('click', projPublicar);
+  var selSetor = document.getElementById('pjSetor');
+  selSetor.innerHTML = '<option value="">Setor…</option>' + SETORES.map(function(s){
+    return '<option value="' + escHtml(s) + '">' + escHtml(s) + '</option>';
+  }).join('');
   ['pjNome','pjSetor','pjContexto'].forEach(function(id){
-    document.getElementById(id).addEventListener('input', function(){
+    var ev = id === 'pjSetor' ? 'change' : 'input';
+    document.getElementById(id).addEventListener(ev, function(){
       if(!PJ) return;
       PJ.data.nome = document.getElementById('pjNome').value;
       PJ.data.setor = document.getElementById('pjSetor').value;
       PJ.data.contexto = document.getElementById('pjContexto').value;
+      if(id === 'pjSetor') renderPanels(); /* atualiza botão de importar */
     });
   });
 }
@@ -655,11 +702,13 @@ function openProj(id, data){
   document.getElementById('pjNome').value = PJ.data.nome || '';
   document.getElementById('pjSetor').value = PJ.data.setor || '';
   document.getElementById('pjContexto').value = PJ.data.contexto || '';
+  if(!PJ.data.processo) PJ.data.processo = [];
   document.getElementById('pjExcluir').hidden = !id;
   document.getElementById('pjLegacy').hidden = !PJ.data.legacy;
   var quando = PJ.data.atualizadoEm && PJ.data.atualizadoEm.toDate ? ' · atualizado em ' + PJ.data.atualizadoEm.toDate().toLocaleDateString('pt-BR') : '';
   document.getElementById('pjMeta').textContent = id ? 'Desenvolvido por ' + (PJ.data.autor || '—') + quando : 'Projeto novo — ainda não salvo.';
   renderPanels();
+  renderProcesso();
   renderAtencao();
   recalc();
   window.scrollTo(0,0);
@@ -678,7 +727,9 @@ function renderPanels(){
       var host = document.getElementById('pp' + (tipo === 'pessoas' ? 'Pessoas' : 'Extras') + (lado === 'antes' ? 'Antes' : 'Depois'));
       var arr = PJ.data[lado][tipo];
       var extraBtn = (lado === 'depois')
-        ? ' <button type="button" class="mini" data-copy="' + tipo + '">Copiar do Antes</button>' : '';
+        ? ' <button type="button" class="mini" data-copy="' + tipo + '">Copiar do Antes</button>'
+        : (tipo === 'pessoas' && PJ.data.setor
+          ? ' <button type="button" class="mini" data-import="1">Importar equipe atual (' + escHtml(PJ.data.setor) + ')</button>' : '');
       host.innerHTML = arr.map(function(item,i){ return itemRow(lado,tipo,i,item); }).join('') +
         '<div class="pp-add"><button type="button" class="mini" data-add="1">+ Adicionar ' +
         (tipo === 'pessoas' ? 'pessoa' : 'custo') + '</button>' + extraBtn + '</div>';
@@ -686,6 +737,7 @@ function renderPanels(){
         var b = ev.target.closest('button'); if(!b) return;
         if(b.dataset.add){ arr.push(tipo === 'pessoas' ? {n:'',f:'',v:0} : {n:'',v:0}); renderPanels(); recalc(); }
         else if(b.dataset.copy){ PJ.data.depois[tipo] = JSON.parse(JSON.stringify(PJ.data.antes[tipo])); renderPanels(); recalc(); }
+        else if(b.dataset.import){ importEquipe(b); }
         else if(b.classList.contains('i-del')){
           var row = b.closest('.pp-item');
           arr.splice(+row.dataset.i, 1); renderPanels(); recalc();
@@ -702,6 +754,106 @@ function renderPanels(){
     });
   });
 }
+/* importa a equipe atual do setor a partir da folha (página Equipe) */
+function importEquipe(btn){
+  var setor = PJ.data.setor;
+  btn.disabled = true; btn.textContent = 'Importando…';
+  db.collection('fin').doc('folha').get().then(function(snap){
+    if(!snap.exists) throw new Error('folha vazia');
+    var rows = (snap.data().rows || []).filter(function(p){ return p.s === setor; });
+    if(!rows.length){ pjMsgShow('Nenhuma pessoa do setor ' + setor + ' na página Equipe.'); return; }
+    PJ.data.antes.pessoas = rows.map(function(p){ return { n: p.n, f: p.f, v: p.v || 0 }; });
+    renderPanels(); recalc();
+    pjMsgShow(rows.length + ' pessoa(s) importada(s) da página Equipe.');
+  }).catch(function(){
+    pjMsgShow('Sem acesso à folha — os salários são geridos pela diretoria Adm/Financeiro.');
+  }).finally(function(){ renderPanels(); });
+}
+
+/* etapas do processo (antes/depois) */
+function renderProcesso(){
+  var host = document.getElementById('pjProcesso');
+  var arr = PJ.data.processo;
+  host.innerHTML = arr.map(function(p,i){
+    return '<div class="proc-row" data-i="' + i + '">' +
+      '<span class="n">' + (i+1) + '</span>' +
+      '<input class="fin-input i-etapa" value="' + escHtml(p.e || '') + '" placeholder="etapa (ex.: Planejamento de pauta)">' +
+      '<input class="fin-input i-antes" value="' + escHtml(p.a || '') + '" placeholder="responsável hoje">' +
+      '<input class="fin-input i-depois" value="' + escHtml(p.d || '') + '" placeholder="como ficaria">' +
+      '<button type="button" class="i-del" title="Remover etapa">×</button></div>';
+  }).join('') + '<div class="pp-add"><button type="button" class="mini" data-add="1">+ Adicionar etapa</button></div>';
+  host.onclick = function(ev){
+    var b = ev.target.closest('button'); if(!b) return;
+    if(b.dataset.add){ arr.push({e:'',a:'',d:''}); renderProcesso(); }
+    else if(b.classList.contains('i-del')){ arr.splice(+b.closest('.proc-row').dataset.i, 1); renderProcesso(); }
+  };
+  host.oninput = function(ev){
+    var row = ev.target.closest('.proc-row'); if(!row) return;
+    var p = arr[+row.dataset.i];
+    if(ev.target.classList.contains('i-etapa')) p.e = ev.target.value;
+    else if(ev.target.classList.contains('i-antes')) p.a = ev.target.value;
+    else if(ev.target.classList.contains('i-depois')) p.d = ev.target.value;
+  };
+}
+
+/* publica o processo "depois" como o oficial do setor */
+function projPublicar(){
+  if(!PJ) return;
+  if(!PJ.data.setor){ pjMsgShow('Defina o setor do projeto antes de publicar.'); return; }
+  var etapas = PJ.data.processo
+    .filter(function(p){ return (p.e || '').trim(); })
+    .map(function(p){ return { e: p.e.trim(), resp: (p.d || p.a || '').trim() }; });
+  if(!etapas.length){ pjMsgShow('Adicione as etapas do processo antes de publicar.'); return; }
+  if(!confirm('Publicar este processo como o oficial do setor ' + PJ.data.setor + '?\nEle substituirá o processo ativo atual e ficará visível para toda a equipe.')) return;
+  var btn = document.getElementById('pjPublicar');
+  btn.disabled = true;
+  db.collection('processos').doc(setorSlug(PJ.data.setor)).set({
+    setor: PJ.data.setor,
+    etapas: etapas,
+    projetoNome: PJ.data.nome || '',
+    projetoId: PJ.id || '',
+    publicadoPor: ME.nome || ME.email,
+    publicadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function(){ pjMsgShow('Processo do setor ' + PJ.data.setor + ' publicado ✓'); })
+    .catch(function(){ pjMsgShow('Sem permissão para publicar.'); })
+    .finally(function(){ btn.disabled = false; });
+}
+
+/* =================== página Processos =================== */
+var procUnsub = null;
+function buildProcessos(){
+  if(procUnsub) return;
+  procUnsub = db.collection('processos').onSnapshot(function(qs){
+    var ativos = {};
+    qs.forEach(function(doc){ ativos[doc.id] = doc.data(); });
+    renderProcessos(ativos);
+  }, function(){
+    document.getElementById('procList').innerHTML = '<div class="load-note">Não foi possível carregar os processos.</div>';
+  });
+}
+function renderProcessos(ativos){
+  var pend = SETORES.filter(function(s){ return !ativos[setorSlug(s)]; });
+  var alertHost = document.getElementById('procAlert');
+  alertHost.innerHTML = pend.length
+    ? '<div class="proc-pend">⚠ <b>' + pend.length + ' setor' + (pend.length > 1 ? 'es' : '') + ' sem processo ativo:</b> ' +
+      pend.map(escHtml).join(' · ') + '. A diretoria de cada setor precisa criar e publicar o processo na página Reestruturações.</div>'
+    : '';
+  document.getElementById('procList').innerHTML = SETORES.map(function(s){
+    var d = ativos[setorSlug(s)];
+    if(!d){
+      return '<div class="proc-card"><header><h4>' + escHtml(s) + '</h4><small>pendente</small></header>' +
+        '<ol><li class="vazio"><span style="font-style:italic">Nenhum processo publicado para este setor ainda.</span></li></ol></div>';
+    }
+    var quando = d.publicadoEm && d.publicadoEm.toDate ? d.publicadoEm.toDate().toLocaleDateString('pt-BR') : '';
+    return '<div class="proc-card"><header><h4>' + escHtml(d.setor) + '</h4>' +
+      '<small>publicado por ' + escHtml(d.publicadoPor || '—') + (quando ? ' em ' + quando : '') +
+      (d.projetoNome ? ' · projeto: ' + escHtml(d.projetoNome) : '') + '</small></header><ol>' +
+      d.etapas.map(function(p){
+        return '<li><span><b>' + escHtml(p.e) + '</b>' + (p.resp ? '<span>' + escHtml(p.resp) + '</span>' : '') + '</span></li>';
+      }).join('') + '</ol></div>';
+  }).join('');
+}
+
 function renderAtencao(){
   var host = document.getElementById('pjAtencao');
   var arr = PJ.data.atencao;
@@ -760,8 +912,10 @@ function projSave(){
   if(!PJ.data.nome.trim()){ pjMsgShow('Dê um nome ao projeto antes de salvar.'); document.getElementById('pjNome').focus(); return; }
   var d = PJ.data;
   var doc = {
-    nome: d.nome.trim(), setor: d.setor.trim(), contexto: d.contexto || '',
-    antes: d.antes, depois: d.depois, atencao: d.atencao.filter(function(t){ return t.trim(); }),
+    nome: d.nome.trim(), setor: (d.setor || '').trim(), contexto: d.contexto || '',
+    antes: d.antes, depois: d.depois,
+    processo: (d.processo || []).filter(function(p){ return (p.e || '').trim(); }),
+    atencao: d.atencao.filter(function(t){ return t.trim(); }),
     legacy: !!d.legacy,
     autor: d.autor || (ME.nome || ME.email), autorEmail: d.autorEmail || ME.email,
     atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
