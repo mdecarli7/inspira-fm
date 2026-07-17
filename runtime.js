@@ -204,7 +204,7 @@ function enterApp(){
 }
 
 /* =================== router =================== */
-var VIEWS = ['inicio','analise','dial','site','mobradio','processos','campanhas','reestruturacao','organograma','financeiro','usuarios','juridico'];
+var VIEWS = ['inicio','analise','dial','site','mobradio','processos','campanhas','reestruturacao','organograma','financeiro','usuarios','juridico','programacao','quadros','embaixadores'];
 var counted = false;
 
 function viewAllowed(id){
@@ -234,6 +234,9 @@ function route(){
   if(id === 'campanhas') campInit();
   if(id === 'dial') dialInit();
   if(id === 'juridico') jurInit();
+  if(id === 'programacao') progInit();
+  if(id === 'quadros') qdInit();
+  if(id === 'embaixadores') embInit();
   requestAnimationFrame(armCharts);
 }
 window.addEventListener('hashchange', route);
@@ -1922,6 +1925,403 @@ function jrVer(){
   document.getElementById('jrEditor').hidden = true;
   document.getElementById('jrView').hidden = false;
   window.scrollTo(0,0);
+}
+
+/* =================== Nossa Programação =================== */
+var progUnsub = null, progBound = false, PROG = {}, PG_TAB = 'radio-ao-vivo', PG_ROWS = [];
+var PG_CANAIS = [['Rádio Ao Vivo','radio-ao-vivo'],['Instagram','instagram'],['TikTok','tiktok'],['YouTube','youtube']];
+function progInit(){
+  if(!progBound){
+    progBound = true;
+    var tabs = document.getElementById('pgTabs');
+    tabs.innerHTML = PG_CANAIS.map(function(c){
+      return '<button type="button" data-pgtab="' + c[1] + '"' + (c[1] === PG_TAB ? ' class="on"' : '') + '>' + escHtml(c[0]) + '</button>';
+    }).join('');
+    tabs.addEventListener('click', function(ev){
+      var b = ev.target.closest('[data-pgtab]'); if(!b) return;
+      PG_TAB = b.dataset.pgtab;
+      document.getElementById('pgForm').hidden = true;
+      renderProg();
+    });
+    document.getElementById('pgEditBtn').addEventListener('click', pgEdit);
+    document.getElementById('pgCancelar').addEventListener('click', function(){
+      document.getElementById('pgForm').hidden = true;
+    });
+    document.getElementById('pgSalvar').addEventListener('click', pgSave);
+  }
+  if(progUnsub) return;
+  progUnsub = db.collection('programacao').onSnapshot(function(qs){
+    PROG = {};
+    qs.forEach(function(doc){ PROG[doc.id] = doc.data(); });
+    renderProg();
+  }, function(){
+    document.getElementById('pgTable').innerHTML =
+      '<div class="proj-empty">Não foi possível carregar a programação. As regras da coleção <b>programacao</b> foram publicadas?</div>';
+  });
+}
+function pgLabel(){
+  var l = '';
+  PG_CANAIS.forEach(function(c){ if(c[1] === PG_TAB) l = c[0]; });
+  return l;
+}
+function renderProg(){
+  document.querySelectorAll('#pgTabs [data-pgtab]').forEach(function(b){
+    b.classList.toggle('on', b.dataset.pgtab === PG_TAB);
+  });
+  document.getElementById('pgCanalTitulo').textContent = 'Grade — ' + pgLabel();
+  var itens = (PROG[PG_TAB] && PROG[PG_TAB].itens) || [];
+  var host = document.getElementById('pgTable');
+  if(!itens.length){
+    host.innerHTML = '<div class="proj-empty">Grade do canal <b>' + escHtml(pgLabel()) + '</b> ainda não publicada.' +
+      (canRe() ? ' Clique em <b>Editar grade</b> para montar a primeira versão.' : '') + '</div>';
+    return;
+  }
+  host.innerHTML = '<table><thead><tr><th>Dia(s)</th><th>Horário</th><th>Programa / conteúdo</th><th>Responsável</th></tr></thead><tbody>' +
+    itens.map(function(r){
+      return '<tr><td><b>' + escHtml(r.d || '') + '</b></td><td>' + escHtml(r.h || '—') +
+        '</td><td>' + escHtml(r.t || '') + '</td><td>' + escHtml(r.r || '—') + '</td></tr>';
+    }).join('') + '</tbody></table>';
+}
+function pgEdit(){
+  PG_ROWS = (((PROG[PG_TAB] || {}).itens) || []).map(function(r){ return { d:r.d||'', h:r.h||'', t:r.t||'', r:r.r||'' }; });
+  if(!PG_ROWS.length) PG_ROWS.push({ d:'', h:'', t:'', r:'' });
+  pgRenderForm();
+  var f = document.getElementById('pgForm');
+  f.hidden = false;
+  f.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+}
+function pgRenderForm(){
+  var host = document.getElementById('pgRows');
+  host.innerHTML = PG_ROWS.map(function(r, i){
+    return '<div class="pg-row" data-i="' + i + '">' +
+      '<input class="fin-input g-d" value="' + escHtml(r.d) + '" placeholder="ex.: seg a sex">' +
+      '<input class="fin-input g-h" value="' + escHtml(r.h) + '" placeholder="ex.: 7h–10h">' +
+      '<input class="fin-input g-t" value="' + escHtml(r.t) + '" placeholder="programa / conteúdo">' +
+      '<input class="fin-input g-r" value="' + escHtml(r.r) + '" placeholder="responsável">' +
+      '<button type="button" class="i-del" title="Remover">×</button></div>';
+  }).join('') + '<div class="pp-add"><button type="button" class="mini" data-add="1">+ Adicionar linha</button></div>';
+  host.onclick = function(ev){
+    var b = ev.target.closest('button'); if(!b) return;
+    if(b.dataset.add){ PG_ROWS.push({ d:'', h:'', t:'', r:'' }); pgRenderForm(); }
+    else if(b.classList.contains('i-del')){ PG_ROWS.splice(+b.closest('.pg-row').dataset.i, 1); pgRenderForm(); }
+  };
+  host.oninput = function(ev){
+    var row = ev.target.closest('.pg-row'); if(!row) return;
+    var r = PG_ROWS[+row.dataset.i];
+    if(ev.target.classList.contains('g-d')) r.d = ev.target.value;
+    else if(ev.target.classList.contains('g-h')) r.h = ev.target.value;
+    else if(ev.target.classList.contains('g-t')) r.t = ev.target.value;
+    else if(ev.target.classList.contains('g-r')) r.r = ev.target.value;
+  };
+}
+function pgSave(){
+  var itens = PG_ROWS.filter(function(r){ return (r.t || '').trim() || (r.d || '').trim(); });
+  var btn = document.getElementById('pgSalvar');
+  btn.disabled = true;
+  db.collection('programacao').doc(PG_TAB).set({
+    canal: pgLabel(), itens: itens,
+    atualizadoPor: ME.nome || ME.email,
+    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function(){
+    document.getElementById('pgForm').hidden = true;
+  }).catch(function(){
+    flashMsg('pgMsg', 'Sem permissão para salvar — só a diretoria edita a grade.');
+  }).finally(function(){ btn.disabled = false; });
+}
+
+/* =================== Quadros da Inspira + Colunistas =================== */
+var qdUnsub = null, clUnsub = null, qdBound = false, qdRows = [], clRows = [], QD = null, CL = null;
+var QD_CANAIS = ['Rádio Ao Vivo','Instagram','TikTok','YouTube','Site'];
+function qdInit(){
+  if(!qdBound){
+    qdBound = true;
+    var ch = document.getElementById('qdCanais');
+    ch.innerHTML = QD_CANAIS.map(function(c){
+      return '<label><input type="checkbox" value="' + escHtml(c) + '"> ' + escHtml(c) + '</label>';
+    }).join('');
+    document.getElementById('qdNovo').addEventListener('click', function(){ qdOpen(null, {}); });
+    document.getElementById('qdCancelarBtn').addEventListener('click', function(){
+      QD = null;
+      document.getElementById('qdForm').hidden = true;
+    });
+    document.getElementById('qdSalvar').addEventListener('click', qdSave);
+    document.getElementById('qdExcluir').addEventListener('click', qdDelete);
+    document.getElementById('clNovo').addEventListener('click', function(){ clOpen(null, {}); });
+    document.getElementById('clCancelarBtn').addEventListener('click', function(){
+      CL = null;
+      document.getElementById('clForm').hidden = true;
+    });
+    document.getElementById('clSalvar').addEventListener('click', clSave);
+    document.getElementById('clExcluir').addEventListener('click', clDelete);
+  }
+  if(!qdUnsub){
+    qdUnsub = db.collection('quadros').orderBy('nome').onSnapshot(function(qs){
+      qdRows = [];
+      qs.forEach(function(doc){ qdRows.push({ id: doc.id, d: doc.data() }); });
+      renderQuadros();
+    }, function(){
+      document.getElementById('qdList').innerHTML =
+        '<div class="proj-empty">Não foi possível carregar os quadros. As regras da coleção <b>quadros</b> foram publicadas?</div>';
+    });
+  }
+  if(!clUnsub){
+    clUnsub = db.collection('colunistas').orderBy('nome').onSnapshot(function(qs){
+      clRows = [];
+      qs.forEach(function(doc){ clRows.push({ id: doc.id, d: doc.data() }); });
+      renderColunistas();
+    }, function(){
+      document.getElementById('clTable').innerHTML =
+        '<div class="proj-empty">Não foi possível carregar os colunistas.</div>';
+    });
+  }
+}
+function renderQuadros(){
+  var host = document.getElementById('qdList');
+  if(!qdRows.length){
+    host.innerHTML = '<div class="proj-empty">Nenhum quadro cadastrado ainda.' +
+      (canRe() ? ' Clique em <b>+ Novo quadro</b> para começar.' : '') + '</div>';
+    return;
+  }
+  host.innerHTML = qdRows.map(function(r){
+    var d = r.d;
+    var canais = (d.canais || []).map(function(c){ return '<span class="canal-pill">' + escHtml(c) + '</span>'; }).join('');
+    return '<div class="proc-card"><header><h4>' + escHtml(d.nome || '') + '</h4>' +
+      '<small>' + (d.apresentador ? 'com ' + escHtml(d.apresentador) : '') +
+      (d.quando ? ' · ' + escHtml(d.quando) : '') +
+      (canRe() ? ' · <button type="button" class="mini" data-qedit="' + r.id + '" style="vertical-align:baseline">Editar</button>' : '') + '</small></header>' +
+      '<div class="camp-body" style="padding:.9rem 1.2rem">' +
+      (d.contexto ? '<p style="margin:.1rem 0 .7rem">' + escHtml(d.contexto) + '</p>' : '') +
+      (canais ? '<div>' + canais + '</div>' : '') + '</div></div>';
+  }).join('');
+  host.onclick = function(ev){
+    var b = ev.target.closest('[data-qedit]'); if(!b) return;
+    var row = null;
+    qdRows.forEach(function(r){ if(r.id === b.dataset.qedit) row = r; });
+    if(row) qdOpen(row.id, row.d);
+  };
+}
+function qdOpen(id, d){
+  QD = { id: id };
+  document.getElementById('qdNome').value = d.nome || '';
+  document.getElementById('qdApresentador').value = d.apresentador || '';
+  document.getElementById('qdQuando').value = d.quando || '';
+  document.getElementById('qdContexto').value = d.contexto || '';
+  var canais = d.canais || [];
+  document.querySelectorAll('#qdCanais input').forEach(function(i){ i.checked = canais.indexOf(i.value) > -1; });
+  document.getElementById('qdExcluir').hidden = !id;
+  var f = document.getElementById('qdForm');
+  f.hidden = false;
+  f.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  document.getElementById('qdNome').focus();
+}
+function qdSave(){
+  if(!QD) return;
+  var nome = document.getElementById('qdNome').value.trim();
+  if(!nome){ flashMsg('qdMsg', 'Dê um nome ao quadro.'); return; }
+  var doc = {
+    nome: nome,
+    apresentador: document.getElementById('qdApresentador').value.trim(),
+    quando: document.getElementById('qdQuando').value.trim(),
+    contexto: document.getElementById('qdContexto').value.trim(),
+    canais: Array.prototype.slice.call(document.querySelectorAll('#qdCanais input:checked')).map(function(i){ return i.value; }),
+    atualizadoPor: ME.nome || ME.email,
+    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  var btn = document.getElementById('qdSalvar');
+  btn.disabled = true;
+  var op = QD.id
+    ? db.collection('quadros').doc(QD.id).set(doc, { merge: true })
+    : db.collection('quadros').add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp() }, doc));
+  op.then(function(){
+    QD = null;
+    document.getElementById('qdForm').hidden = true;
+  }).catch(function(){ flashMsg('qdMsg', 'Sem permissão para salvar.'); })
+    .finally(function(){ btn.disabled = false; });
+}
+function qdDelete(){
+  if(!QD || !QD.id) return;
+  if(!confirm('Excluir este quadro para todos?')) return;
+  db.collection('quadros').doc(QD.id).delete().then(function(){
+    QD = null;
+    document.getElementById('qdForm').hidden = true;
+  }).catch(function(){ flashMsg('qdMsg', 'Sem permissão para excluir.'); });
+}
+function renderColunistas(){
+  var host = document.getElementById('clTable');
+  if(!clRows.length){
+    host.innerHTML = '<div class="proj-empty">Nenhum colunista cadastrado ainda.' +
+      (canRe() ? ' Clique em <b>+ Adicionar colunista</b>.' : '') + '</div>';
+    return;
+  }
+  host.innerHTML = '<table><thead><tr><th>Nome</th><th>Coluna / tema</th><th>Dia das matérias</th><th>Observações</th>' +
+    (canRe() ? '<th></th>' : '') + '</tr></thead><tbody>' +
+    clRows.map(function(r){
+      var d = r.d;
+      return '<tr><td><b>' + escHtml(d.nome || '') + '</b></td><td>' + escHtml(d.tema || '—') +
+        '</td><td>' + escHtml(d.dia || '—') + '</td><td>' + escHtml(d.obs || '') + '</td>' +
+        (canRe() ? '<td><button type="button" class="mini" data-cledit="' + r.id + '">Editar</button></td>' : '') + '</tr>';
+    }).join('') + '</tbody></table>';
+  host.onclick = function(ev){
+    var b = ev.target.closest('[data-cledit]'); if(!b) return;
+    var row = null;
+    clRows.forEach(function(r){ if(r.id === b.dataset.cledit) row = r; });
+    if(row) clOpen(row.id, row.d);
+  };
+}
+function clOpen(id, d){
+  CL = { id: id };
+  document.getElementById('clNome').value = d.nome || '';
+  document.getElementById('clTema').value = d.tema || '';
+  document.getElementById('clDia').value = d.dia || '';
+  document.getElementById('clObs').value = d.obs || '';
+  document.getElementById('clExcluir').hidden = !id;
+  var f = document.getElementById('clForm');
+  f.hidden = false;
+  f.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  document.getElementById('clNome').focus();
+}
+function clSave(){
+  if(!CL) return;
+  var nome = document.getElementById('clNome').value.trim();
+  if(!nome){ flashMsg('clMsg', 'Informe o nome do colunista.'); return; }
+  var doc = {
+    nome: nome,
+    tema: document.getElementById('clTema').value.trim(),
+    dia: document.getElementById('clDia').value.trim(),
+    obs: document.getElementById('clObs').value.trim(),
+    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  var btn = document.getElementById('clSalvar');
+  btn.disabled = true;
+  var op = CL.id
+    ? db.collection('colunistas').doc(CL.id).set(doc, { merge: true })
+    : db.collection('colunistas').add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp() }, doc));
+  op.then(function(){
+    CL = null;
+    document.getElementById('clForm').hidden = true;
+  }).catch(function(){ flashMsg('clMsg', 'Sem permissão para salvar.'); })
+    .finally(function(){ btn.disabled = false; });
+}
+function clDelete(){
+  if(!CL || !CL.id) return;
+  if(!confirm('Excluir este colunista para todos?')) return;
+  db.collection('colunistas').doc(CL.id).delete().then(function(){
+    CL = null;
+    document.getElementById('clForm').hidden = true;
+  }).catch(function(){ flashMsg('clMsg', 'Sem permissão para excluir.'); });
+}
+
+/* =================== Radar de Embaixadores =================== */
+var embUnsub = null, embBound = false, embRows = [], EMB_TAB = 'radar', EB = null;
+function embInit(){
+  if(!embBound){
+    embBound = true;
+    document.querySelectorAll('[data-embtab]').forEach(function(b){
+      b.addEventListener('click', function(){
+        EMB_TAB = b.dataset.embtab;
+        document.querySelectorAll('[data-embtab]').forEach(function(x){ x.classList.toggle('on', x === b); });
+        document.getElementById('embTitulo').textContent = EMB_TAB === 'radar' ? 'Radar da região' : 'Nossos embaixadores';
+        renderEmb();
+      });
+    });
+    document.getElementById('embNovo').addEventListener('click', function(){ ebOpen(null, {}); });
+    document.getElementById('ebCancelarBtn').addEventListener('click', function(){
+      EB = null;
+      document.getElementById('embForm').hidden = true;
+    });
+    document.getElementById('ebSalvar').addEventListener('click', ebSave);
+    document.getElementById('ebExcluir').addEventListener('click', ebDelete);
+  }
+  if(embUnsub) return;
+  embUnsub = db.collection('embaixadores').orderBy('seguidores','desc').onSnapshot(function(qs){
+    embRows = [];
+    qs.forEach(function(doc){ embRows.push({ id: doc.id, d: doc.data() }); });
+    renderEmb();
+  }, function(){
+    document.getElementById('embTable').innerHTML =
+      '<div class="proj-empty">Não foi possível carregar. As regras da coleção <b>embaixadores</b> foram publicadas?</div>';
+  });
+}
+function fmtSeg(n){
+  n = +n || 0;
+  if(n >= 1000000) return (n / 1000000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mi';
+  if(n >= 1000) return (n / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil';
+  return n.toLocaleString('pt-BR');
+}
+function renderEmb(){
+  var host = document.getElementById('embTable');
+  var rows = EMB_TAB === 'parceiros' ? embRows.filter(function(r){ return r.d.parceiro === true; }) : embRows;
+  if(!rows.length){
+    host.innerHTML = '<div class="proj-empty">' + (EMB_TAB === 'parceiros'
+      ? 'Nenhum embaixador parceiro ainda. Marque a caixa <b>“Já é parceiro”</b> ao cadastrar ou editar um influenciador.'
+      : 'Nenhum influenciador mapeado ainda.' + (canRe() ? ' Clique em <b>+ Adicionar influenciador</b>.' : '')) + '</div>';
+    return;
+  }
+  host.innerHTML = '<table><thead><tr><th>Nome</th><th>Perfil</th><th>Plataforma</th><th class="num">Seguidores</th><th>Nicho</th><th>Cidade</th><th>Status</th>' +
+    (canRe() ? '<th></th>' : '') + '</tr></thead><tbody>' +
+    rows.map(function(r){
+      var d = r.d;
+      return '<tr><td><b>' + escHtml(d.nome || '') + '</b></td><td>' + escHtml(d.perfil || '—') +
+        '</td><td>' + escHtml(d.plataforma || '—') + '</td><td class="num">' + fmtSeg(d.seguidores) +
+        '</td><td>' + escHtml(d.nicho || '—') + '</td><td>' + escHtml(d.cidade || '—') +
+        '</td><td>' + (d.parceiro ? '<span class="st-pill parc-badge">EMBAIXADOR</span>' : '<span class="st-pill st-encerrada">radar</span>') + '</td>' +
+        (canRe() ? '<td><button type="button" class="mini" data-ebedit="' + r.id + '">Editar</button></td>' : '') + '</tr>';
+    }).join('') + '</tbody></table>';
+  host.onclick = function(ev){
+    var b = ev.target.closest('[data-ebedit]'); if(!b) return;
+    var row = null;
+    embRows.forEach(function(r){ if(r.id === b.dataset.ebedit) row = r; });
+    if(row) ebOpen(row.id, row.d);
+  };
+}
+function ebOpen(id, d){
+  EB = { id: id };
+  document.getElementById('ebNome').value = d.nome || '';
+  document.getElementById('ebPerfil').value = d.perfil || '';
+  document.getElementById('ebPlataforma').value = d.plataforma || 'Instagram';
+  document.getElementById('ebSeguidores').value = d.seguidores || '';
+  document.getElementById('ebNicho').value = d.nicho || '';
+  document.getElementById('ebCidade').value = d.cidade || '';
+  document.getElementById('ebParceiro').checked = d.parceiro === true;
+  document.getElementById('ebExcluir').hidden = !id;
+  var f = document.getElementById('embForm');
+  f.hidden = false;
+  f.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  document.getElementById('ebNome').focus();
+}
+function ebSave(){
+  if(!EB) return;
+  var nome = document.getElementById('ebNome').value.trim();
+  if(!nome){ flashMsg('ebMsg', 'Informe o nome do influenciador.'); return; }
+  var doc = {
+    nome: nome,
+    perfil: document.getElementById('ebPerfil').value.trim(),
+    plataforma: document.getElementById('ebPlataforma').value,
+    seguidores: parseInt(document.getElementById('ebSeguidores').value, 10) || 0,
+    nicho: document.getElementById('ebNicho').value.trim(),
+    cidade: document.getElementById('ebCidade').value.trim(),
+    parceiro: document.getElementById('ebParceiro').checked,
+    atualizadoPor: ME.nome || ME.email,
+    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  var btn = document.getElementById('ebSalvar');
+  btn.disabled = true;
+  var op = EB.id
+    ? db.collection('embaixadores').doc(EB.id).set(doc, { merge: true })
+    : db.collection('embaixadores').add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp() }, doc));
+  op.then(function(){
+    EB = null;
+    document.getElementById('embForm').hidden = true;
+  }).catch(function(){ flashMsg('ebMsg', 'Sem permissão para salvar.'); })
+    .finally(function(){ btn.disabled = false; });
+}
+function ebDelete(){
+  if(!EB || !EB.id) return;
+  if(!confirm('Excluir este influenciador para todos?')) return;
+  db.collection('embaixadores').doc(EB.id).delete().then(function(){
+    EB = null;
+    document.getElementById('embForm').hidden = true;
+  }).catch(function(){ flashMsg('ebMsg', 'Sem permissão para excluir.'); });
 }
 
 /* =================== menu lateral =================== */

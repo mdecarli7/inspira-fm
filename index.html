@@ -592,6 +592,15 @@ footer{background:var(--paper-2);border-top:1px solid var(--line)}
 footer img{height:2.7rem;width:auto}
 footer .fslogan{color:var(--teal-900)}
 footer small{color:var(--muted)}
+/* ============ Nossa Programação ============ */
+.pg-grid-head,.pg-row{display:grid;grid-template-columns:1fr .8fr 1.7fr 1.2fr 2rem;gap:.5rem;align-items:center}
+.pg-grid-head{font-size:.78rem;font-weight:800;color:var(--muted);margin-bottom:.35rem;padding:0 .1rem}
+.pg-row{margin-bottom:.4rem}
+@media(max-width:860px){
+  .pg-grid-head{display:none}
+  .pg-row{grid-template-columns:1fr 1fr 2rem}
+}
+.parc-badge{background:#DDF0E9;color:#0A5B47}
 /* ============ Análise Dial ============ */
 .dial-grid-head,.dial-row{display:grid;grid-template-columns:1.2fr 1fr .6fr .8fr .8fr 1.8fr 2rem;gap:.5rem;align-items:center}
 .dial-grid-head{font-size:.78rem;font-weight:800;color:var(--muted);margin-bottom:.35rem;padding:0 .1rem}
@@ -913,6 +922,10 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
     <a href="#campanhas" data-nav="campanhas"><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10v4h3l5 4V6l-5 4H3z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a9 9 0 0 1 0 12"/></svg></span><span>Campanhas</span></a>
     <a href="#processos" data-nav="processos"><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 4v6h-6"/><path d="M3 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 15-3.3L21 8"/><path d="M20.5 15a9 9 0 0 1-15 3.3L3 16"/></svg></span><span>Processos</span></a>
     <a href="#organograma" data-nav="organograma"><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="8.5" y="3" width="7" height="4.5" rx="1"/><rect x="3" y="16.5" width="7" height="4.5" rx="1"/><rect x="14" y="16.5" width="7" height="4.5" rx="1"/><path d="M12 7.5V11"/><path d="M6.5 16.5V14h11v2.5"/><path d="M12 11v3"/></svg></span><span>Organograma</span></a>
+    <p class="sn-cap">Conteúdo</p>
+    <a href="#programacao" data-nav="programacao"><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M10 7.5l5 3-5 3v-6z"/><path d="M8 21h8"/><path d="M12 17v4"/></svg></span><span>Nossa Programação</span></a>
+    <a href="#quadros" data-nav="quadros"><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><path d="M12 18v4"/><path d="M8 22h8"/></svg></span><span>Quadros da Inspira</span></a>
+    <a href="#embaixadores" data-nav="embaixadores"><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/></svg></span><span>Radar de Embaixadores</span></a>
     <p class="sn-cap">Análises</p>
     <a href="#dial" data-nav="dial"><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 19.07a10 10 0 0 1 0-14.14"/></svg></span><span>Análise Dial</span></a>
     <a href="#analise" data-nav="analise"><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.2 6.8h.01"/></svg></span><span>Análise Redes Sociais</span></a>
@@ -1118,6 +1131,164 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
       <div class="wrap">
         <div id="procAlert"></div>
         <div id="procList"><div class="load-note">Carregando processos…</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-programacao" class="view" aria-labelledby="pg-title">
+    <div class="page-hero">
+      <svg class="waves" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="#06443C"/>
+        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="#032723"/>
+      </svg>
+      <div class="wrap">
+        <p class="crumb">Conteúdo · Canais de distribuição</p>
+        <h2 id="pg-title">Nossa Programação</h2>
+        <p class="sub">A grade de cada canal da Inspira — o que vai ao ar, quando e quem é o responsável. A diretoria mantém as grades atualizadas.</p>
+      </div>
+    </div>
+    <div class="section" style="padding-top:1.4rem;padding-bottom:0">
+      <div class="wrap"><div class="camp-tabs" id="pgTabs"></div></div>
+    </div>
+    <div class="section">
+      <div class="wrap">
+        <div class="proj-toolbar">
+          <h3 style="margin:0" id="pgCanalTitulo"></h3>
+          <button type="button" class="mini" id="pgEditBtn" data-need="re" hidden>Editar grade</button>
+        </div>
+        <div class="tbl-scroll" id="pgTable"><div class="load-note">Carregando…</div></div>
+        <div id="pgForm" hidden style="margin-top:1.4rem">
+          <div class="pg-grid-head"><span>Dia(s)</span><span>Horário</span><span>Programa / conteúdo</span><span>Responsável</span><span></span></div>
+          <div id="pgRows"></div>
+          <div class="proj-actions">
+            <button type="button" class="btn primary" id="pgSalvar">Salvar grade</button>
+            <button type="button" class="btn ghost" id="pgCancelar">Cancelar</button>
+            <span class="fin-msg" id="pgMsg"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-quadros" class="view" aria-labelledby="qd-title">
+    <div class="page-hero">
+      <svg class="waves" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="#06443C"/>
+        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="#032723"/>
+      </svg>
+      <div class="wrap">
+        <p class="crumb">Conteúdo · Programas e colunas</p>
+        <h2 id="qd-title">Quadros da Inspira</h2>
+        <p class="sub">Quem apresenta cada quadro, em qual canal e com qual proposta — mais os colunistas que publicam matérias no nosso site.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="wrap">
+        <div class="proj-toolbar">
+          <h3 style="margin:0">Quadros</h3>
+          <button type="button" class="btn primary" id="qdNovo" data-need="re" hidden>+ Novo quadro</button>
+        </div>
+        <div id="qdForm" hidden style="margin-bottom:1.6rem">
+          <div class="cp-row">
+            <div class="field" style="flex:2;min-width:13rem"><label for="qdNome">Nome do quadro</label>
+              <input id="qdNome" class="fin-input" placeholder="ex.: Manhã Inspira"></div>
+            <div class="field"><label for="qdApresentador">Quem apresenta</label>
+              <input id="qdApresentador" class="fin-input" placeholder="nome(s)"></div>
+            <div class="field"><label for="qdQuando">Quando</label>
+              <input id="qdQuando" class="fin-input" placeholder="ex.: seg a sex · 7h às 10h"></div>
+          </div>
+          <div class="field"><label>Canais onde aparece</label>
+            <div class="canal-checks" id="qdCanais"></div></div>
+          <div class="field"><label for="qdContexto">Contexto do quadro</label>
+            <textarea id="qdContexto" class="fin-input" rows="3" placeholder="Proposta, temas, formato — o que faz esse quadro existir."></textarea></div>
+          <div class="proj-actions">
+            <button type="button" class="btn primary" id="qdSalvar">Salvar quadro</button>
+            <button type="button" class="btn ghost" id="qdCancelarBtn">Cancelar</button>
+            <button type="button" class="btn ghost danger" id="qdExcluir" hidden>Excluir</button>
+            <span class="fin-msg" id="qdMsg"></span>
+          </div>
+        </div>
+        <div id="qdList"><div class="load-note">Carregando quadros…</div></div>
+      </div>
+    </div>
+
+    <div class="section alt">
+      <div class="wrap">
+        <div class="proj-toolbar">
+          <h3 style="margin:0">Colunistas do site</h3>
+          <button type="button" class="btn primary" id="clNovo" data-need="re" hidden>+ Adicionar colunista</button>
+        </div>
+        <p class="lead">Quem escreve matérias no site da Inspira e em quais dias cada coluna é publicada.</p>
+        <div id="clForm" hidden style="margin-bottom:1.4rem">
+          <div class="cp-row">
+            <div class="field"><label for="clNome">Nome</label><input id="clNome" class="fin-input"></div>
+            <div class="field"><label for="clTema">Coluna / tema</label><input id="clTema" class="fin-input" placeholder="ex.: Nutrição e bem-estar"></div>
+            <div class="field"><label for="clDia">Dia das matérias</label><input id="clDia" class="fin-input" placeholder="ex.: toda quarta"></div>
+          </div>
+          <div class="field"><label for="clObs">Observações</label><input id="clObs" class="fin-input" placeholder="opcional"></div>
+          <div class="proj-actions">
+            <button type="button" class="btn primary" id="clSalvar">Salvar colunista</button>
+            <button type="button" class="btn ghost" id="clCancelarBtn">Cancelar</button>
+            <button type="button" class="btn ghost danger" id="clExcluir" hidden>Excluir</button>
+            <span class="fin-msg" id="clMsg"></span>
+          </div>
+        </div>
+        <div class="tbl-scroll" id="clTable"><div class="load-note">Carregando colunistas…</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-embaixadores" class="view" aria-labelledby="eb-title">
+    <div class="page-hero">
+      <svg class="waves" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="#06443C"/>
+        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="#032723"/>
+      </svg>
+      <div class="wrap">
+        <p class="crumb">Conteúdo · Influenciadores da região</p>
+        <h2 id="eb-title">Radar de Embaixadores</h2>
+        <p class="sub">O mapa dos influenciadores da nossa região — perfil, seguidores, nicho e cidade — e a lista dos que já são parceiros da Inspira.</p>
+      </div>
+    </div>
+    <div class="section" style="padding-top:1.4rem;padding-bottom:0">
+      <div class="wrap">
+        <div class="camp-tabs">
+          <button type="button" data-embtab="radar" class="on">Radar da região</button>
+          <button type="button" data-embtab="parceiros">Nossos embaixadores</button>
+        </div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="wrap">
+        <div class="proj-toolbar">
+          <h3 style="margin:0" id="embTitulo">Radar da região</h3>
+          <button type="button" class="btn primary" id="embNovo" data-need="re" hidden>+ Adicionar influenciador</button>
+        </div>
+        <div id="embForm" hidden style="margin-bottom:1.6rem">
+          <div class="cp-row">
+            <div class="field"><label for="ebNome">Nome</label><input id="ebNome" class="fin-input"></div>
+            <div class="field"><label for="ebPerfil">Perfil</label><input id="ebPerfil" class="fin-input" placeholder="@perfil"></div>
+            <div class="field"><label for="ebPlataforma">Plataforma</label>
+              <select id="ebPlataforma" class="fin-input"><option>Instagram</option><option>TikTok</option><option>YouTube</option><option>Outra</option></select></div>
+          </div>
+          <div class="cp-row">
+            <div class="field"><label for="ebSeguidores">Seguidores</label><input id="ebSeguidores" type="number" min="0" class="fin-input" placeholder="ex.: 45000"></div>
+            <div class="field"><label for="ebNicho">Nicho</label><input id="ebNicho" class="fin-input" placeholder="ex.: gastronomia, fitness, família"></div>
+            <div class="field"><label for="ebCidade">Cidade</label><input id="ebCidade" class="fin-input" placeholder="ex.: Campinas"></div>
+          </div>
+          <div class="field" style="display:flex;align-items:center;gap:.5rem">
+            <input id="ebParceiro" type="checkbox" style="accent-color:var(--teal-700);width:1.1rem;height:1.1rem">
+            <label for="ebParceiro" style="margin:0">Já é parceiro da Inspira (embaixador)</label>
+          </div>
+          <div class="proj-actions">
+            <button type="button" class="btn primary" id="ebSalvar">Salvar</button>
+            <button type="button" class="btn ghost" id="ebCancelarBtn">Cancelar</button>
+            <button type="button" class="btn ghost danger" id="ebExcluir" hidden>Excluir</button>
+            <span class="fin-msg" id="ebMsg"></span>
+          </div>
+        </div>
+        <div class="tbl-scroll" id="embTable"><div class="load-note">Carregando…</div></div>
       </div>
     </div>
   </section>
