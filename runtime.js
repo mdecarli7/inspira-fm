@@ -2189,12 +2189,13 @@ function renderColunistas(){
       (canRe() ? ' Clique em <b>+ Adicionar colunista</b>.' : '') + '</div>';
     return;
   }
-  host.innerHTML = '<table><thead><tr><th>Nome</th><th>Coluna / tema</th><th>Dia das matérias</th><th>Observações</th>' +
+  host.innerHTML = '<table><thead><tr><th>Nome</th><th>Perfil</th><th>Coluna</th><th>Dia</th><th>Frequência</th><th>Sobre</th>' +
     (canRe() ? '<th></th>' : '') + '</tr></thead><tbody>' +
     clRows.map(function(r){
       var d = r.d;
-      return '<tr><td><b>' + escHtml(d.nome || '') + '</b></td><td>' + escHtml(d.tema || '—') +
-        '</td><td>' + escHtml(d.dia || '—') + '</td><td>' + escHtml(d.obs || '') + '</td>' +
+      return '<tr><td><b>' + escHtml(d.nome || '') + '</b></td><td>' + escHtml(d.perfil || '—') +
+        '</td><td><b>' + escHtml(d.tema || '—') + '</b></td><td>' + escHtml(d.dia || 'a definir') +
+        '</td><td>' + escHtml(d.freq || 'a definir') + '</td><td style="min-width:16rem">' + escHtml(d.obs || '') + '</td>' +
         (canRe() ? '<td><button type="button" class="mini" data-cledit="' + r.id + '">Editar</button></td>' : '') + '</tr>';
     }).join('') + '</tbody></table>';
   host.onclick = function(ev){
@@ -2207,8 +2208,10 @@ function renderColunistas(){
 function clOpen(id, d){
   CL = { id: id };
   document.getElementById('clNome').value = d.nome || '';
+  document.getElementById('clPerfil').value = d.perfil || '';
   document.getElementById('clTema').value = d.tema || '';
   document.getElementById('clDia').value = d.dia || '';
+  document.getElementById('clFreq').value = d.freq || '';
   document.getElementById('clObs').value = d.obs || '';
   document.getElementById('clExcluir').hidden = !id;
   var f = document.getElementById('clForm');
@@ -2222,8 +2225,10 @@ function clSave(){
   if(!nome){ flashMsg('clMsg', 'Informe o nome do colunista.'); return; }
   var doc = {
     nome: nome,
+    perfil: document.getElementById('clPerfil').value.trim(),
     tema: document.getElementById('clTema').value.trim(),
     dia: document.getElementById('clDia').value.trim(),
+    freq: document.getElementById('clFreq').value.trim(),
     obs: document.getElementById('clObs').value.trim(),
     atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
   };

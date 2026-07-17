@@ -1251,10 +1251,14 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
         <div id="clForm" hidden style="margin-bottom:1.4rem">
           <div class="cp-row">
             <div class="field"><label for="clNome">Nome</label><input id="clNome" class="fin-input"></div>
-            <div class="field"><label for="clTema">Coluna / tema</label><input id="clTema" class="fin-input" placeholder="ex.: Nutrição e bem-estar"></div>
-            <div class="field"><label for="clDia">Dia das matérias</label><input id="clDia" class="fin-input" placeholder="ex.: toda quarta"></div>
+            <div class="field"><label for="clPerfil">Perfil</label><input id="clPerfil" class="fin-input" placeholder="@perfil"></div>
+            <div class="field" style="flex:1.6"><label for="clTema">Coluna</label><input id="clTema" class="fin-input" placeholder="nome da coluna"></div>
           </div>
-          <div class="field"><label for="clObs">Observações</label><input id="clObs" class="fin-input" placeholder="opcional"></div>
+          <div class="cp-row">
+            <div class="field"><label for="clDia">Dia da publicação</label><input id="clDia" class="fin-input" placeholder="ex.: toda quarta"></div>
+            <div class="field"><label for="clFreq">Frequência</label><input id="clFreq" class="fin-input" placeholder="ex.: semanal, quinzenal"></div>
+          </div>
+          <div class="field"><label for="clObs">Sobre a coluna</label><input id="clObs" class="fin-input" placeholder="do que a coluna trata"></div>
           <div class="proj-actions">
             <button type="button" class="btn primary" id="clSalvar">Salvar colunista</button>
             <button type="button" class="btn ghost" id="clCancelarBtn">Cancelar</button>
