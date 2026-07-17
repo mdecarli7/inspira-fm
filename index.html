@@ -525,6 +525,8 @@ td.sal-nd{color:var(--muted);font-style:italic}
   .backrow a{padding:.7rem 1.1rem}
 }
 
+/* texto corrido justificado em todo o site */
+main p,main li,main dd,main td:not(.num){text-align:justify;text-justify:inter-word;-webkit-hyphens:auto;hyphens:auto}
 /* ============ Login (Firebase) ============ */
 .authbox{display:flex;flex-direction:column;gap:.7rem;text-align:left}
 .btn-google{
@@ -776,7 +778,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
 
     <div id="pendingBox" hidden>
       <p style="font-family:var(--display);font-weight:800;font-size:1.2rem;color:#fff;margin:0">Acesso pendente</p>
-      <p>Sua conta <span class="pendmail" id="pendMail"></span> foi criada e aguarda aprovação do administrador. Avise o Matheus e recarregue a página depois de aprovado.</p>
+      <p>Sua conta <span class="pendmail" id="pendMail"></span> foi criada com sucesso e está em análise. Assim que o acesso for liberado pela administração, basta recarregar esta página para entrar.</p>
       <button type="button" class="btn-sair" id="btnSairPend">Sair</button>
     </div>
 
