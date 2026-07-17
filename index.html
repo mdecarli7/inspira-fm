@@ -588,6 +588,54 @@ td.sal-nd{color:var(--muted);font-style:italic}
 .role-diretor{background:#E4EAF4;color:#33517E}
 .role-admin{background:var(--teal-700);color:#fff}
 .load-note{padding:2.5rem 0;text-align:center;color:var(--muted)}
+/* ============ Reestruturações (hub + editor) ============ */
+.proj-toolbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.4rem}
+.proj-row{
+  display:flex;align-items:center;gap:1.2rem;width:100%;text-align:left;
+  padding:1.1rem 1.2rem;border:1px solid var(--line);border-radius:.9rem;background:#fff;
+  cursor:pointer;font:inherit;transition:border-color .15s;margin-bottom:.7rem;
+}
+.proj-row:hover{border-color:var(--teal-700)}
+.proj-row .pr-main{flex:1;min-width:0}
+.proj-row .pr-nome{font-family:var(--display);font-weight:700;font-size:1.08rem;color:var(--teal-900)}
+.proj-row .pr-sub{font-size:.85rem;color:var(--muted);margin-top:.15rem}
+.proj-row .pr-eco{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:.95rem}
+.pr-eco.pos{color:var(--al-baixo)}
+.pr-eco.neg{color:var(--al-medioalto)}
+.proj-empty{border:2px dashed var(--line);border-radius:.9rem;padding:2.2rem;text-align:center;color:var(--muted)}
+.proj-head{display:flex;gap:1rem;flex-wrap:wrap;margin:1.2rem 0 .9rem}
+.proj-meta{font-size:.82rem;color:var(--muted);margin:.4rem 0 0}
+textarea.fin-input{resize:vertical;font-family:var(--body)}
+.kpis-light{background:var(--line)}
+.kpis-light .kpi{background:var(--teal-900)}
+.proj-panel{border:1px solid var(--line);border-radius:.9rem;background:#fff;overflow:hidden}
+.pp-h{
+  display:flex;justify-content:space-between;align-items:baseline;gap:1rem;
+  padding:.8rem 1.1rem;font-family:var(--display);font-weight:700;font-size:1.02rem;
+}
+.pp-h.antes{background:var(--paper-2);color:var(--muted)}
+.pp-h.depois{background:var(--teal-700);color:#fff}
+.pp-total{font-size:.9rem;font-variant-numeric:tabular-nums}
+.pp-body{padding: .4rem 1.1rem 1.1rem}
+.pp-body h4{margin:.9rem 0 .45rem;font-size:.95rem}
+.pp-item{display:flex;gap:.45rem;align-items:center;margin-bottom:.4rem}
+.pp-item input{min-width:0}
+.pp-item .i-nome{flex:3}
+.pp-item .i-funcao{flex:3}
+.pp-item .i-valor{flex:0 0 6.4rem;text-align:right;font-variant-numeric:tabular-nums}
+.pp-item .i-del{
+  flex:none;border:1px solid var(--line);background:#fff;color:var(--al-alto);border-radius:.5rem;
+  width:1.9rem;height:1.9rem;cursor:pointer;font-weight:800;line-height:1;
+}
+.pp-item .i-del:hover{border-color:var(--al-alto)}
+.pp-add{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.2rem}
+.pp-add button{font-size:.82rem}
+.at-item{display:flex;gap:.45rem;align-items:flex-start;margin-bottom:.45rem}
+.at-item textarea{flex:1}
+.proj-actions{display:flex;gap:.7rem;align-items:center;flex-wrap:wrap;margin-top:1.6rem}
+.btn.danger{color:var(--al-alto);border-color:#E4C2BE}
+.btn.danger:hover{border-color:var(--al-alto)}
+@media(max-width:720px){.pp-item{flex-wrap:wrap}.pp-item .i-valor{flex:1 1 6rem}}
 </style>
 </head>
 <body>
@@ -641,7 +689,7 @@ td.sal-nd{color:var(--muted);font-style:italic}
       <a href="#analise" data-nav="analise">Análise Social</a>
       <a href="#reestruturacao" data-nav="reestruturacao" data-need="re" hidden>Reestruturação</a>
       <a href="#organograma" data-nav="organograma">Organograma</a>
-      <a href="#financeiro" data-nav="financeiro" data-need="fin" hidden>Balanço Financeiro</a>
+      <a href="#financeiro" data-nav="financeiro" data-need="fin" hidden>Equipe</a>
       <a href="#usuarios" data-nav="usuarios" data-need="admin" hidden>Usuários</a>
     </nav>
     <div class="userchip"><span class="mail" id="chipEmail"></span><button type="button" id="btnSair">Sair</button></div>
@@ -651,7 +699,110 @@ td.sal-nd{color:var(--muted);font-style:italic}
 <main>
   <section id="view-inicio" class="view" aria-label="Início"><div class="load-note">Carregando…</div></section>
   <section id="view-analise" class="view" aria-label="Análise Social"><div class="load-note">Carregando…</div></section>
-  <section id="view-reestruturacao" class="view" aria-label="Reestruturação"><div class="load-note">Carregando…</div></section>
+  <section id="view-reestruturacao" class="view" aria-label="Reestruturações">
+    <div class="page-hero">
+      <svg class="waves" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="#06443C"/>
+        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="#032723"/>
+      </svg>
+      <div class="wrap">
+        <p class="crumb">Diretoria · Simulador de equipe</p>
+        <h2>Reestruturações</h2>
+        <p class="sub">Cada projeto simula uma mudança de equipe — contratação, desligamento ou ajuste de salário — e calcula o impacto no custo fixo antes de a decisão ser tomada. Tudo fica salvo e editável.</p>
+      </div>
+    </div>
+
+    <!-- lista de projetos -->
+    <div class="section" id="projHub">
+      <div class="wrap">
+        <div class="proj-toolbar">
+          <h3 style="margin:0">Projetos</h3>
+          <button type="button" class="btn primary" id="projNew">+ Novo projeto</button>
+        </div>
+        <div id="projList"><div class="load-note">Carregando projetos…</div></div>
+      </div>
+    </div>
+
+    <!-- editor de projeto -->
+    <div id="projEditor" hidden>
+      <div class="section" style="padding-bottom:0">
+        <div class="wrap">
+          <button type="button" class="btn ghost" id="projBack">← Todos os projetos</button>
+          <div class="proj-head">
+            <div class="field" style="flex:2;min-width:14rem"><label for="pjNome">Nome do projeto</label>
+              <input id="pjNome" class="fin-input" placeholder="ex.: Contratação de social mídia"></div>
+            <div class="field" style="flex:1;min-width:9rem"><label for="pjSetor">Setor</label>
+              <input id="pjSetor" class="fin-input" placeholder="ex.: Marketing"></div>
+          </div>
+          <div class="field"><label for="pjContexto">Contexto (opcional)</label>
+            <textarea id="pjContexto" class="fin-input" rows="2" placeholder="Por que essa mudança está sendo estudada?"></textarea></div>
+          <p class="proj-meta" id="pjMeta"></p>
+        </div>
+      </div>
+
+      <!-- impacto calculado ao vivo -->
+      <div class="section" style="padding-top:1.2rem;padding-bottom:1.2rem">
+        <div class="wrap">
+          <div class="kpis kpis-light" id="pjKpis"></div>
+        </div>
+      </div>
+
+      <div class="section alt" style="padding-top:1.6rem">
+        <div class="wrap">
+          <div class="flow-grid">
+            <div class="proj-panel" data-lado="antes">
+              <header class="pp-h antes">Antes <span class="pp-total" id="ppTotAntes"></span></header>
+              <div class="pp-body">
+                <h4>Pessoas</h4>
+                <div class="pp-list" id="ppPessoasAntes"></div>
+                <h4>Ferramentas e outros custos</h4>
+                <div class="pp-list" id="ppExtrasAntes"></div>
+              </div>
+            </div>
+            <div class="proj-panel" data-lado="depois">
+              <header class="pp-h depois">Depois <span class="pp-total" id="ppTotDepois"></span></header>
+              <div class="pp-body">
+                <h4>Pessoas</h4>
+                <div class="pp-list" id="ppPessoasDepois"></div>
+                <h4>Ferramentas e outros custos</h4>
+                <div class="pp-list" id="ppExtrasDepois"></div>
+              </div>
+            </div>
+          </div>
+          <p class="chart-note" style="margin-top:1rem">Dica: “Copiar do Antes” duplica a equipe atual para o Depois — aí é só aplicar as mudanças que você quer simular.</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="wrap">
+          <div class="chart cost-chart">
+            <p class="chart-title">Comparativo de custo mensal</p>
+            <div class="legend" aria-hidden="true">
+              <span><i style="background:var(--dv-blue)"></i>Antes</span>
+              <span><i style="background:var(--dv-teal)"></i>Depois</span>
+            </div>
+            <div id="pjChart"></div>
+          </div>
+          <h4>Pontos de atenção</h4>
+          <div id="pjAtencao"></div>
+          <div class="proj-actions">
+            <button type="button" class="btn primary" id="pjSalvar">Salvar projeto</button>
+            <button type="button" class="btn ghost" id="pjLegacy" hidden>Ver relatório completo original</button>
+            <button type="button" class="btn ghost danger" id="pjExcluir" hidden>Excluir projeto</button>
+            <span class="fin-msg" id="pjMsg"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- relatório original (legado) -->
+    <div id="projLegacyView" hidden>
+      <div class="section" style="padding-bottom:0"><div class="wrap">
+        <button type="button" class="btn ghost" id="legacyBack">← Voltar ao projeto</button>
+      </div></div>
+      <div id="legacyHost"></div>
+    </div>
+  </section>
   <section id="view-organograma" class="view" aria-label="Organograma"><div class="load-note">Carregando…</div></section>
   <section id="view-financeiro" class="view" aria-label="Balanço Financeiro"><div class="load-note">Carregando…</div></section>
 

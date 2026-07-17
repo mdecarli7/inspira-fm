@@ -151,8 +151,8 @@ function enterApp(){
   document.getElementById('view-inicio').innerHTML = CONTENT.base.inicio;
   document.getElementById('view-analise').innerHTML = CONTENT.base.analise;
   document.getElementById('view-organograma').innerHTML = CONTENT.base.organograma;
-  if(CONTENT.re) document.getElementById('view-reestruturacao').innerHTML = CONTENT.re.html;
   if(CONTENT.fin) document.getElementById('view-financeiro').innerHTML = CONTENT.fin.html;
+  /* Reestruturações: o hub é fixo; o relatório original (legado) injeta sob demanda */
   // nav conforme permissão
   document.querySelectorAll('[data-need="re"]').forEach(function(a){ a.hidden = !canRe(); });
   document.querySelectorAll('[data-need="fin"]').forEach(function(a){ a.hidden = !canFin(); });
@@ -192,6 +192,7 @@ function route(){
   window.scrollTo(0,0);
   if(id === 'inicio') runCountUps();
   if(id === 'usuarios') buildUsers();
+  if(id === 'reestruturacao') projInit();
   requestAnimationFrame(armCharts);
 }
 window.addEventListener('hashchange', route);
@@ -572,13 +573,235 @@ function buildUsers(){
   });
 }
 
+/* =================== Reestruturações (projetos) =================== */
+var projUnsub = null;
+var PJ = null; // projeto aberto: {id, data}
+var PROJ_BLANK = function(){
+  return { nome:'', setor:'', contexto:'', autor: ME ? (ME.nome || ME.email) : '', autorEmail: ME ? ME.email : '',
+           antes:{pessoas:[],extras:[]}, depois:{pessoas:[],extras:[]}, atencao:[], legacy:false };
+};
+
+function projInit(){
+  if(!canRe() || projUnsub) return;
+  projUnsub = db.collection('projetos').orderBy('atualizadoEm','desc').onSnapshot(function(qs){
+    var rows = [];
+    qs.forEach(function(doc){ rows.push({id:doc.id, d:doc.data()}); });
+    renderProjList(rows);
+  }, function(){
+    document.getElementById('projList').innerHTML =
+      '<div class="proj-empty">Não foi possível carregar os projetos. As regras da coleção <b>projetos</b> foram publicadas?</div>';
+  });
+  document.getElementById('projNew').addEventListener('click', function(){ openProj(null, PROJ_BLANK()); });
+  document.getElementById('projBack').addEventListener('click', showHub);
+  document.getElementById('legacyBack').addEventListener('click', function(){
+    document.getElementById('projLegacyView').hidden = true;
+    document.getElementById('projEditor').hidden = false;
+    window.scrollTo(0,0);
+  });
+  document.getElementById('pjSalvar').addEventListener('click', projSave);
+  document.getElementById('pjExcluir').addEventListener('click', projDelete);
+  document.getElementById('pjLegacy').addEventListener('click', openLegacy);
+  ['pjNome','pjSetor','pjContexto'].forEach(function(id){
+    document.getElementById(id).addEventListener('input', function(){
+      if(!PJ) return;
+      PJ.data.nome = document.getElementById('pjNome').value;
+      PJ.data.setor = document.getElementById('pjSetor').value;
+      PJ.data.contexto = document.getElementById('pjContexto').value;
+    });
+  });
+}
+function projTotals(lado){
+  var folha = lado.pessoas.reduce(function(s,p){ return s + (+p.v || 0); }, 0);
+  var extras = lado.extras.reduce(function(s,p){ return s + (+p.v || 0); }, 0);
+  return { folha: folha, extras: extras, total: folha + extras };
+}
+function renderProjList(rows){
+  var host = document.getElementById('projList');
+  if(!rows.length){
+    host.innerHTML = '<div class="proj-empty">Nenhum projeto ainda. Clique em <b>+ Novo projeto</b> para simular a primeira reestruturação.</div>';
+    return;
+  }
+  host.innerHTML = rows.map(function(r){
+    var d = r.d;
+    var eco = projTotals(d.antes).total - projTotals(d.depois).total;
+    var ecoTxt = eco >= 0 ? '− R$ ' + fmtBRL(eco) + '/mês' : '+ R$ ' + fmtBRL(-eco) + '/mês';
+    var quando = d.atualizadoEm && d.atualizadoEm.toDate ? d.atualizadoEm.toDate().toLocaleDateString('pt-BR') : '';
+    return '<button type="button" class="proj-row" data-id="' + r.id + '">' +
+      '<span class="pr-main"><span class="pr-nome">' + escHtml(d.nome || '(sem nome)') + '</span>' +
+      '<span class="pr-sub">' + escHtml(d.setor || 'setor não definido') + ' · por ' + escHtml(d.autor || '—') +
+      (quando ? ' · atualizado em ' + quando : '') + '</span></span>' +
+      '<span class="pr-eco ' + (eco >= 0 ? 'pos' : 'neg') + '">' + ecoTxt + '</span></button>';
+  }).join('');
+  host.querySelectorAll('.proj-row').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      db.collection('projetos').doc(btn.dataset.id).get().then(function(snap){
+        if(snap.exists) openProj(snap.id, snap.data());
+      });
+    });
+  });
+}
+function showHub(){
+  PJ = null;
+  document.getElementById('projEditor').hidden = true;
+  document.getElementById('projLegacyView').hidden = true;
+  document.getElementById('projHub').hidden = false;
+  window.scrollTo(0,0);
+}
+function openProj(id, data){
+  PJ = { id: id, data: JSON.parse(JSON.stringify(data)) };
+  document.getElementById('projHub').hidden = true;
+  document.getElementById('projLegacyView').hidden = true;
+  document.getElementById('projEditor').hidden = false;
+  document.getElementById('pjNome').value = PJ.data.nome || '';
+  document.getElementById('pjSetor').value = PJ.data.setor || '';
+  document.getElementById('pjContexto').value = PJ.data.contexto || '';
+  document.getElementById('pjExcluir').hidden = !id;
+  document.getElementById('pjLegacy').hidden = !PJ.data.legacy;
+  var quando = PJ.data.atualizadoEm && PJ.data.atualizadoEm.toDate ? ' · atualizado em ' + PJ.data.atualizadoEm.toDate().toLocaleDateString('pt-BR') : '';
+  document.getElementById('pjMeta').textContent = id ? 'Desenvolvido por ' + (PJ.data.autor || '—') + quando : 'Projeto novo — ainda não salvo.';
+  renderPanels();
+  renderAtencao();
+  recalc();
+  window.scrollTo(0,0);
+}
+function itemRow(lado, tipo, i, item){
+  var comFuncao = tipo === 'pessoas';
+  return '<div class="pp-item" data-lado="' + lado + '" data-tipo="' + tipo + '" data-i="' + i + '">' +
+    '<input class="fin-input i-nome" value="' + escHtml(item.n || '') + '" placeholder="' + (comFuncao ? 'nome' : 'item') + '">' +
+    (comFuncao ? '<input class="fin-input i-funcao" value="' + escHtml(item.f || '') + '" placeholder="função">' : '') +
+    '<input class="fin-input i-valor" type="number" min="0" step="0.01" value="' + (item.v || '') + '" placeholder="R$/mês">' +
+    '<button type="button" class="i-del" title="Remover">×</button></div>';
+}
+function renderPanels(){
+  ['antes','depois'].forEach(function(lado){
+    ['pessoas','extras'].forEach(function(tipo){
+      var host = document.getElementById('pp' + (tipo === 'pessoas' ? 'Pessoas' : 'Extras') + (lado === 'antes' ? 'Antes' : 'Depois'));
+      var arr = PJ.data[lado][tipo];
+      var extraBtn = (lado === 'depois')
+        ? ' <button type="button" class="mini" data-copy="' + tipo + '">Copiar do Antes</button>' : '';
+      host.innerHTML = arr.map(function(item,i){ return itemRow(lado,tipo,i,item); }).join('') +
+        '<div class="pp-add"><button type="button" class="mini" data-add="1">+ Adicionar ' +
+        (tipo === 'pessoas' ? 'pessoa' : 'custo') + '</button>' + extraBtn + '</div>';
+      host.onclick = function(ev){
+        var b = ev.target.closest('button'); if(!b) return;
+        if(b.dataset.add){ arr.push(tipo === 'pessoas' ? {n:'',f:'',v:0} : {n:'',v:0}); renderPanels(); recalc(); }
+        else if(b.dataset.copy){ PJ.data.depois[tipo] = JSON.parse(JSON.stringify(PJ.data.antes[tipo])); renderPanels(); recalc(); }
+        else if(b.classList.contains('i-del')){
+          var row = b.closest('.pp-item');
+          arr.splice(+row.dataset.i, 1); renderPanels(); recalc();
+        }
+      };
+      host.oninput = function(ev){
+        var row = ev.target.closest('.pp-item'); if(!row) return;
+        var item = arr[+row.dataset.i];
+        if(ev.target.classList.contains('i-nome')) item.n = ev.target.value;
+        else if(ev.target.classList.contains('i-funcao')) item.f = ev.target.value;
+        else if(ev.target.classList.contains('i-valor')) item.v = parseFloat(ev.target.value) || 0;
+        recalc();
+      };
+    });
+  });
+}
+function renderAtencao(){
+  var host = document.getElementById('pjAtencao');
+  var arr = PJ.data.atencao;
+  host.innerHTML = arr.map(function(t,i){
+    return '<div class="at-item" data-i="' + i + '"><textarea class="fin-input" rows="2">' + escHtml(t) + '</textarea>' +
+      '<button type="button" class="i-del" title="Remover">×</button></div>';
+  }).join('') + '<div class="pp-add"><button type="button" class="mini" data-add="1">+ Adicionar ponto de atenção</button></div>';
+  host.onclick = function(ev){
+    var b = ev.target.closest('button'); if(!b) return;
+    if(b.dataset.add){ arr.push(''); renderAtencao(); }
+    else if(b.classList.contains('i-del')){ arr.splice(+b.closest('.at-item').dataset.i, 1); renderAtencao(); }
+  };
+  host.oninput = function(ev){
+    var it = ev.target.closest('.at-item'); if(!it) return;
+    arr[+it.dataset.i] = ev.target.value;
+  };
+}
+function recalc(){
+  if(!PJ) return;
+  var A = projTotals(PJ.data.antes), D = projTotals(PJ.data.depois);
+  var eco = A.total - D.total;
+  var pct = A.total > 0 ? Math.round(Math.abs(eco) / A.total * 100) : 0;
+  var verbo = eco >= 0 ? 'economia' : 'custo adicional';
+  document.getElementById('ppTotAntes').textContent = 'R$ ' + fmtBRL(A.total) + '/mês';
+  document.getElementById('ppTotDepois').textContent = 'R$ ' + fmtBRL(D.total) + '/mês';
+  document.getElementById('pjKpis').innerHTML =
+    '<div class="kpi"><div class="v">R$ ' + fmtBRL(Math.abs(eco)) + '</div><div class="k">' + verbo + ' mensal</div></div>' +
+    '<div class="kpi"><div class="v">R$ ' + fmtBRL(Math.abs(eco) * 12) + '</div><div class="k">' + verbo + ' anual</div></div>' +
+    '<div class="kpi"><div class="v">' + PJ.data.antes.pessoas.length + ' → ' + PJ.data.depois.pessoas.length + '</div><div class="k">pessoas na equipe</div></div>' +
+    '<div class="kpi"><div class="v">' + (eco >= 0 ? '−' : '+') + pct + '%</div><div class="k">variação do custo fixo</div></div>';
+  var groups = [
+    {nome:'Folha da equipe', antes:A.folha, depois:D.folha},
+    {nome:'Ferramentas e outros', antes:A.extras, depois:D.extras},
+    {nome:'Total fixo mensal', antes:A.total, depois:D.total}
+  ];
+  var max = groups.reduce(function(m,g){ return Math.max(m, g.antes, g.depois, 1); }, 0);
+  document.getElementById('pjChart').innerHTML = groups.map(function(g){
+    function bar(v,color,lbl){
+      var w = Math.max(v / max * 100, 0.6);
+      var inside = w > 76 ? ' inside' : '';
+      return '<div class="bar-row"><span class="name">' + lbl + '</span>' +
+        '<span class="bar-track"><span class="bar-fill" style="width:' + w.toFixed(2) + '%;background:' + color + '"></span>' +
+        '<span class="bar-val' + inside + '">R$ ' + fmtBRL(v) + '</span></span></div>';
+    }
+    return '<div class="cost-pair"><p class="pair-h">' + g.nome + '</p>' + bar(g.antes,'var(--dv-blue)','Antes') + bar(g.depois,'var(--dv-teal)','Depois') + '</div>';
+  }).join('');
+}
+function pjMsgShow(t){
+  var el = document.getElementById('pjMsg');
+  el.textContent = t;
+  clearTimeout(el._t);
+  el._t = setTimeout(function(){ el.textContent = ''; }, 3500);
+}
+function projSave(){
+  if(!PJ) return;
+  if(!PJ.data.nome.trim()){ pjMsgShow('Dê um nome ao projeto antes de salvar.'); document.getElementById('pjNome').focus(); return; }
+  var d = PJ.data;
+  var doc = {
+    nome: d.nome.trim(), setor: d.setor.trim(), contexto: d.contexto || '',
+    antes: d.antes, depois: d.depois, atencao: d.atencao.filter(function(t){ return t.trim(); }),
+    legacy: !!d.legacy,
+    autor: d.autor || (ME.nome || ME.email), autorEmail: d.autorEmail || ME.email,
+    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  var btn = document.getElementById('pjSalvar');
+  btn.disabled = true;
+  var op = PJ.id
+    ? db.collection('projetos').doc(PJ.id).set(doc, {merge:true})
+    : db.collection('projetos').add(Object.assign({criadoEm: firebase.firestore.FieldValue.serverTimestamp()}, doc));
+  op.then(function(ref){
+    if(!PJ.id && ref){ PJ.id = ref.id; document.getElementById('pjExcluir').hidden = false; }
+    pjMsgShow('Projeto salvo ✓');
+  }).catch(function(){ pjMsgShow('Sem permissão para salvar.'); })
+    .finally(function(){ btn.disabled = false; });
+}
+function projDelete(){
+  if(!PJ || !PJ.id) return;
+  if(!confirm('Excluir o projeto "' + PJ.data.nome + '" para todos? Essa ação não pode ser desfeita.')) return;
+  db.collection('projetos').doc(PJ.id).delete().then(showHub)
+    .catch(function(){ pjMsgShow('Sem permissão para excluir.'); });
+}
+var legacyLoaded = false;
+function openLegacy(){
+  document.getElementById('projEditor').hidden = true;
+  document.getElementById('projLegacyView').hidden = false;
+  if(!legacyLoaded && CONTENT.re && CONTENT.re.html){
+    legacyLoaded = true;
+    document.getElementById('legacyHost').innerHTML = CONTENT.re.html;
+    buildCost();
+    requestAnimationFrame(armCharts);
+  }
+  window.scrollTo(0,0);
+}
+
 /* =================== init =================== */
 function initApp(){
   if(appInitDone) return;
   appInitDone = true;
   buildFollowers();
   buildEngagement();
-  buildCost();
   buildRanking();
   buildGrowth();
   initFin();
