@@ -182,7 +182,7 @@ function loadContent(){
 }
 
 function enterApp(){
-  document.getElementById('view-inicio').innerHTML = CONTENT.base.inicio;
+  /* view-inicio agora é o painel do dia (markup fixo); o hero antigo do Instagram vive na Análise Social */
   document.getElementById('view-analise').innerHTML = CONTENT.base.analise;
   document.getElementById('view-organograma').innerHTML = CONTENT.base.organograma;
   if(CONTENT.fin) document.getElementById('view-financeiro').innerHTML = CONTENT.fin.html;
@@ -224,7 +224,7 @@ function route(){
     });
   });
   window.scrollTo(0,0);
-  if(id === 'inicio') runCountUps();
+  if(id === 'inicio') homeInit();
   if(id === 'usuarios') buildUsers();
   if(id === 'reestruturacao') projInit();
   if(id === 'processos') buildProcessos();
@@ -1059,23 +1059,27 @@ function campInit(){
       CP.data.canais = Array.prototype.slice.call(ch.querySelectorAll('input:checked')).map(function(i){ return i.value; });
     });
   }
-  if(!campUnsub){
-    campUnsub = db.collection('campanhas').orderBy('atualizadoEm','desc').onSnapshot(function(qs){
-      campRows = [];
-      qs.forEach(function(doc){ campRows.push({ id: doc.id, d: doc.data() }); });
-      renderCampAtivas();
-      renderCampHub();
-      renderRepHub();
-    }, function(){
-      document.getElementById('campAtivasList').innerHTML =
-        '<div class="proj-empty">Não foi possível carregar as campanhas. As regras da coleção <b>campanhas</b> foram publicadas?</div>';
-      document.getElementById('campAtivasAlert').innerHTML = '';
-      document.getElementById('campList').innerHTML = '';
-      document.getElementById('repList').innerHTML = '';
-    });
-  }
+  campListen();
   bsInit();
   campTab(CTAB);
+}
+function campListen(){
+  if(campUnsub) return;
+  campUnsub = db.collection('campanhas').orderBy('atualizadoEm','desc').onSnapshot(function(qs){
+    campRows = [];
+    qs.forEach(function(doc){ campRows.push({ id: doc.id, d: doc.data() }); });
+    renderCampAtivas();
+    renderCampHub();
+    renderRepHub();
+    renderHomeCamps();
+  }, function(){
+    document.getElementById('campAtivasList').innerHTML =
+      '<div class="proj-empty">Não foi possível carregar as campanhas. As regras da coleção <b>campanhas</b> foram publicadas?</div>';
+    document.getElementById('campAtivasAlert').innerHTML = '';
+    document.getElementById('campList').innerHTML = '';
+    document.getElementById('repList').innerHTML = '';
+    document.getElementById('homeCamps').innerHTML = '<p class="hc-empty">Não foi possível carregar as campanhas.</p>';
+  });
 }
 
 /* ---- aba Campanhas ativas ---- */
@@ -1417,21 +1421,26 @@ function repSave(){
 }
 
 /* ---- aba Brainstorm ---- */
-var bsUnsub = null, bsBound = false, BS_FOTOS = [];
+var bsUnsub = null, bsBound = false, BS_FOTOS = [], BS_ROWS = [];
 function bsInit(){
   if(!bsBound){
     bsBound = true;
     fotoGridRender(document.getElementById('bsFotos'), BS_FOTOS, true, 3);
     document.getElementById('bsEnviar').addEventListener('click', bsPublicar);
   }
+  bsListen();
+}
+function bsListen(){
   if(bsUnsub) return;
   bsUnsub = db.collection('brainstorm').orderBy('criadoEm','desc').onSnapshot(function(qs){
-    var rows = [];
-    qs.forEach(function(doc){ rows.push({ id: doc.id, d: doc.data() }); });
-    bsRender(rows);
+    BS_ROWS = [];
+    qs.forEach(function(doc){ BS_ROWS.push({ id: doc.id, d: doc.data() }); });
+    bsRender(BS_ROWS);
+    renderHomeBs();
   }, function(){
     document.getElementById('bsFeed').innerHTML =
       '<div class="proj-empty">Não foi possível carregar as ideias. As regras da coleção <b>brainstorm</b> foram publicadas?</div>';
+    document.getElementById('homeBs').innerHTML = '<p class="hc-empty">Não foi possível carregar as ideias.</p>';
   });
 }
 function bsPublicar(){
@@ -1495,6 +1504,160 @@ function bsRender(rows){
     }
   };
 }
+
+/* =================== Início: painel do dia =================== */
+var FRASES = [
+  'Toda grande rádio começa com uma equipe que acredita no que faz. Bora fazer bem feito hoje.',
+  'Quem faz bem, faz bonito. Faz bem ouvir — e faz bem fazer.',
+  'Consistência vence talento quando o talento não aparece todo dia.',
+  'O ouvinte percebe quando a gente faz com carinho. Capricha no detalhe.',
+  'Ideia boa é a que sai do papel. Qual você tira do papel hoje?',
+  'A energia que a gente coloca no ar volta em audiência.',
+  'Pequenos progressos diários viram resultados gigantes no fim do mês.',
+  'Hoje é um ótimo dia para surpreender o ouvinte.',
+  'Rádio boa se faz com escuta: do ouvinte, do colega e do mercado.',
+  'Feito com excelência hoje é case de sucesso amanhã.',
+  'Cada programa é uma chance nova de conquistar alguém.',
+  'Bem-estar começa aqui dentro: cuida de você, cuida do time.',
+  'Criatividade é músculo — treina um pouco todo dia.',
+  'O padrão que toleramos é o padrão que entregamos. Sobe a régua.',
+  'Uma boa manhã no ar muda o dia de milhares de pessoas.',
+  'Time alinhado toca junto — como uma boa playlist.',
+  'Antes de postar, pergunta: isso inspira alguém?',
+  'Resultado é consequência de processo bem feito.',
+  'Sorriso também se ouve no rádio.',
+  'Grandes marcas se constroem um dia de cada vez — hoje é um deles.',
+  'A melhor propaganda da Inspira é o jeito como a gente trabalha.'
+];
+var homeBound = false, dstUnsub = null, DST = null;
+
+function homeInit(){
+  if(!homeBound){
+    homeBound = true;
+    document.getElementById('dstEditBtn').addEventListener('click', dstEdit);
+    document.getElementById('dstCancelar').addEventListener('click', function(){
+      document.getElementById('dstForm').hidden = true;
+    });
+    document.getElementById('dstSalvar').addEventListener('click', dstSave);
+  }
+  var now = new Date();
+  var h = now.getHours();
+  var sauda = h < 12 ? 'Bom dia' : (h < 18 ? 'Boa tarde' : 'Boa noite');
+  var nome = ME && ME.nome ? ME.nome.trim().split(/\s+/)[0] : '';
+  document.getElementById('saudacao').textContent = sauda + (nome ? ', ' + nome : '');
+  var dstr = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+  document.getElementById('hojeData').textContent = dstr.charAt(0).toUpperCase() + dstr.slice(1);
+  var doy = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 864e5);
+  document.getElementById('fraseDia').textContent = FRASES[doy % FRASES.length];
+  campListen();
+  bsListen();
+  if(!dstUnsub){
+    dstUnsub = db.collection('destaques').doc('semana').onSnapshot(function(snap){
+      DST = snap.exists ? snap.data() : null;
+      renderDestaques(false);
+    }, function(){
+      DST = null;
+      renderDestaques(true);
+    });
+  }
+}
+function dstList(id, arr, vazio){
+  document.getElementById(id).innerHTML = (arr && arr.length)
+    ? arr.map(function(t){ return '<li>' + escHtml(t) + '</li>'; }).join('')
+    : '<li class="hc-empty">' + vazio + '</li>';
+}
+function renderDestaques(erro){
+  var d = DST || {};
+  dstList('homeEventos', d.eventos, erro
+    ? 'Sem acesso aos destaques — as regras da coleção <b>destaques</b> foram publicadas?'
+    : 'Nenhum evento cadastrado para esta semana.');
+  dstList('homeAssuntos', d.assuntos, 'Nenhum assunto em destaque — a diretoria atualiza aqui as pautas da semana.');
+  dstList('homeMusBR', d.musBR, 'Lista ainda não preenchida.');
+  dstList('homeMusINT', d.musINT, 'Lista ainda não preenchida.');
+}
+function dstEdit(){
+  var d = DST || {};
+  document.getElementById('dstEventos').value = (d.eventos || []).join('\n');
+  document.getElementById('dstAssuntos').value = (d.assuntos || []).join('\n');
+  document.getElementById('dstMusBR').value = (d.musBR || []).join('\n');
+  document.getElementById('dstMusINT').value = (d.musINT || []).join('\n');
+  var f = document.getElementById('dstForm');
+  f.hidden = false;
+  f.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+}
+function dstLines(id){
+  return document.getElementById(id).value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean);
+}
+function dstSave(){
+  var btn = document.getElementById('dstSalvar');
+  btn.disabled = true;
+  db.collection('destaques').doc('semana').set({
+    eventos: dstLines('dstEventos'),
+    assuntos: dstLines('dstAssuntos'),
+    musBR: dstLines('dstMusBR'),
+    musINT: dstLines('dstMusINT'),
+    atualizadoPor: ME.nome || ME.email,
+    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function(){
+    document.getElementById('dstForm').hidden = true;
+  }).catch(function(){
+    flashMsg('dstMsg', 'Sem permissão para salvar — só a diretoria edita os destaques.');
+  }).finally(function(){ btn.disabled = false; });
+}
+function renderHomeCamps(){
+  var host = document.getElementById('homeCamps');
+  if(!host) return;
+  var ativas = campRows.filter(function(r){ return r.d.status === 'ativa'; });
+  if(!ativas.length){
+    host.innerHTML = '<p class="hc-empty">Nenhuma campanha ativa no momento.' +
+      (canRe() ? ' Que tal ativar uma na página Campanhas?' : '') + '</p>';
+    return;
+  }
+  host.innerHTML = ativas.map(function(r){
+    var d = r.d;
+    return '<a class="hc-camp" href="#campanhas"><b>' + escHtml(d.nome || '') + '</b>' +
+      '<small>' + escHtml(fmtPeriodo(d)) + (d.setorLider ? ' · ' + escHtml(d.setorLider) : '') + '</small>' +
+      (d.foco ? '<small>🎯 ' + escHtml(d.foco) + '</small>' : '') + '</a>';
+  }).join('');
+}
+function renderHomeBs(){
+  var host = document.getElementById('homeBs');
+  if(!host) return;
+  if(!BS_ROWS.length){
+    host.innerHTML = '<p class="hc-empty">Nenhuma ideia ainda — inaugure o mural!</p>';
+    return;
+  }
+  host.innerHTML = BS_ROWS.slice(0, 3).map(function(r){
+    var d = r.d;
+    var n = (d.apoios || []).length;
+    return '<div class="hc-bs"><span><b>' + escHtml(d.titulo || '') + '</b> <small style="color:var(--muted)">· ' +
+      escHtml(d.autor || '') + '</small></span><span style="white-space:nowrap">👍 ' + n + '</span></div>';
+  }).join('');
+}
+/* atalhos que abrem direto a aba Brainstorm */
+document.addEventListener('click', function(ev){
+  if(ev.target.closest('[data-gobs]')) CTAB = 'brainstorm';
+});
+
+/* =================== menu lateral =================== */
+(function(){
+  var KEY = 'inspira-nav';
+  function isDesktop(){ return window.innerWidth >= 1024; }
+  function navSet(open){
+    document.body.classList.toggle('nav-open', open);
+    try{ localStorage.setItem(KEY, open ? '1' : '0'); }catch(e){}
+  }
+  document.getElementById('navToggle').addEventListener('click', function(){
+    navSet(!document.body.classList.contains('nav-open'));
+  });
+  document.getElementById('navBackdrop').addEventListener('click', function(){ navSet(false); });
+  document.getElementById('sidenav').addEventListener('click', function(ev){
+    if(ev.target.closest('a') && !isDesktop()) navSet(false);
+  });
+  var saved = null;
+  try{ saved = localStorage.getItem(KEY); }catch(e){}
+  navSet(isDesktop() ? saved !== '0' : false);
+})();
 
 /* =================== init =================== */
 function initApp(){
