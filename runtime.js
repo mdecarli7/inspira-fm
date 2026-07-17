@@ -2032,9 +2032,23 @@ function pgSave(){
 /* =================== Quadros da Inspira + Colunistas =================== */
 var qdUnsub = null, clUnsub = null, qdBound = false, qdRows = [], clRows = [], QD = null, CL = null;
 var QD_CANAIS = ['Rádio Ao Vivo','Instagram','TikTok','YouTube','Site'];
+var QD_TAB = 'radio';
+var QD_TITULOS = { radio: 'Quadros no ar — Rádio', redes: 'Quadros das redes sociais', site: 'Site — quadros e colunas' };
+function qdTab(t){
+  QD_TAB = t;
+  document.querySelectorAll('[data-qdtab]').forEach(function(b){ b.classList.toggle('on', b.dataset.qdtab === t); });
+  document.getElementById('qdTitulo').textContent = QD_TITULOS[t];
+  document.getElementById('clSection').hidden = t !== 'site';
+  document.getElementById('qdForm').hidden = true;
+  QD = null;
+  renderQuadros();
+}
 function qdInit(){
   if(!qdBound){
     qdBound = true;
+    document.querySelectorAll('[data-qdtab]').forEach(function(b){
+      b.addEventListener('click', function(){ qdTab(b.dataset.qdtab); });
+    });
     var ch = document.getElementById('qdCanais');
     ch.innerHTML = QD_CANAIS.map(function(c){
       return '<label><input type="checkbox" value="' + escHtml(c) + '"> ' + escHtml(c) + '</label>';
@@ -2075,24 +2089,48 @@ function qdInit(){
     });
   }
 }
+function qdCard(r){
+  var d = r.d;
+  var pills = (d.canais || []).map(function(c){ return '<span class="canal-pill">' + escHtml(c) + '</span>'; }).join('');
+  return '<div class="qd-card"><h4>' + escHtml(d.nome || '') + '</h4>' +
+    (d.apresentador ? '<span class="qd-com">com ' + escHtml(d.apresentador) + '</span>' : '') +
+    (d.quando ? '<span class="qd-quando">' + escHtml(d.quando) + '</span>' : '') +
+    (d.contexto ? '<p class="qd-ctx">' + escHtml(d.contexto) + '</p>' : '') +
+    '<div class="qd-foot"><div class="pills">' + pills + '</div>' +
+    (canRe() ? '<button type="button" class="mini" data-qedit="' + r.id + '">Editar</button>' : '') + '</div></div>';
+}
+function qdTem(d, canal){ return (d.canais || []).indexOf(canal) > -1; }
 function renderQuadros(){
   var host = document.getElementById('qdList');
-  if(!qdRows.length){
-    host.innerHTML = '<div class="proj-empty">Nenhum quadro cadastrado ainda.' +
-      (canRe() ? ' Clique em <b>+ Novo quadro</b> para começar.' : '') + '</div>';
-    return;
+  var html = '';
+  if(QD_TAB === 'radio'){
+    var rows = qdRows.filter(function(r){ return qdTem(r.d, 'Rádio Ao Vivo'); });
+    html = rows.length
+      ? '<div class="qd-grid">' + rows.map(qdCard).join('') + '</div>'
+      : '<div class="proj-empty">Nenhum quadro da rádio ainda.' +
+        (canRe() ? ' Crie um quadro e marque o canal <b>Rádio Ao Vivo</b>.' : '') + '</div>';
+  }else if(QD_TAB === 'redes'){
+    var redes = ['Instagram','TikTok','YouTube'];
+    var algum = false;
+    redes.forEach(function(rede){
+      var rows = qdRows.filter(function(r){ return qdTem(r.d, rede); });
+      if(!rows.length) return;
+      algum = true;
+      html += '<div class="qd-sub"><h4>' + rede + '</h4><small>' + rows.length + ' quadro' + (rows.length > 1 ? 's' : '') + '</small></div>' +
+        '<div class="qd-grid">' + rows.map(qdCard).join('') + '</div>';
+    });
+    if(!algum){
+      html = '<div class="proj-empty">Nenhum quadro das redes sociais ainda.' +
+        (canRe() ? ' Crie um quadro e marque <b>Instagram</b>, <b>TikTok</b> ou <b>YouTube</b> — ele aparece agrupado por rede aqui.' : '') + '</div>';
+    }
+  }else{
+    var rows = qdRows.filter(function(r){ return qdTem(r.d, 'Site'); });
+    html = rows.length
+      ? '<div class="qd-grid">' + rows.map(qdCard).join('') + '</div>'
+      : '<div class="proj-empty">Nenhum quadro específico do site — as colunas dos colunistas ficam logo abaixo.' +
+        (canRe() ? ' Para adicionar um quadro aqui, marque o canal <b>Site</b>.' : '') + '</div>';
   }
-  host.innerHTML = qdRows.map(function(r){
-    var d = r.d;
-    var canais = (d.canais || []).map(function(c){ return '<span class="canal-pill">' + escHtml(c) + '</span>'; }).join('');
-    return '<div class="proc-card"><header><h4>' + escHtml(d.nome || '') + '</h4>' +
-      '<small>' + (d.apresentador ? 'com ' + escHtml(d.apresentador) : '') +
-      (d.quando ? ' · ' + escHtml(d.quando) : '') +
-      (canRe() ? ' · <button type="button" class="mini" data-qedit="' + r.id + '" style="vertical-align:baseline">Editar</button>' : '') + '</small></header>' +
-      '<div class="camp-body" style="padding:.9rem 1.2rem">' +
-      (d.contexto ? '<p style="margin:.1rem 0 .7rem">' + escHtml(d.contexto) + '</p>' : '') +
-      (canais ? '<div>' + canais + '</div>' : '') + '</div></div>';
-  }).join('');
+  host.innerHTML = html;
   host.onclick = function(ev){
     var b = ev.target.closest('[data-qedit]'); if(!b) return;
     var row = null;

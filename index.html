@@ -601,6 +601,24 @@ footer small{color:var(--muted)}
   .pg-row{grid-template-columns:1fr 1fr 2rem}
 }
 .parc-badge{background:#DDF0E9;color:#0A5B47}
+/* quadros em grade vertical */
+.qd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(17rem,100%),1fr));gap:1rem}
+.qd-card{
+  background:#fff;border:1px solid var(--line);border-top:4px solid var(--teal-700);
+  border-radius:1rem;padding:1.1rem 1.2rem 1rem;display:flex;flex-direction:column;gap:.4rem;
+}
+.qd-card h4{margin:0;font-size:1.12rem;color:var(--teal-900);line-height:1.25}
+.qd-com{font-size:.88rem;font-weight:700;color:var(--teal-700)}
+.qd-quando{font-size:.8rem;font-weight:700;color:var(--muted)}
+.qd-ctx{font-size:.88rem;color:var(--muted);flex:1;margin:.15rem 0 0}
+.qd-foot{display:flex;justify-content:space-between;align-items:center;gap:.4rem .6rem;flex-wrap:wrap;margin-top:.5rem}
+.qd-foot .pills{display:flex;gap:.3rem;flex-wrap:wrap}
+.qd-foot .canal-pill{margin:0;font-size:.72rem;padding:.15rem .6rem}
+.qd-sub{display:flex;align-items:center;gap:.7rem;margin:1.8rem 0 .8rem}
+.qd-sub:first-child{margin-top:0}
+.qd-sub h4{margin:0;font-size:1rem;color:var(--teal-900)}
+.qd-sub small{color:var(--muted);font-weight:700}
+.qd-sub::after{content:"";flex:1;height:1px;background:var(--line)}
 /* ============ Análise Dial ============ */
 .dial-grid-head,.dial-row{display:grid;grid-template-columns:1.2fr 1fr .6fr .8fr .8fr 1.8fr 2rem;gap:.5rem;align-items:center}
 .dial-grid-head{font-size:.78rem;font-weight:800;color:var(--muted);margin-bottom:.35rem;padding:0 .1rem}
@@ -1183,10 +1201,20 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
       </div>
     </div>
 
+    <div class="section" style="padding-top:1.4rem;padding-bottom:0">
+      <div class="wrap">
+        <div class="camp-tabs">
+          <button type="button" data-qdtab="radio" class="on">Rádio</button>
+          <button type="button" data-qdtab="redes">Redes Sociais</button>
+          <button type="button" data-qdtab="site">Site</button>
+        </div>
+      </div>
+    </div>
+
     <div class="section">
       <div class="wrap">
         <div class="proj-toolbar">
-          <h3 style="margin:0">Quadros</h3>
+          <h3 style="margin:0" id="qdTitulo">Quadros no ar — Rádio</h3>
           <button type="button" class="btn primary" id="qdNovo" data-need="re" hidden>+ Novo quadro</button>
         </div>
         <div id="qdForm" hidden style="margin-bottom:1.6rem">
@@ -1213,7 +1241,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
       </div>
     </div>
 
-    <div class="section alt">
+    <div class="section alt" id="clSection" hidden>
       <div class="wrap">
         <div class="proj-toolbar">
           <h3 style="margin:0">Colunistas do site</h3>
