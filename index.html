@@ -669,6 +669,67 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
   padding:1rem 1.3rem;margin-bottom:1.2rem;color:#7A5A10;font-weight:600;font-size:.95rem;
 }
 .proc-pend b{color:#5F4700}
+/* ============ Campanhas ============ */
+.camp-tabs{display:flex;gap:.4rem;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;border-bottom:2px solid var(--line)}
+.camp-tabs button{
+  border:0;background:transparent;cursor:pointer;font-family:var(--display);font-weight:700;
+  font-size:1rem;color:var(--muted);padding:.65rem 1rem;border-radius:.6rem .6rem 0 0;
+  border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;flex:none;
+}
+.camp-tabs button.on{color:var(--teal-900);border-bottom-color:var(--dv-orange)}
+.camp-tabs button:hover{color:var(--teal-900)}
+.st-pill{display:inline-block;border-radius:999px;padding:.18rem .7rem;font-size:.72rem;font-weight:800;letter-spacing:.02em;vertical-align:middle}
+.st-rascunho{background:#FDF3DC;color:#7A5A10}
+.st-ativa{background:#DDF0E9;color:#0A5B47}
+.st-encerrada{background:#E8E8E8;color:#4A4A4A}
+.camp-card{border:1px solid var(--line);border-radius:.9rem;background:#fff;margin-bottom:1.4rem;overflow:hidden}
+.camp-card>header{display:flex;justify-content:space-between;gap:.4rem 1rem;flex-wrap:wrap;align-items:baseline;padding:1rem 1.3rem;background:var(--teal-900)}
+.camp-card>header h4{margin:0;color:#fff;font-size:1.12rem}
+.camp-card>header small{color:var(--muted-inverse)}
+.camp-body{padding:1.1rem 1.3rem}
+.camp-facts{display:flex;gap:.5rem 1.6rem;flex-wrap:wrap;margin:.6rem 0 .9rem;font-size:.9rem}
+.camp-facts b{color:var(--teal-900)}
+.canal-pill{display:inline-block;background:var(--paper-2);border:1px solid var(--line);border-radius:999px;padding:.2rem .75rem;font-size:.8rem;font-weight:700;margin:0 .35rem .35rem 0}
+.camp-set{margin:.4rem 0 0;padding:0;list-style:none}
+.camp-set li{display:flex;gap:.6rem;padding:.45rem 0;border-top:1px dashed var(--line);font-size:.9rem;flex-wrap:wrap}
+.camp-set li b{flex:0 0 9.5rem;color:var(--teal-900)}
+.camp-set li span{flex:1;min-width:12rem}
+/* editor de campanha */
+.cp-row{display:flex;gap:1rem;flex-wrap:wrap}
+.cp-row .field{flex:1;min-width:11rem}
+.custo-row{display:grid;grid-template-columns:10rem 1fr 7rem 2rem;gap:.5rem;margin-bottom:.4rem;align-items:center}
+.parc-row{display:grid;grid-template-columns:1fr 1.4fr 1.4fr 2rem;gap:.5rem;margin-bottom:.4rem;align-items:center}
+@media(max-width:720px){
+  .custo-row{grid-template-columns:1fr 2rem}
+  .parc-row{grid-template-columns:1fr 2rem}
+}
+.canal-checks{display:flex;gap:.4rem .7rem;flex-wrap:wrap}
+.canal-checks label{display:flex;align-items:center;gap:.4rem;font-size:.92rem;font-weight:600;border:1px solid var(--line);border-radius:.6rem;padding:.4rem .7rem;cursor:pointer;background:#fff}
+.canal-checks input{accent-color:var(--teal-700)}
+.env-row{display:grid;grid-template-columns:10rem 1fr;gap:.6rem;margin-bottom:.5rem;align-items:start}
+.env-row b{font-size:.9rem;padding-top:.55rem;color:var(--teal-900)}
+@media(max-width:720px){.env-row{grid-template-columns:1fr}.env-row b{padding-top:0}}
+.radar{border:1px solid #E0B470;background:#FDF6E7;border-radius:.9rem;padding:1rem 1.2rem;margin:1.4rem 0 0}
+.radar h4{margin:.2rem 0 .4rem;color:#5F4700}
+.radar p.hint{font-size:.88rem;color:#7A5A10;margin:0 0 .9rem}
+/* fotos */
+.foto-grid{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin:.5rem 0}
+.foto-th{position:relative;width:7.2rem;height:5.4rem;border-radius:.6rem;overflow:hidden;border:1px solid var(--line);flex:none}
+.foto-th img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
+.foto-th .f-del{position:absolute;top:.25rem;right:.25rem;border:0;background:rgba(0,0,0,.55);color:#fff;border-radius:.4rem;width:1.5rem;height:1.5rem;cursor:pointer;font-weight:800;line-height:1}
+#lightbox{position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(3,39,35,.93);display:none;align-items:center;justify-content:center;z-index:80;cursor:zoom-out;padding:1.5rem}
+#lightbox.on{display:flex}
+#lightbox img{max-width:100%;max-height:100%;border-radius:.6rem}
+/* brainstorm */
+.bs-form{border:1px solid var(--line);border-radius:.9rem;background:#fff;padding:1.1rem 1.3rem;margin-bottom:1.8rem}
+.bs-card{border:1px solid var(--line);border-radius:.9rem;background:#fff;padding:1rem 1.3rem;margin-bottom:1rem}
+.bs-head{display:flex;justify-content:space-between;gap:.4rem .8rem;flex-wrap:wrap;align-items:baseline}
+.bs-head h4{margin:0;font-size:1.05rem;color:var(--teal-900)}
+.bs-head small{color:var(--muted)}
+.bs-card p.tx{margin:.5rem 0 .3rem;white-space:pre-wrap}
+.bs-foot{display:flex;gap:.7rem;align-items:center;margin-top:.6rem;flex-wrap:wrap}
+.bs-apoiar{border:1px solid var(--line);background:#fff;border-radius:999px;padding:.32rem .95rem;cursor:pointer;font:inherit;font-weight:700;font-size:.85rem}
+.bs-apoiar.on{background:var(--teal-700);color:#fff;border-color:var(--teal-700)}
 </style>
 </head>
 <body>
@@ -733,6 +794,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
       <a href="#inicio" data-nav="inicio">Início</a>
       <a href="#analise" data-nav="analise">Análise Social</a>
       <a href="#processos" data-nav="processos">Processos</a>
+      <a href="#campanhas" data-nav="campanhas">Campanhas</a>
       <a href="#reestruturacao" data-nav="reestruturacao" data-need="re" hidden>Reestruturações</a>
       <a href="#organograma" data-nav="organograma">Organograma</a>
       <a href="#financeiro" data-nav="financeiro" data-need="fin" hidden>Equipe</a>
@@ -870,6 +932,211 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
     </div>
   </section>
 
+  <section id="view-campanhas" class="view" aria-labelledby="cm-title">
+    <div class="page-hero">
+      <svg class="waves" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="#06443C"/>
+        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="#032723"/>
+      </svg>
+      <div class="wrap">
+        <p class="crumb">Ações da rádio · Da ideia ao resultado</p>
+        <h2 id="cm-title">Campanhas</h2>
+        <p class="sub">O brainstorm de todos, o planejamento da diretoria, as campanhas no ar e o relatório de impacto no final de cada uma.</p>
+      </div>
+    </div>
+
+    <div class="section" style="padding-top:1.4rem;padding-bottom:0">
+      <div class="wrap">
+        <div class="camp-tabs">
+          <button type="button" data-ctab="ativas" class="on">Campanhas ativas</button>
+          <button type="button" data-ctab="criar" data-need="re" hidden>Criar campanha</button>
+          <button type="button" data-ctab="relatorios" data-need="re" hidden>Relatórios</button>
+          <button type="button" data-ctab="brainstorm">Brainstorm 💡</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- aba: campanhas ativas -->
+    <div id="ctab-ativas" class="ctab">
+      <div class="section">
+        <div class="wrap">
+          <div id="campAtivasAlert"></div>
+          <div id="campAtivasList"><div class="load-note">Carregando campanhas…</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- aba: criar campanha (diretoria) -->
+    <div id="ctab-criar" class="ctab" hidden>
+      <div id="campHub">
+        <div class="section">
+          <div class="wrap">
+            <div class="proj-toolbar">
+              <h3 style="margin:0">Todas as campanhas</h3>
+              <button type="button" class="btn primary" id="campNew">+ Nova campanha</button>
+            </div>
+            <div id="campList"><div class="load-note">Carregando…</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="campEditor" hidden>
+        <div class="section" style="padding-bottom:0">
+          <div class="wrap">
+            <button type="button" class="btn ghost" id="campBack">← Todas as campanhas</button>
+            <div class="proj-head">
+              <div class="field" style="flex:2;min-width:14rem"><label for="cpNome">Nome da campanha</label>
+                <input id="cpNome" class="fin-input" placeholder="ex.: Inspira no Parque — Dia das Mães"></div>
+              <div class="field" style="flex:1;min-width:10rem"><label for="cpSetorLider">Setor líder</label>
+                <select id="cpSetorLider" class="fin-input"></select></div>
+            </div>
+            <div class="cp-row">
+              <div class="field"><label for="cpInicio">Início</label><input id="cpInicio" type="date" class="fin-input"></div>
+              <div class="field"><label for="cpFim">Fim</label><input id="cpFim" type="date" class="fin-input"></div>
+              <div class="field" style="flex:2;min-width:14rem"><label for="cpPublico">Público-alvo</label>
+                <input id="cpPublico" class="fin-input" placeholder="quem queremos atingir"></div>
+            </div>
+            <div class="field"><label for="cpFoco">Foco da campanha — qual é o objetivo principal?</label>
+              <input id="cpFoco" class="fin-input" placeholder="ex.: aumentar a audiência da manhã · captar novos patrocinadores · fortalecer a marca"></div>
+            <div class="field"><label for="cpDescricao">Como funciona (mecânica da campanha)</label>
+              <textarea id="cpDescricao" class="fin-input" rows="3" placeholder="O que acontece, onde, quando e como o ouvinte participa."></textarea></div>
+            <p class="proj-meta"><span class="st-pill st-rascunho" id="cpStatusPill">EM DISCUSSÃO</span> <span id="cpInfo"></span></p>
+          </div>
+        </div>
+
+        <div class="section" style="padding-top:1.2rem;padding-bottom:1.2rem">
+          <div class="wrap"><div class="kpis kpis-light" id="cpKpis"></div></div>
+        </div>
+
+        <div class="section alt" style="padding-top:1.6rem">
+          <div class="wrap">
+            <h3>Custos da campanha <span class="pp-total" id="cpCustoTotal" style="color:var(--muted)"></span></h3>
+            <p class="lead">Liste tudo: brindes, prêmios, mão de obra, terceirizados, mídia. É a primeira pergunta da diretoria — quanto custa?</p>
+            <div id="cpCustos"></div>
+
+            <h3 style="margin-top:2.2rem">Parceiros e permutas</h3>
+            <p class="lead">Quem entra junto, o que oferece e o que pede em troca.</p>
+            <div id="cpParceiros"></div>
+
+            <h3 style="margin-top:2.2rem">Canais de divulgação</h3>
+            <div class="canal-checks" id="cpCanais"></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="wrap">
+            <h3>Meta e retorno</h3>
+            <div class="cp-row">
+              <div class="field" style="flex:2;min-width:14rem"><label for="cpMetaTxt">Meta principal (mensurável)</label>
+                <input id="cpMetaTxt" class="fin-input" placeholder="ex.: +3 mil seguidores · 2 novos patrocinadores · 500 pessoas no evento"></div>
+              <div class="field"><label for="cpRetorno">Retorno esperado (R$)</label>
+                <input id="cpRetorno" type="number" min="0" step="0.01" class="fin-input" placeholder="0,00"></div>
+            </div>
+            <div class="field"><label for="cpMedicao">Como o resultado será medido?</label>
+              <input id="cpMedicao" class="fin-input" placeholder="ex.: relatório do Instagram, contratos fechados, contagem de público"></div>
+
+            <div class="radar">
+              <h4>Radar da diretoria — responda antes que perguntem</h4>
+              <p class="hint">São as perguntas que aparecem em toda reunião. Campanha que chega com essas respostas prontas é aprovada mais rápido.</p>
+              <div class="field"><label for="cpTiming">Por que agora? (timing e oportunidade)</label>
+                <textarea id="cpTiming" class="fin-input" rows="2" placeholder="O que torna este o momento certo — data comemorativa, movimento do mercado, concorrência…"></textarea></div>
+              <div class="field"><label for="cpPlanoB">E se a meta não for atingida? (plano B)</label>
+                <textarea id="cpPlanoB" class="fin-input" rows="2" placeholder="O que fazemos no meio do caminho se os números não vierem."></textarea></div>
+              <div class="field"><label for="cpRiscos">Riscos e como evitar</label>
+                <textarea id="cpRiscos" class="fin-input" rows="2" placeholder="Clima, fornecedor, imagem da marca, dependência de parceiro…"></textarea></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section alt">
+          <div class="wrap">
+            <h3>O que cada setor precisa fazer</h3>
+            <p class="lead">Ao ativar a campanha, cada setor vê sua tarefa na aba “Campanhas ativas”. Deixe em branco os setores que não participam.</p>
+            <div id="cpEnv"></div>
+
+            <h3 style="margin-top:2.2rem">Fotos e referências</h3>
+            <p class="lead">Arte do brinde, referência visual, mapa do evento — o que ajudar a diretoria a visualizar a campanha.</p>
+            <div class="foto-grid" id="cpFotos"></div>
+
+            <div class="proj-actions">
+              <button type="button" class="btn primary" id="cpSalvar">Salvar campanha</button>
+              <button type="button" class="btn publish" id="cpStatusBtn">🚀 Ativar campanha</button>
+              <button type="button" class="btn ghost danger" id="cpExcluir" hidden>Excluir campanha</button>
+              <span class="fin-msg" id="cpMsg"></span>
+            </div>
+            <p class="chart-note">“Ativar” publica a campanha na aba Campanhas ativas, com as tarefas de cada setor visíveis para toda a equipe. “Encerrar” move a campanha para os Relatórios.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- aba: relatórios (diretoria) -->
+    <div id="ctab-relatorios" class="ctab" hidden>
+      <div id="repHub">
+        <div class="section">
+          <div class="wrap">
+            <h3>Relatórios de campanha</h3>
+            <p class="lead">Preenchido ao final de cada campanha para medir resultado e impacto em cada setor. Campanha encerrada sem relatório fica marcada como pendente.</p>
+            <div id="repList"><div class="load-note">Carregando…</div></div>
+          </div>
+        </div>
+      </div>
+      <div id="repEditor" hidden>
+        <div class="section">
+          <div class="wrap">
+            <button type="button" class="btn ghost" id="repBack">← Todas as campanhas</button>
+            <h3 id="repTitle" style="margin-top:1rem"></h3>
+            <div id="repPrev"></div>
+            <div class="cp-row">
+              <div class="field"><label for="rpCusto">Custo real (R$)</label><input id="rpCusto" type="number" min="0" step="0.01" class="fin-input"></div>
+              <div class="field"><label for="rpReceita">Receita gerada (R$)</label><input id="rpReceita" type="number" min="0" step="0.01" class="fin-input"></div>
+              <div class="field"><label for="rpNota">Nota geral (0–10)</label><input id="rpNota" type="number" min="0" max="10" step="1" class="fin-input"></div>
+            </div>
+            <div class="field"><label for="rpResultado">Resultado da meta principal</label>
+              <textarea id="rpResultado" class="fin-input" rows="2" placeholder="A meta era X — chegamos a Y."></textarea></div>
+            <div class="field"><label for="rpAlcance">Alcance e números</label>
+              <textarea id="rpAlcance" class="fin-input" rows="2" placeholder="Seguidores ganhos, alcance dos posts, público presente, participações…"></textarea></div>
+            <h4>Impacto em cada setor</h4>
+            <div id="rpImpactos"></div>
+            <div class="cp-row">
+              <div class="field"><label for="rpFuncionou">O que funcionou</label><textarea id="rpFuncionou" class="fin-input" rows="3"></textarea></div>
+              <div class="field"><label for="rpMelhorar">O que melhorar na próxima</label><textarea id="rpMelhorar" class="fin-input" rows="3"></textarea></div>
+            </div>
+            <h4>Fotos do resultado</h4>
+            <div class="foto-grid" id="rpFotos"></div>
+            <div class="proj-actions">
+              <button type="button" class="btn primary" id="rpSalvar">Salvar relatório</button>
+              <span class="fin-msg" id="rpMsg"></span>
+            </div>
+            <p class="chart-note">Salvar o relatório encerra a campanha automaticamente.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- aba: brainstorm (todos) -->
+    <div id="ctab-brainstorm" class="ctab" hidden>
+      <div class="section">
+        <div class="wrap">
+          <div class="bs-form">
+            <h3 style="margin-top:0">Tem uma ideia? Solta aqui 💡</h3>
+            <p class="lead" style="margin-top:0">Espaço aberto para toda a equipe sugerir campanhas, ações e projetos. As melhores ideias viram campanha de verdade.</p>
+            <div class="field"><label for="bsTitulo">Título da ideia</label>
+              <input id="bsTitulo" class="fin-input" maxlength="80" placeholder="ex.: Café da manhã com ouvintes no estúdio"></div>
+            <div class="field"><label for="bsTexto">Conte a ideia</label>
+              <textarea id="bsTexto" class="fin-input" rows="3" placeholder="O que é, como funciona e por que a Inspira deveria fazer."></textarea></div>
+            <div class="foto-grid" id="bsFotos"></div>
+            <div class="proj-actions" style="margin-top:.4rem">
+              <button type="button" class="btn primary" id="bsEnviar">Publicar ideia</button>
+              <span class="fin-msg" id="bsMsg"></span>
+            </div>
+          </div>
+          <div id="bsFeed"><div class="load-note">Carregando ideias…</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section id="view-usuarios" class="view" aria-labelledby="us-title">
     <div class="page-hero">
       <svg class="waves" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
@@ -907,6 +1174,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
 </div><!-- /app -->
 
 <div id="tip" role="tooltip"></div>
+<div id="lightbox" aria-hidden="true"><img alt="Foto ampliada"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>

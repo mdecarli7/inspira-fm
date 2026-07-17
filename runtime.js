@@ -201,7 +201,7 @@ function enterApp(){
 }
 
 /* =================== router =================== */
-var VIEWS = ['inicio','analise','processos','reestruturacao','organograma','financeiro','usuarios'];
+var VIEWS = ['inicio','analise','processos','campanhas','reestruturacao','organograma','financeiro','usuarios'];
 var counted = false;
 
 function viewAllowed(id){
@@ -228,6 +228,7 @@ function route(){
   if(id === 'usuarios') buildUsers();
   if(id === 'reestruturacao') projInit();
   if(id === 'processos') buildProcessos();
+  if(id === 'campanhas') campInit();
   requestAnimationFrame(armCharts);
 }
 window.addEventListener('hashchange', route);
@@ -908,6 +909,593 @@ function projDelete(){
   db.collection('projetos').doc(PJ.id).delete().then(showHub)
     .catch(function(){ pjMsgShow('Sem permissão para excluir.'); });
 }
+/* =================== Campanhas =================== */
+var CANAIS = ['Spots no ar','Instagram','Site e app','WhatsApp','Eventos presenciais','Parceiros e permutas','Imprensa local'];
+var CUSTO_CATS = ['Brindes','Prêmios','Mão de obra','Terceirizados','Mídia / Divulgação','Outros'];
+var campUnsub = null, campRows = [], CP = null, campBound = false, CTAB = 'ativas';
+var ST_LBL = { rascunho:['EM DISCUSSÃO','st-rascunho'], ativa:['ATIVA','st-ativa'], encerrada:['ENCERRADA','st-encerrada'] };
+
+function campBlank(){
+  return { nome:'', status:'rascunho', foco:'', publico:'', inicio:'', fim:'', setorLider:'',
+    descricao:'', custos:[], parceiros:[], canais:[], metaTxt:'', medicao:'', retorno:0,
+    planoB:'', riscos:'', timing:'', envolvimento:[], fotos:[], relatorio:null,
+    autor: ME ? (ME.nome || ME.email) : '', autorEmail: ME ? ME.email : '' };
+}
+function campCustoTotal(d){ return (d.custos || []).reduce(function(s,c){ return s + (+c.v || 0); }, 0); }
+function fmtData(s){ if(!s) return ''; var p = String(s).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : s; }
+function fmtPeriodo(d){
+  if(d.inicio && d.fim) return fmtData(d.inicio) + ' a ' + fmtData(d.fim);
+  return d.inicio ? 'a partir de ' + fmtData(d.inicio) : 'período a definir';
+}
+function flashMsg(id, t){
+  var el = document.getElementById(id);
+  if(!el) return;
+  el.textContent = t;
+  clearTimeout(el._t);
+  el._t = setTimeout(function(){ el.textContent = ''; }, 4000);
+}
+function cpMsgShow(t){ flashMsg('cpMsg', t); }
+function rpMsgShow(t){ flashMsg('rpMsg', t); }
+function bsMsgShow(t){ flashMsg('bsMsg', t); }
+
+/* ---- fotos: compressão no navegador, salvas como data URL no Firestore ---- */
+function fotoPick(max, done){
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  if(max > 1) input.multiple = true;
+  input.addEventListener('change', function(){
+    var files = Array.prototype.slice.call(input.files || []).slice(0, max);
+    if(!files.length) return;
+    Promise.all(files.map(fotoCompress)).then(function(list){
+      var ok = list.filter(function(f){ return !!f; });
+      if(ok.length < files.length) alert((files.length - ok.length) + ' foto(s) não puderam ser processadas (formato ou tamanho).');
+      done(ok);
+    });
+  });
+  input.click();
+}
+function fotoCompress(file){
+  return new Promise(function(resolve){
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function(){
+      var MAXW = 900;
+      var scale = Math.min(1, MAXW / Math.max(img.width, img.height));
+      var c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * scale));
+      c.height = Math.max(1, Math.round(img.height * scale));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      var q = 0.72, data = c.toDataURL('image/jpeg', q);
+      while(data.length > 110000 && q > 0.3){ q -= 0.08; data = c.toDataURL('image/jpeg', q); }
+      URL.revokeObjectURL(url);
+      resolve(data.length <= 130000 ? data : null);
+    };
+    img.onerror = function(){ URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+function lightbox(src){
+  var lb = document.getElementById('lightbox');
+  lb.querySelector('img').src = src;
+  lb.classList.add('on');
+}
+document.getElementById('lightbox').addEventListener('click', function(){ this.classList.remove('on'); });
+function fotoGridRender(host, arr, editable, max){
+  host.innerHTML = arr.map(function(f, i){
+    return '<div class="foto-th"><img src="' + f + '" alt="foto ' + (i + 1) + '" data-full="1">' +
+      (editable ? '<button type="button" class="f-del" data-i="' + i + '" title="Remover foto">×</button>' : '') + '</div>';
+  }).join('') +
+  (editable ? (arr.length < max
+    ? '<button type="button" class="mini" data-addfoto="1">📷 Adicionar foto</button>'
+    : '<span class="chart-note" style="margin:0">máximo de ' + max + ' fotos</span>') : '');
+  host.onclick = function(ev){
+    var img = ev.target.closest('img[data-full]');
+    if(img){ lightbox(img.src); return; }
+    if(!editable) return;
+    var del = ev.target.closest('.f-del');
+    if(del){ arr.splice(+del.dataset.i, 1); fotoGridRender(host, arr, editable, max); return; }
+    if(ev.target.closest('[data-addfoto]')){
+      fotoPick(max - arr.length, function(list){
+        list.forEach(function(f){ arr.push(f); });
+        fotoGridRender(host, arr, editable, max);
+      });
+    }
+  };
+}
+
+/* ---- abas ---- */
+function campTab(t){
+  if((t === 'criar' || t === 'relatorios') && !canRe()) t = 'ativas';
+  CTAB = t;
+  ['ativas','criar','relatorios','brainstorm'].forEach(function(x){
+    var pane = document.getElementById('ctab-' + x);
+    if(pane) pane.hidden = x !== t;
+    document.querySelectorAll('.camp-tabs [data-ctab="' + x + '"]').forEach(function(b){
+      b.classList.toggle('on', x === t);
+    });
+  });
+}
+
+function campInit(){
+  if(!campBound){
+    campBound = true;
+    document.querySelectorAll('.camp-tabs button').forEach(function(b){
+      b.addEventListener('click', function(){ campTab(b.dataset.ctab); });
+    });
+    document.getElementById('campNew').addEventListener('click', function(){ campOpen(null, campBlank()); });
+    document.getElementById('campBack').addEventListener('click', campShowHub);
+    document.getElementById('cpSalvar').addEventListener('click', function(){ campSave(false); });
+    document.getElementById('cpStatusBtn').addEventListener('click', campToggleStatus);
+    document.getElementById('cpExcluir').addEventListener('click', campDelete);
+    document.getElementById('repBack').addEventListener('click', function(){
+      RP = null;
+      document.getElementById('repEditor').hidden = true;
+      document.getElementById('repHub').hidden = false;
+      window.scrollTo(0,0);
+    });
+    document.getElementById('rpSalvar').addEventListener('click', repSave);
+    var sel = document.getElementById('cpSetorLider');
+    sel.innerHTML = '<option value="">Setor…</option>' + SETORES.map(function(s){
+      return '<option value="' + escHtml(s) + '">' + escHtml(s) + '</option>';
+    }).join('');
+    sel.addEventListener('change', function(){ if(CP) CP.data.setorLider = this.value; });
+    [['cpNome','nome'],['cpFoco','foco'],['cpPublico','publico'],['cpInicio','inicio'],['cpFim','fim'],
+     ['cpDescricao','descricao'],['cpMetaTxt','metaTxt'],['cpMedicao','medicao'],
+     ['cpPlanoB','planoB'],['cpRiscos','riscos'],['cpTiming','timing']].forEach(function(par){
+      document.getElementById(par[0]).addEventListener('input', function(){
+        if(CP) CP.data[par[1]] = this.value;
+      });
+    });
+    document.getElementById('cpRetorno').addEventListener('input', function(){
+      if(CP){ CP.data.retorno = parseFloat(this.value) || 0; cpRecalc(); }
+    });
+    var ch = document.getElementById('cpCanais');
+    ch.innerHTML = CANAIS.map(function(c){
+      return '<label><input type="checkbox" value="' + escHtml(c) + '"> ' + escHtml(c) + '</label>';
+    }).join('');
+    ch.addEventListener('change', function(){
+      if(!CP) return;
+      CP.data.canais = Array.prototype.slice.call(ch.querySelectorAll('input:checked')).map(function(i){ return i.value; });
+    });
+  }
+  if(!campUnsub){
+    campUnsub = db.collection('campanhas').orderBy('atualizadoEm','desc').onSnapshot(function(qs){
+      campRows = [];
+      qs.forEach(function(doc){ campRows.push({ id: doc.id, d: doc.data() }); });
+      renderCampAtivas();
+      renderCampHub();
+      renderRepHub();
+    }, function(){
+      document.getElementById('campAtivasList').innerHTML =
+        '<div class="proj-empty">Não foi possível carregar as campanhas. As regras da coleção <b>campanhas</b> foram publicadas?</div>';
+      document.getElementById('campAtivasAlert').innerHTML = '';
+      document.getElementById('campList').innerHTML = '';
+      document.getElementById('repList').innerHTML = '';
+    });
+  }
+  bsInit();
+  campTab(CTAB);
+}
+
+/* ---- aba Campanhas ativas ---- */
+function renderCampAtivas(){
+  var host = document.getElementById('campAtivasList');
+  var ativas = campRows.filter(function(r){ return r.d.status === 'ativa'; });
+  document.getElementById('campAtivasAlert').innerHTML = ativas.length ? '' :
+    '<div class="proc-pend">📣 <b>Nenhuma campanha ativa no momento.</b> ' +
+    (canRe() ? 'Crie e ative uma campanha na aba “Criar campanha”.' : 'A diretoria ainda não ativou nenhuma campanha.') + '</div>';
+  host.innerHTML = ativas.map(campCard).join('');
+  host.onclick = function(ev){
+    var img = ev.target.closest('img[data-full]');
+    if(img) lightbox(img.src);
+  };
+}
+function campCard(r){
+  var d = r.d;
+  var tot = campCustoTotal(d);
+  var canaisHtml = (d.canais || []).map(function(c){ return '<span class="canal-pill">' + escHtml(c) + '</span>'; }).join('');
+  var env = (d.envolvimento || []).map(function(e){
+    return '<li><b>' + escHtml(e.setor) + '</b><span>' + escHtml(e.tarefa) + '</span></li>';
+  }).join('');
+  var fotos = (d.fotos || []).map(function(f, i){
+    return '<div class="foto-th"><img src="' + f + '" alt="foto ' + (i + 1) + '" data-full="1"></div>';
+  }).join('');
+  return '<div class="camp-card"><header><h4>' + escHtml(d.nome || '(sem nome)') + '</h4>' +
+    '<small>' + escHtml(fmtPeriodo(d)) + (d.setorLider ? ' · liderada por ' + escHtml(d.setorLider) : '') + '</small></header>' +
+    '<div class="camp-body">' +
+    (d.foco ? '<p style="margin:.2rem 0 .6rem"><b>Foco:</b> ' + escHtml(d.foco) + '</p>' : '') +
+    (d.descricao ? '<p style="margin:0 0 .8rem;white-space:pre-wrap">' + escHtml(d.descricao) + '</p>' : '') +
+    '<div class="camp-facts">' +
+      '<span><b>Investimento previsto:</b> R$ ' + fmtBRL(tot) + '</span>' +
+      (+d.retorno ? '<span><b>Retorno esperado:</b> R$ ' + fmtBRL(+d.retorno) + '</span>' : '') +
+      (d.metaTxt ? '<span><b>Meta:</b> ' + escHtml(d.metaTxt) + '</span>' : '') +
+      (d.publico ? '<span><b>Público:</b> ' + escHtml(d.publico) + '</span>' : '') +
+    '</div>' +
+    (canaisHtml ? '<div>' + canaisHtml + '</div>' : '') +
+    (env ? '<h4 style="margin:1rem 0 .1rem">O que cada setor faz</h4><ul class="camp-set">' + env + '</ul>' : '') +
+    (fotos ? '<div class="foto-grid">' + fotos + '</div>' : '') +
+    '</div></div>';
+}
+
+/* ---- aba Criar campanha: hub ---- */
+function renderCampHub(){
+  var host = document.getElementById('campList');
+  if(!campRows.length){
+    host.innerHTML = '<div class="proj-empty">Nenhuma campanha ainda. Clique em <b>+ Nova campanha</b> para começar.</div>';
+    return;
+  }
+  host.innerHTML = campRows.map(function(r){
+    var d = r.d, st = ST_LBL[d.status] || ST_LBL.rascunho;
+    var quando = d.atualizadoEm && d.atualizadoEm.toDate ? d.atualizadoEm.toDate().toLocaleDateString('pt-BR') : '';
+    return '<button type="button" class="proj-row" data-id="' + r.id + '">' +
+      '<span class="pr-main"><span class="pr-nome">' + escHtml(d.nome || '(sem nome)') +
+      ' <span class="st-pill ' + st[1] + '">' + st[0] + '</span></span>' +
+      '<span class="pr-sub">' + escHtml(d.setorLider || 'setor líder não definido') + ' · por ' + escHtml(d.autor || '—') +
+      (quando ? ' · atualizada em ' + quando : '') + '</span></span>' +
+      '<span class="pr-eco" style="color:var(--teal-900)">R$ ' + fmtBRL(campCustoTotal(d)) + '</span></button>';
+  }).join('');
+  host.querySelectorAll('.proj-row').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var row = null;
+      campRows.forEach(function(r){ if(r.id === btn.dataset.id) row = r; });
+      if(row) campOpen(row.id, row.d);
+    });
+  });
+}
+function campShowHub(){
+  CP = null;
+  document.getElementById('campEditor').hidden = true;
+  document.getElementById('campHub').hidden = false;
+  window.scrollTo(0,0);
+}
+
+/* ---- editor de campanha ---- */
+function campOpen(id, data){
+  CP = { id: id, data: JSON.parse(JSON.stringify(data)) };
+  ['custos','parceiros','canais','envolvimento','fotos'].forEach(function(k){
+    if(!Array.isArray(CP.data[k])) CP.data[k] = [];
+  });
+  document.getElementById('campHub').hidden = true;
+  document.getElementById('campEditor').hidden = false;
+  document.getElementById('cpNome').value = CP.data.nome || '';
+  document.getElementById('cpSetorLider').value = CP.data.setorLider || '';
+  document.getElementById('cpInicio').value = CP.data.inicio || '';
+  document.getElementById('cpFim').value = CP.data.fim || '';
+  document.getElementById('cpPublico').value = CP.data.publico || '';
+  document.getElementById('cpFoco').value = CP.data.foco || '';
+  document.getElementById('cpDescricao').value = CP.data.descricao || '';
+  document.getElementById('cpMetaTxt').value = CP.data.metaTxt || '';
+  document.getElementById('cpMedicao').value = CP.data.medicao || '';
+  document.getElementById('cpRetorno').value = CP.data.retorno || '';
+  document.getElementById('cpPlanoB').value = CP.data.planoB || '';
+  document.getElementById('cpRiscos').value = CP.data.riscos || '';
+  document.getElementById('cpTiming').value = CP.data.timing || '';
+  var canais = CP.data.canais;
+  document.querySelectorAll('#cpCanais input').forEach(function(i){ i.checked = canais.indexOf(i.value) > -1; });
+  document.getElementById('cpInfo').textContent = id ? 'Criada por ' + (CP.data.autor || '—') : 'Campanha nova — ainda não salva.';
+  cpRenderCustos();
+  cpRenderParceiros();
+  cpRenderEnv();
+  fotoGridRender(document.getElementById('cpFotos'), CP.data.fotos, true, 3);
+  cpRecalc();
+  cpStatusUI();
+  window.scrollTo(0,0);
+}
+function cpStatusUI(){
+  if(!CP) return;
+  var st = CP.data.status || 'rascunho';
+  var lbl = ST_LBL[st] || ST_LBL.rascunho;
+  var pill = document.getElementById('cpStatusPill');
+  pill.textContent = lbl[0];
+  pill.className = 'st-pill ' + lbl[1];
+  document.getElementById('cpStatusBtn').textContent =
+    st === 'ativa' ? 'Encerrar campanha' : (st === 'encerrada' ? 'Reativar campanha' : '🚀 Ativar campanha');
+  document.getElementById('cpExcluir').hidden = !CP.id;
+}
+function cpRenderCustos(){
+  var host = document.getElementById('cpCustos');
+  var arr = CP.data.custos;
+  host.innerHTML = arr.map(function(c, i){
+    var opts = CUSTO_CATS.map(function(x){
+      return '<option value="' + escHtml(x) + '"' + (c.cat === x ? ' selected' : '') + '>' + escHtml(x) + '</option>';
+    }).join('');
+    return '<div class="custo-row" data-i="' + i + '">' +
+      '<select class="fin-input i-cat">' + opts + '</select>' +
+      '<input class="fin-input i-nome" value="' + escHtml(c.n || '') + '" placeholder="descrição (ex.: 200 canecas personalizadas)">' +
+      '<input class="fin-input i-valor" type="number" min="0" step="0.01" value="' + (c.v || '') + '" placeholder="R$">' +
+      '<button type="button" class="i-del" title="Remover">×</button></div>';
+  }).join('') + '<div class="pp-add"><button type="button" class="mini" data-add="1">+ Adicionar custo</button></div>';
+  host.onclick = function(ev){
+    var b = ev.target.closest('button'); if(!b) return;
+    if(b.dataset.add){ arr.push({ cat: CUSTO_CATS[0], n: '', v: 0 }); cpRenderCustos(); cpRecalc(); }
+    else if(b.classList.contains('i-del')){ arr.splice(+b.closest('.custo-row').dataset.i, 1); cpRenderCustos(); cpRecalc(); }
+  };
+  host.oninput = function(ev){
+    var row = ev.target.closest('.custo-row'); if(!row) return;
+    var c = arr[+row.dataset.i];
+    if(ev.target.classList.contains('i-nome')) c.n = ev.target.value;
+    else if(ev.target.classList.contains('i-valor')){ c.v = parseFloat(ev.target.value) || 0; cpRecalc(); }
+  };
+  host.onchange = function(ev){
+    var row = ev.target.closest('.custo-row'); if(!row) return;
+    if(ev.target.classList.contains('i-cat')) arr[+row.dataset.i].cat = ev.target.value;
+  };
+}
+function cpRenderParceiros(){
+  var host = document.getElementById('cpParceiros');
+  var arr = CP.data.parceiros;
+  host.innerHTML = arr.map(function(p, i){
+    return '<div class="parc-row" data-i="' + i + '">' +
+      '<input class="fin-input i-nome" value="' + escHtml(p.n || '') + '" placeholder="parceiro">' +
+      '<input class="fin-input i-oferece" value="' + escHtml(p.oferece || '') + '" placeholder="o que oferece">' +
+      '<input class="fin-input i-contra" value="' + escHtml(p.contrapartida || '') + '" placeholder="contrapartida (o que pede)">' +
+      '<button type="button" class="i-del" title="Remover">×</button></div>';
+  }).join('') + '<div class="pp-add"><button type="button" class="mini" data-add="1">+ Adicionar parceiro</button></div>';
+  host.onclick = function(ev){
+    var b = ev.target.closest('button'); if(!b) return;
+    if(b.dataset.add){ arr.push({ n: '', oferece: '', contrapartida: '' }); cpRenderParceiros(); cpRecalc(); }
+    else if(b.classList.contains('i-del')){ arr.splice(+b.closest('.parc-row').dataset.i, 1); cpRenderParceiros(); cpRecalc(); }
+  };
+  host.oninput = function(ev){
+    var row = ev.target.closest('.parc-row'); if(!row) return;
+    var p = arr[+row.dataset.i];
+    if(ev.target.classList.contains('i-nome')){ p.n = ev.target.value; cpRecalc(); }
+    else if(ev.target.classList.contains('i-oferece')) p.oferece = ev.target.value;
+    else if(ev.target.classList.contains('i-contra')) p.contrapartida = ev.target.value;
+  };
+}
+function cpRenderEnv(){
+  var host = document.getElementById('cpEnv');
+  host.innerHTML = SETORES.map(function(s){
+    var tarefa = '';
+    CP.data.envolvimento.forEach(function(x){ if(x.setor === s) tarefa = x.tarefa || ''; });
+    return '<div class="env-row"><b>' + escHtml(s) + '</b>' +
+      '<textarea class="fin-input" rows="2" data-setor="' + escHtml(s) + '" placeholder="O que o setor precisa fazer nesta campanha? (em branco = não participa)">' +
+      escHtml(tarefa) + '</textarea></div>';
+  }).join('');
+  host.oninput = function(ev){
+    var t = ev.target.closest('textarea[data-setor]'); if(!t || !CP) return;
+    var arr = CP.data.envolvimento, found = null;
+    arr.forEach(function(x){ if(x.setor === t.dataset.setor) found = x; });
+    if(!found){ found = { setor: t.dataset.setor, tarefa: '' }; arr.push(found); }
+    found.tarefa = t.value;
+  };
+}
+function cpRecalc(){
+  if(!CP) return;
+  var tot = campCustoTotal(CP.data);
+  var ret = +CP.data.retorno || 0;
+  var saldo = ret - tot;
+  var nParc = CP.data.parceiros.filter(function(p){ return (p.n || '').trim(); }).length;
+  document.getElementById('cpKpis').innerHTML =
+    '<div class="kpi"><div class="v">R$ ' + fmtBRL(tot) + '</div><div class="k">investimento previsto</div></div>' +
+    '<div class="kpi"><div class="v">R$ ' + fmtBRL(ret) + '</div><div class="k">retorno esperado</div></div>' +
+    '<div class="kpi"><div class="v">' + (saldo >= 0 ? '+' : '−') + ' R$ ' + fmtBRL(Math.abs(saldo)) + '</div><div class="k">saldo estimado</div></div>' +
+    '<div class="kpi"><div class="v">' + nParc + '</div><div class="k">parceiro' + (nParc === 1 ? '' : 's') + ' envolvido' + (nParc === 1 ? '' : 's') + '</div></div>';
+  document.getElementById('cpCustoTotal').textContent = tot ? '· total R$ ' + fmtBRL(tot) + '/campanha' : '';
+}
+function campToggleStatus(){
+  if(!CP) return;
+  var st = CP.data.status || 'rascunho';
+  if(st === 'ativa'){
+    if(!confirm('Encerrar a campanha "' + CP.data.nome + '"?\nDepois preencha o relatório na aba Relatórios para medir o resultado.')) return;
+    CP.data.status = 'encerrada';
+  }else{
+    if(!CP.data.nome.trim()){ cpMsgShow('Dê um nome à campanha antes de ativar.'); return; }
+    if(!(CP.data.foco || '').trim()){ cpMsgShow('Defina o foco da campanha antes de ativar.'); return; }
+    if(!confirm('Ativar a campanha "' + CP.data.nome + '"?\nEla aparece em “Campanhas ativas” para toda a equipe, com as tarefas de cada setor.')) return;
+    CP.data.status = 'ativa';
+  }
+  cpStatusUI();
+  campSave(true);
+}
+function campSave(auto){
+  if(!CP) return;
+  if(!CP.data.nome.trim()){ cpMsgShow('Dê um nome à campanha antes de salvar.'); document.getElementById('cpNome').focus(); return; }
+  var d = CP.data;
+  var doc = {
+    nome: d.nome.trim(), status: d.status || 'rascunho',
+    foco: d.foco || '', publico: d.publico || '', inicio: d.inicio || '', fim: d.fim || '',
+    setorLider: d.setorLider || '', descricao: d.descricao || '',
+    custos: d.custos.filter(function(c){ return (c.n || '').trim() || +c.v; }),
+    parceiros: d.parceiros.filter(function(p){ return (p.n || '').trim(); }),
+    canais: d.canais || [],
+    metaTxt: d.metaTxt || '', medicao: d.medicao || '', retorno: +d.retorno || 0,
+    planoB: d.planoB || '', riscos: d.riscos || '', timing: d.timing || '',
+    envolvimento: d.envolvimento.filter(function(e){ return (e.tarefa || '').trim(); }),
+    fotos: d.fotos || [],
+    autor: d.autor || (ME.nome || ME.email), autorEmail: d.autorEmail || ME.email,
+    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  var btn = document.getElementById('cpSalvar');
+  btn.disabled = true;
+  var op = CP.id
+    ? db.collection('campanhas').doc(CP.id).set(doc, { merge: true })
+    : db.collection('campanhas').add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp(), relatorio: null }, doc));
+  op.then(function(ref){
+    if(!CP.id && ref) CP.id = ref.id;
+    cpStatusUI();
+    cpMsgShow(auto ? 'Status atualizado ✓' : 'Campanha salva ✓');
+  }).catch(function(){ cpMsgShow('Sem permissão para salvar.'); })
+    .finally(function(){ btn.disabled = false; });
+}
+function campDelete(){
+  if(!CP || !CP.id) return;
+  if(!confirm('Excluir a campanha "' + CP.data.nome + '" para todos? Essa ação não pode ser desfeita.')) return;
+  db.collection('campanhas').doc(CP.id).delete().then(campShowHub)
+    .catch(function(){ cpMsgShow('Sem permissão para excluir.'); });
+}
+
+/* ---- aba Relatórios ---- */
+var RP = null;
+function renderRepHub(){
+  var host = document.getElementById('repList');
+  var rows = campRows.filter(function(r){ return r.d.status === 'ativa' || r.d.status === 'encerrada'; });
+  if(!rows.length){
+    host.innerHTML = '<div class="proj-empty">Nenhuma campanha ativa ou encerrada ainda. O relatório é preenchido ao final de cada campanha.</div>';
+    return;
+  }
+  host.innerHTML = rows.map(function(r){
+    var d = r.d;
+    var tag = d.relatorio ? '<span class="st-pill st-ativa">relatório preenchido ✓</span>'
+      : (d.status === 'encerrada' ? '<span class="st-pill st-rascunho">relatório pendente</span>'
+      : '<span class="st-pill st-encerrada">em andamento</span>');
+    return '<button type="button" class="proj-row" data-id="' + r.id + '">' +
+      '<span class="pr-main"><span class="pr-nome">' + escHtml(d.nome || '(sem nome)') + '</span>' +
+      '<span class="pr-sub">' + escHtml(fmtPeriodo(d)) + ' · investimento previsto R$ ' + fmtBRL(campCustoTotal(d)) + '</span></span>' +
+      tag + '</button>';
+  }).join('');
+  host.querySelectorAll('.proj-row').forEach(function(btn){
+    btn.addEventListener('click', function(){ repOpen(btn.dataset.id); });
+  });
+}
+function repOpen(id){
+  var row = null;
+  campRows.forEach(function(r){ if(r.id === id) row = r; });
+  if(!row) return;
+  RP = { id: id, camp: row.d, fotos: [] };
+  var d = row.d, rel = d.relatorio || {};
+  RP.fotos = (rel.fotos || []).slice();
+  document.getElementById('repHub').hidden = true;
+  document.getElementById('repEditor').hidden = false;
+  document.getElementById('repTitle').textContent = 'Relatório — ' + (d.nome || '');
+  var tot = campCustoTotal(d);
+  document.getElementById('repPrev').innerHTML =
+    '<div class="camp-facts" style="margin:.4rem 0 1.2rem">' +
+    '<span><b>Previsto:</b> investimento R$ ' + fmtBRL(tot) +
+    (+d.retorno ? ' · retorno esperado R$ ' + fmtBRL(+d.retorno) : '') + '</span>' +
+    (d.metaTxt ? '<span><b>Meta:</b> ' + escHtml(d.metaTxt) + '</span>' : '') +
+    (d.medicao ? '<span><b>Medição combinada:</b> ' + escHtml(d.medicao) + '</span>' : '') + '</div>';
+  document.getElementById('rpCusto').value = rel.custoReal || '';
+  document.getElementById('rpReceita').value = rel.receita || '';
+  document.getElementById('rpNota').value = (rel.nota || rel.nota === 0) ? rel.nota : '';
+  document.getElementById('rpResultado').value = rel.resultado || '';
+  document.getElementById('rpAlcance').value = rel.alcance || '';
+  document.getElementById('rpFuncionou').value = rel.funcionou || '';
+  document.getElementById('rpMelhorar').value = rel.melhorar || '';
+  fotoGridRender(document.getElementById('rpFotos'), RP.fotos, true, 3);
+  var imp = {};
+  (rel.impactos || []).forEach(function(x){ imp[x.setor] = x.texto; });
+  var envolvidos = {};
+  (d.envolvimento || []).forEach(function(e){ envolvidos[e.setor] = true; });
+  document.getElementById('rpImpactos').innerHTML = SETORES.map(function(s){
+    return '<div class="env-row"><b>' + escHtml(s) + (envolvidos[s] ? ' ★' : '') + '</b>' +
+      '<textarea class="fin-input" rows="2" data-setor="' + escHtml(s) + '" placeholder="Qual foi o impacto no setor? (em branco = sem impacto)">' +
+      escHtml(imp[s] || '') + '</textarea></div>';
+  }).join('');
+  window.scrollTo(0,0);
+}
+function repSave(){
+  if(!RP) return;
+  var impactos = [];
+  document.querySelectorAll('#rpImpactos textarea[data-setor]').forEach(function(t){
+    if(t.value.trim()) impactos.push({ setor: t.dataset.setor, texto: t.value.trim() });
+  });
+  var rel = {
+    custoReal: parseFloat(document.getElementById('rpCusto').value) || 0,
+    receita: parseFloat(document.getElementById('rpReceita').value) || 0,
+    nota: parseFloat(document.getElementById('rpNota').value) || 0,
+    resultado: document.getElementById('rpResultado').value.trim(),
+    alcance: document.getElementById('rpAlcance').value.trim(),
+    funcionou: document.getElementById('rpFuncionou').value.trim(),
+    melhorar: document.getElementById('rpMelhorar').value.trim(),
+    impactos: impactos,
+    fotos: RP.fotos,
+    preenchidoPor: ME.nome || ME.email,
+    preenchidoEm: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  var btn = document.getElementById('rpSalvar');
+  btn.disabled = true;
+  db.collection('campanhas').doc(RP.id).set({
+    relatorio: rel, status: 'encerrada',
+    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true }).then(function(){
+    rpMsgShow('Relatório salvo ✓ — campanha encerrada.');
+  }).catch(function(){ rpMsgShow('Sem permissão para salvar.'); })
+    .finally(function(){ btn.disabled = false; });
+}
+
+/* ---- aba Brainstorm ---- */
+var bsUnsub = null, bsBound = false, BS_FOTOS = [];
+function bsInit(){
+  if(!bsBound){
+    bsBound = true;
+    fotoGridRender(document.getElementById('bsFotos'), BS_FOTOS, true, 3);
+    document.getElementById('bsEnviar').addEventListener('click', bsPublicar);
+  }
+  if(bsUnsub) return;
+  bsUnsub = db.collection('brainstorm').orderBy('criadoEm','desc').onSnapshot(function(qs){
+    var rows = [];
+    qs.forEach(function(doc){ rows.push({ id: doc.id, d: doc.data() }); });
+    bsRender(rows);
+  }, function(){
+    document.getElementById('bsFeed').innerHTML =
+      '<div class="proj-empty">Não foi possível carregar as ideias. As regras da coleção <b>brainstorm</b> foram publicadas?</div>';
+  });
+}
+function bsPublicar(){
+  var ti = document.getElementById('bsTitulo').value.trim();
+  var tx = document.getElementById('bsTexto').value.trim();
+  if(!ti || !tx){ bsMsgShow('Dê um título e conte a ideia antes de publicar.'); return; }
+  var btn = document.getElementById('bsEnviar');
+  btn.disabled = true;
+  db.collection('brainstorm').add({
+    titulo: ti, texto: tx, fotos: BS_FOTOS.slice(),
+    autor: ME.nome || ME.email, autorEmail: ME.email, setor: ME.setor || '',
+    apoios: [],
+    criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function(){
+    document.getElementById('bsTitulo').value = '';
+    document.getElementById('bsTexto').value = '';
+    BS_FOTOS.length = 0;
+    fotoGridRender(document.getElementById('bsFotos'), BS_FOTOS, true, 3);
+    bsMsgShow('Ideia publicada ✓');
+  }).catch(function(){ bsMsgShow('Sem permissão para publicar.'); })
+    .finally(function(){ btn.disabled = false; });
+}
+function bsRender(rows){
+  var host = document.getElementById('bsFeed');
+  if(!rows.length){
+    host.innerHTML = '<div class="proj-empty">Nenhuma ideia ainda — seja a primeira pessoa a publicar!</div>';
+    return;
+  }
+  host.innerHTML = rows.map(function(r){
+    var d = r.d;
+    var quando = d.criadoEm && d.criadoEm.toDate ? d.criadoEm.toDate().toLocaleDateString('pt-BR') : '';
+    var apoios = d.apoios || [];
+    var eu = ME && apoios.indexOf(ME.uid) > -1;
+    var dono = ME && (d.autorEmail === ME.email || isAdmin());
+    var fotos = (d.fotos || []).map(function(f){
+      return '<div class="foto-th"><img src="' + f + '" alt="foto da ideia" data-full="1"></div>';
+    }).join('');
+    return '<div class="bs-card" data-id="' + r.id + '">' +
+      '<div class="bs-head"><h4>' + escHtml(d.titulo || '') + '</h4>' +
+      '<small>' + escHtml(d.autor || '—') + (d.setor ? ' · ' + escHtml(d.setor) : '') + (quando ? ' · ' + quando : '') + '</small></div>' +
+      '<p class="tx">' + escHtml(d.texto || '') + '</p>' +
+      (fotos ? '<div class="foto-grid">' + fotos + '</div>' : '') +
+      '<div class="bs-foot">' +
+      '<button type="button" class="bs-apoiar' + (eu ? ' on' : '') + '" data-apoiar="1">👍 Apoiar' + (apoios.length ? ' · ' + apoios.length : '') + '</button>' +
+      (dono ? '<button type="button" class="mini del" data-delidea="1">Excluir</button>' : '') +
+      '</div></div>';
+  }).join('');
+  host.onclick = function(ev){
+    var img = ev.target.closest('img[data-full]');
+    if(img){ lightbox(img.src); return; }
+    var card = ev.target.closest('.bs-card'); if(!card) return;
+    var id = card.dataset.id;
+    var apoiar = ev.target.closest('[data-apoiar]');
+    if(apoiar){
+      var op = apoiar.classList.contains('on')
+        ? firebase.firestore.FieldValue.arrayRemove(ME.uid)
+        : firebase.firestore.FieldValue.arrayUnion(ME.uid);
+      db.collection('brainstorm').doc(id).update({ apoios: op });
+    }else if(ev.target.closest('[data-delidea]')){
+      if(confirm('Excluir esta ideia para todos?')) db.collection('brainstorm').doc(id).delete();
+    }
+  };
+}
+
 /* =================== init =================== */
 function initApp(){
   if(appInitDone) return;
