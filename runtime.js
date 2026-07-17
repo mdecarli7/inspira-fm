@@ -204,7 +204,7 @@ function enterApp(){
 }
 
 /* =================== router =================== */
-var VIEWS = ['inicio','analise','dial','site','mobradio','processos','campanhas','reestruturacao','organograma','financeiro','usuarios','juridico','programacao','quadros','embaixadores'];
+var VIEWS = ['inicio','conta','analise','dial','site','mobradio','processos','campanhas','reestruturacao','organograma','financeiro','usuarios','juridico','programacao','quadros','embaixadores'];
 var counted = false;
 
 function viewAllowed(id){
@@ -237,6 +237,7 @@ function route(){
   if(id === 'programacao') progInit();
   if(id === 'quadros') qdInit();
   if(id === 'embaixadores') embInit();
+  if(id === 'conta') contaInit();
   requestAnimationFrame(armCharts);
 }
 window.addEventListener('hashchange', route);
@@ -489,12 +490,13 @@ function finRender(){
     var sal = p.v > 0 ? '<td class="num">' + fmtBRL(p.v) + '</td>' : '<td class="num sal-nd">a definir</td>';
     var acts = edit ? '<td style="white-space:nowrap"><button type="button" class="mini" data-edit="' + i + '">Editar</button> ' +
       '<button type="button" class="mini del" data-del="' + i + '">Excluir</button></td>' : '';
-    rows += '<tr><td><b>' + escHtml(p.n) + '</b></td><td>' + escHtml(p.s) + '</td><td>' + escHtml(p.f) + '</td>' + sal + acts + '</tr>';
+    rows += '<tr><td><b>' + escHtml(p.n) + '</b></td><td>' + escHtml(p.s) + '</td><td>' + escHtml(p.f) + '</td>' +
+      '<td>' + (p.nasc ? fmtData(p.nasc) : '—') + '</td>' + sal + acts + '</tr>';
   });
   var totLbl = filter === '__all' ? 'Total geral' : 'Total — ' + escHtml(filter);
-  rows += '<tr class="total"><td colspan="3">' + totLbl + ' (' + count + ' pessoa' + (count === 1 ? '' : 's') +
+  rows += '<tr class="total"><td colspan="4">' + totLbl + ' (' + count + ' pessoa' + (count === 1 ? '' : 's') +
     (semSalario ? ' · ' + semSalario + ' sem salário informado' : '') + ')</td><td class="num">' + fmtBRL(total) + '</td>' + (edit ? '<td></td>' : '') + '</tr>';
-  host.innerHTML = '<table><thead><tr><th>Nome</th><th>Setor</th><th>Função</th><th class="num">Salário (R$/mês)</th>' + (edit ? '<th></th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table>';
+  host.innerHTML = '<table><thead><tr><th>Nome</th><th>Setor</th><th>Função</th><th>Nascimento</th><th class="num">Salário (R$/mês)</th>' + (edit ? '<th></th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table>';
 }
 function finCancelEdit(){
   finEditIdx = -1;
@@ -514,6 +516,14 @@ function finMsg(t){
 }
 function initFin(){
   if(!document.getElementById('finTable')) return;
+  /* campo Nascimento entra no formulário via JS (o markup do form vem do conteúdo publicado) */
+  var salIn = document.getElementById('finSalario');
+  if(salIn && !document.getElementById('finNasc')){
+    var holder = salIn.parentElement;
+    var nv = holder.cloneNode(false);
+    nv.innerHTML = '<label for="finNasc">Nascimento</label><input id="finNasc" type="date" class="fin-input">';
+    holder.parentElement.insertBefore(nv, holder.nextSibling);
+  }
   finLoad().then(function(rows){
     finData = rows;
     // sem permissão de edição: esconde formulário e restaurar
@@ -541,6 +551,8 @@ function initFin(){
         document.getElementById('finSetor').value = p.s;
         document.getElementById('finFuncao').value = p.f;
         document.getElementById('finSalario').value = p.v > 0 ? p.v : '';
+        var nEl = document.getElementById('finNasc');
+        if(nEl) nEl.value = p.nasc || '';
         document.getElementById('finFormTitle').textContent = 'Editar: ' + p.n;
         document.getElementById('finSubmit').textContent = 'Salvar alterações';
         document.getElementById('finCancel').hidden = false;
@@ -559,7 +571,8 @@ function initFin(){
         n: document.getElementById('finNome').value.trim(),
         s: document.getElementById('finSetor').value.trim(),
         f: document.getElementById('finFuncao').value.trim(),
-        v: parseFloat(document.getElementById('finSalario').value) || 0
+        v: parseFloat(document.getElementById('finSalario').value) || 0,
+        nasc: (document.getElementById('finNasc') || { value: '' }).value
       };
       if(!p.n || !p.s || !p.f) return;
       if(finEditIdx >= 0){ finData[finEditIdx] = p; }
@@ -2080,16 +2093,31 @@ function qdInit(){
         '<div class="proj-empty">Não foi possível carregar os quadros. As regras da coleção <b>quadros</b> foram publicadas?</div>';
     });
   }
-  if(!clUnsub){
-    clUnsub = db.collection('colunistas').orderBy('nome').onSnapshot(function(qs){
-      clRows = [];
-      qs.forEach(function(doc){ clRows.push({ id: doc.id, d: doc.data() }); });
-      renderColunistas();
-    }, function(){
-      document.getElementById('clTable').innerHTML =
-        '<div class="proj-empty">Não foi possível carregar os colunistas.</div>';
-    });
-  }
+  clListen();
+}
+function clListen(){
+  if(clUnsub) return;
+  clUnsub = db.collection('colunistas').orderBy('nome').onSnapshot(function(qs){
+    clRows = [];
+    qs.forEach(function(doc){ clRows.push({ id: doc.id, d: doc.data() }); });
+    renderColunistas();
+    if(EMB_TAB === 'colunistas') renderEmb();
+  }, function(){
+    document.getElementById('clTable').innerHTML =
+      '<div class="proj-empty">Não foi possível carregar os colunistas.</div>';
+  });
+}
+function clCardHtml(r, comEditar){
+  var d = r.d;
+  var pub = (d.dia || d.freq)
+    ? (d.dia ? escHtml(d.dia) : 'dia a definir') + (d.freq ? ' · ' + escHtml(d.freq) : '')
+    : 'dia e frequência a definir';
+  return '<div class="qd-card"><h4>' + escHtml(d.tema || d.nome || '') + '</h4>' +
+    '<span class="qd-com">com ' + escHtml(d.nome || '') + (d.perfil ? ' · ' + escHtml(d.perfil) : '') + '</span>' +
+    '<span class="qd-quando">Publicação: ' + pub + '</span>' +
+    (d.obs ? '<p class="qd-ctx">' + escHtml(d.obs) + '</p>' : '') +
+    '<div class="qd-foot"><div class="pills"><span class="canal-pill">Site</span></div>' +
+    (comEditar && canRe() ? '<button type="button" class="mini" data-cledit="' + r.id + '">Editar</button>' : '') + '</div></div>';
 }
 function qdCard(r){
   var d = r.d;
@@ -2189,18 +2217,7 @@ function renderColunistas(){
       (canRe() ? ' Clique em <b>+ Adicionar colunista</b>.' : '') + '</div>';
     return;
   }
-  host.innerHTML = '<div class="qd-grid">' + clRows.map(function(r){
-    var d = r.d;
-    var pub = (d.dia || d.freq)
-      ? (d.dia ? escHtml(d.dia) : 'dia a definir') + (d.freq ? ' · ' + escHtml(d.freq) : '')
-      : 'dia e frequência a definir';
-    return '<div class="qd-card"><h4>' + escHtml(d.tema || d.nome || '') + '</h4>' +
-      '<span class="qd-com">com ' + escHtml(d.nome || '') + (d.perfil ? ' · ' + escHtml(d.perfil) : '') + '</span>' +
-      '<span class="qd-quando">Publicação: ' + pub + '</span>' +
-      (d.obs ? '<p class="qd-ctx">' + escHtml(d.obs) + '</p>' : '') +
-      '<div class="qd-foot"><div class="pills"><span class="canal-pill">Site</span></div>' +
-      (canRe() ? '<button type="button" class="mini" data-cledit="' + r.id + '">Editar</button>' : '') + '</div></div>';
-  }).join('') + '</div>';
+  host.innerHTML = '<div class="qd-grid">' + clRows.map(function(r){ return clCardHtml(r, true); }).join('') + '</div>';
   host.onclick = function(ev){
     var b = ev.target.closest('[data-cledit]'); if(!b) return;
     var row = null;
@@ -2255,18 +2272,30 @@ function clDelete(){
   }).catch(function(){ flashMsg('clMsg', 'Sem permissão para excluir.'); });
 }
 
-/* =================== Radar de Embaixadores =================== */
-var embUnsub = null, embBound = false, embRows = [], EMB_TAB = 'radar', EB = null;
+/* =================== Radar (embaixadores, influenciadores e colunistas) =================== */
+var embUnsub = null, embBound = false, embRows = [], EMB_TAB = 'rademb', EB = null;
+var EMB_TITULOS = {
+  rademb: 'Radar de embaixadores', nossosemb: 'Nossos embaixadores',
+  radinf: 'Radar de influenciadores', nossosinf: 'Nossos influenciadores',
+  colunistas: 'Nossos colunistas'
+};
+function ebTipoDe(d){ return d.tipo === 'influenciador' ? 'influenciador' : 'embaixador'; }
+function embTabSet(t){
+  EMB_TAB = t;
+  document.querySelectorAll('[data-embtab]').forEach(function(x){ x.classList.toggle('on', x.dataset.embtab === t); });
+  document.getElementById('embTitulo').textContent = EMB_TITULOS[t];
+  var btn = document.getElementById('embNovo');
+  btn.hidden = t === 'colunistas' || !canRe();
+  btn.textContent = '+ Adicionar ' + (t === 'radinf' || t === 'nossosinf' ? 'influenciador' : 'embaixador');
+  document.getElementById('embForm').hidden = true;
+  EB = null;
+  renderEmb();
+}
 function embInit(){
   if(!embBound){
     embBound = true;
     document.querySelectorAll('[data-embtab]').forEach(function(b){
-      b.addEventListener('click', function(){
-        EMB_TAB = b.dataset.embtab;
-        document.querySelectorAll('[data-embtab]').forEach(function(x){ x.classList.toggle('on', x === b); });
-        document.getElementById('embTitulo').textContent = EMB_TAB === 'radar' ? 'Radar da região' : 'Nossos embaixadores';
-        renderEmb();
-      });
+      b.addEventListener('click', function(){ embTabSet(b.dataset.embtab); });
     });
     document.getElementById('embNovo').addEventListener('click', function(){ ebOpen(null, {}); });
     document.getElementById('ebCancelarBtn').addEventListener('click', function(){
@@ -2276,6 +2305,7 @@ function embInit(){
     document.getElementById('ebSalvar').addEventListener('click', ebSave);
     document.getElementById('ebExcluir').addEventListener('click', ebDelete);
   }
+  clListen();
   if(embUnsub) return;
   embUnsub = db.collection('embaixadores').orderBy('seguidores','desc').onSnapshot(function(qs){
     embRows = [];
@@ -2294,11 +2324,23 @@ function fmtSeg(n){
 }
 function renderEmb(){
   var host = document.getElementById('embTable');
-  var rows = EMB_TAB === 'parceiros' ? embRows.filter(function(r){ return r.d.parceiro === true; }) : embRows;
+  if(!host) return;
+  if(EMB_TAB === 'colunistas'){
+    host.innerHTML = clRows.length
+      ? '<div class="qd-grid">' + clRows.map(function(r){ return clCardHtml(r, false); }).join('') + '</div>'
+      : '<div class="proj-empty">Nenhum colunista cadastrado ainda. Eles são gerenciados em <b>Quadros da Inspira → Site</b>.</div>';
+    return;
+  }
+  var querInf = EMB_TAB === 'radinf' || EMB_TAB === 'nossosinf';
+  var querParceiro = EMB_TAB === 'nossosemb' || EMB_TAB === 'nossosinf';
+  var rows = embRows.filter(function(r){
+    return (ebTipoDe(r.d) === (querInf ? 'influenciador' : 'embaixador')) && (r.d.parceiro === true) === querParceiro;
+  });
   if(!rows.length){
-    host.innerHTML = '<div class="proj-empty">' + (EMB_TAB === 'parceiros'
-      ? 'Nenhum embaixador parceiro ainda. Marque a caixa <b>“Já é parceiro”</b> ao cadastrar ou editar um influenciador.'
-      : 'Nenhum influenciador mapeado ainda.' + (canRe() ? ' Clique em <b>+ Adicionar influenciador</b>.' : '')) + '</div>';
+    var quem = querInf ? 'influenciador' : 'embaixador';
+    host.innerHTML = '<div class="proj-empty">' + (querParceiro
+      ? 'Nenhum ' + quem + ' parceiro ainda. Marque a caixa <b>“Já é parceiro”</b> ao cadastrar ou editar.'
+      : 'Nenhum ' + quem + ' no radar ainda.' + (canRe() ? ' Clique em <b>+ Adicionar ' + quem + '</b>.' : '')) + '</div>';
     return;
   }
   host.innerHTML = '<table><thead><tr><th>Nome</th><th>Perfil</th><th>Plataforma</th><th class="num">Seguidores</th><th>Nicho</th><th>Cidade</th><th>Status</th>' +
@@ -2306,9 +2348,9 @@ function renderEmb(){
     rows.map(function(r){
       var d = r.d;
       return '<tr><td><b>' + escHtml(d.nome || '') + '</b></td><td>' + escHtml(d.perfil || '—') +
-        '</td><td>' + escHtml(d.plataforma || '—') + '</td><td class="num">' + fmtSeg(d.seguidores) +
+        '</td><td>' + escHtml(d.plataforma || '—') + '</td><td class="num">' + (+d.seguidores > 0 ? fmtSeg(d.seguidores) : 'a definir') +
         '</td><td>' + escHtml(d.nicho || '—') + '</td><td>' + escHtml(d.cidade || '—') +
-        '</td><td>' + (d.parceiro ? '<span class="st-pill parc-badge">EMBAIXADOR</span>' : '<span class="st-pill st-encerrada">radar</span>') + '</td>' +
+        '</td><td>' + (d.parceiro ? '<span class="st-pill parc-badge">PARCEIRO</span>' : '<span class="st-pill st-encerrada">radar</span>') + '</td>' +
         (canRe() ? '<td><button type="button" class="mini" data-ebedit="' + r.id + '">Editar</button></td>' : '') + '</tr>';
     }).join('') + '</tbody></table>';
   host.onclick = function(ev){
@@ -2320,6 +2362,8 @@ function renderEmb(){
 }
 function ebOpen(id, d){
   EB = { id: id };
+  document.getElementById('ebTipo').value = d.tipo ||
+    (EMB_TAB === 'radinf' || EMB_TAB === 'nossosinf' ? 'influenciador' : 'embaixador');
   document.getElementById('ebNome').value = d.nome || '';
   document.getElementById('ebPerfil').value = d.perfil || '';
   document.getElementById('ebPlataforma').value = d.plataforma || 'Instagram';
@@ -2339,6 +2383,7 @@ function ebSave(){
   if(!nome){ flashMsg('ebMsg', 'Informe o nome do influenciador.'); return; }
   var doc = {
     nome: nome,
+    tipo: document.getElementById('ebTipo').value,
     perfil: document.getElementById('ebPerfil').value.trim(),
     plataforma: document.getElementById('ebPlataforma').value,
     seguidores: parseInt(document.getElementById('ebSeguidores').value, 10) || 0,
@@ -2366,6 +2411,41 @@ function ebDelete(){
     EB = null;
     document.getElementById('embForm').hidden = true;
   }).catch(function(){ flashMsg('ebMsg', 'Sem permissão para excluir.'); });
+}
+
+/* =================== Minha conta =================== */
+var contaBound = false;
+function contaInit(){
+  if(!contaBound){
+    contaBound = true;
+    document.getElementById('mcSalvar').addEventListener('click', contaSave);
+  }
+  document.getElementById('mcEmail').value = ME.email;
+  document.getElementById('mcSetor').value = ME.setor || (ME.role === 'admin' ? 'Diretoria' : '');
+  db.collection('users').doc(ME.uid).get().then(function(s){
+    var d = s.exists ? s.data() : {};
+    document.getElementById('mcNome').value = d.nome || '';
+    document.getElementById('mcSobrenome').value = d.sobrenome || '';
+    document.getElementById('mcApelido').value = d.apelido || '';
+    document.getElementById('mcNasc').value = d.nascimento || '';
+  }).catch(function(){});
+}
+function contaSave(){
+  var upd = {
+    nome: document.getElementById('mcNome').value.trim(),
+    sobrenome: document.getElementById('mcSobrenome').value.trim(),
+    apelido: document.getElementById('mcApelido').value.trim(),
+    nascimento: document.getElementById('mcNasc').value
+  };
+  if(!upd.nome){ flashMsg('mcMsg', 'Informe pelo menos o seu nome.'); return; }
+  var btn = document.getElementById('mcSalvar');
+  btn.disabled = true;
+  db.collection('users').doc(ME.uid).update(upd).then(function(){
+    ME.nome = upd.nome;
+    flashMsg('mcMsg', 'Dados salvos ✓');
+  }).catch(function(){
+    flashMsg('mcMsg', 'Não foi possível salvar — a regra nova dos usuários foi publicada?');
+  }).finally(function(){ btn.disabled = false; });
 }
 
 /* =================== menu lateral =================== */
