@@ -2189,15 +2189,18 @@ function renderColunistas(){
       (canRe() ? ' Clique em <b>+ Adicionar colunista</b>.' : '') + '</div>';
     return;
   }
-  host.innerHTML = '<table><thead><tr><th>Nome</th><th>Perfil</th><th>Coluna</th><th>Dia</th><th>Frequência</th><th>Sobre</th>' +
-    (canRe() ? '<th></th>' : '') + '</tr></thead><tbody>' +
-    clRows.map(function(r){
-      var d = r.d;
-      return '<tr><td><b>' + escHtml(d.nome || '') + '</b></td><td>' + escHtml(d.perfil || '—') +
-        '</td><td><b>' + escHtml(d.tema || '—') + '</b></td><td>' + escHtml(d.dia || 'a definir') +
-        '</td><td>' + escHtml(d.freq || 'a definir') + '</td><td style="min-width:16rem">' + escHtml(d.obs || '') + '</td>' +
-        (canRe() ? '<td><button type="button" class="mini" data-cledit="' + r.id + '">Editar</button></td>' : '') + '</tr>';
-    }).join('') + '</tbody></table>';
+  host.innerHTML = '<div class="qd-grid">' + clRows.map(function(r){
+    var d = r.d;
+    var pub = (d.dia || d.freq)
+      ? (d.dia ? escHtml(d.dia) : 'dia a definir') + (d.freq ? ' · ' + escHtml(d.freq) : '')
+      : 'dia e frequência a definir';
+    return '<div class="qd-card"><h4>' + escHtml(d.tema || d.nome || '') + '</h4>' +
+      '<span class="qd-com">com ' + escHtml(d.nome || '') + (d.perfil ? ' · ' + escHtml(d.perfil) : '') + '</span>' +
+      '<span class="qd-quando">Publicação: ' + pub + '</span>' +
+      (d.obs ? '<p class="qd-ctx">' + escHtml(d.obs) + '</p>' : '') +
+      '<div class="qd-foot"><div class="pills"><span class="canal-pill">Site</span></div>' +
+      (canRe() ? '<button type="button" class="mini" data-cledit="' + r.id + '">Editar</button>' : '') + '</div></div>';
+  }).join('') + '</div>';
   host.onclick = function(ev){
     var b = ev.target.closest('[data-cledit]'); if(!b) return;
     var row = null;
