@@ -2031,14 +2031,16 @@ function pgSave(){
 
 /* =================== Quadros da Inspira + Colunistas =================== */
 var qdUnsub = null, clUnsub = null, qdBound = false, qdRows = [], clRows = [], QD = null, CL = null;
-var QD_CANAIS = ['Rádio Ao Vivo','Instagram','TikTok','YouTube','Site'];
+var QD_CANAIS = ['Rádio Ao Vivo','Instagram','TikTok','YouTube'];
 var QD_TAB = 'radio';
-var QD_TITULOS = { radio: 'Quadros no ar — Rádio', redes: 'Quadros das redes sociais', site: 'Site — quadros e colunas' };
+var QD_TITULOS = { radio: 'Quadros no ar — Rádio', redes: 'Quadros das redes sociais' };
 function qdTab(t){
   QD_TAB = t;
   document.querySelectorAll('[data-qdtab]').forEach(function(b){ b.classList.toggle('on', b.dataset.qdtab === t); });
-  document.getElementById('qdTitulo').textContent = QD_TITULOS[t];
+  /* na aba Site só existem os colunistas — o bloco de quadros some inteiro */
+  document.getElementById('qdMainSection').hidden = t === 'site';
   document.getElementById('clSection').hidden = t !== 'site';
+  if(t !== 'site') document.getElementById('qdTitulo').textContent = QD_TITULOS[t];
   document.getElementById('qdForm').hidden = true;
   QD = null;
   renderQuadros();
@@ -2124,11 +2126,7 @@ function renderQuadros(){
         (canRe() ? ' Crie um quadro e marque <b>Instagram</b>, <b>TikTok</b> ou <b>YouTube</b> — ele aparece agrupado por rede aqui.' : '') + '</div>';
     }
   }else{
-    var rows = qdRows.filter(function(r){ return qdTem(r.d, 'Site'); });
-    html = rows.length
-      ? '<div class="qd-grid">' + rows.map(qdCard).join('') + '</div>'
-      : '<div class="proj-empty">Nenhum quadro específico do site — as colunas dos colunistas ficam logo abaixo.' +
-        (canRe() ? ' Para adicionar um quadro aqui, marque o canal <b>Site</b>.' : '') + '</div>';
+    html = ''; /* aba Site mostra só os colunistas (seção própria) */
   }
   host.innerHTML = html;
   host.onclick = function(ev){
