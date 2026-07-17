@@ -838,7 +838,6 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
           <div class="proj-actions">
             <button type="button" class="btn primary" id="pjSalvar">Salvar projeto</button>
             <button type="button" class="btn publish" id="pjPublicar">Publicar processo do setor</button>
-            <button type="button" class="btn ghost" id="pjLegacy" hidden>Ver relatório completo original</button>
             <button type="button" class="btn ghost danger" id="pjExcluir" hidden>Excluir projeto</button>
             <span class="fin-msg" id="pjMsg"></span>
           </div>
@@ -847,13 +846,6 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
       </div>
     </div>
 
-    <!-- relatório original (legado) -->
-    <div id="projLegacyView" hidden>
-      <div class="section" style="padding-bottom:0"><div class="wrap">
-        <button type="button" class="btn ghost" id="legacyBack">← Voltar ao projeto</button>
-      </div></div>
-      <div id="legacyHost"></div>
-    </div>
   </section>
   <section id="view-organograma" class="view" aria-label="Organograma"><div class="load-note">Carregando…</div></section>
   <section id="view-financeiro" class="view" aria-label="Equipe"><div class="load-note">Carregando…</div></section>
