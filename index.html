@@ -578,6 +578,12 @@ ol.hc-list li::before{
   display:inline-flex;align-items:center;justify-content:center;font-size:.8rem;flex:none;position:relative;top:.15rem;
 }
 .hc-list li.hc-empty{display:block;color:var(--muted);font-style:italic}
+/* ícones outline (traço fino, estilo linear) */
+.ic{width:1.1em;height:1.1em;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;vertical-align:-0.18em;display:inline-block;flex:none}
+.sn-ic .ic{width:1.2rem;height:1.2rem;vertical-align:middle}
+.home-card>header h3 .ic{color:var(--teal-700);margin-right:.2rem}
+.btn .ic,.mini .ic,.bs-apoiar .ic{vertical-align:-0.22em;margin-right:.15rem}
+.proc-pend .ic{color:#B07B10;margin-right:.2rem}
 ol.hc-list li.hc-empty::before{display:none}
 .hc-empty{color:var(--muted);font-size:.9rem;font-style:italic;margin:.2rem 0}
 .hc-camp{display:block;border:1px solid var(--line);border-radius:.7rem;padding:.7rem .9rem;margin-bottom:.6rem;text-decoration:none;color:inherit;transition:border-color .15s}
@@ -862,17 +868,17 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
 <aside id="sidenav" aria-label="Menu principal">
   <nav>
     <p class="sn-cap">Dia a dia</p>
-    <a href="#inicio" data-nav="inicio"><span class="sn-ic">🏠</span><span>Início</span></a>
-    <a href="#campanhas" data-nav="campanhas"><span class="sn-ic">📣</span><span>Campanhas</span></a>
-    <a href="#processos" data-nav="processos"><span class="sn-ic">🔁</span><span>Processos</span></a>
+    <a href="#inicio" data-nav="inicio"><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22v-9h6v9"/></svg></span><span>Início</span></a>
+    <a href="#campanhas" data-nav="campanhas"><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10v4h3l5 4V6l-5 4H3z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a9 9 0 0 1 0 12"/></svg></span><span>Campanhas</span></a>
+    <a href="#processos" data-nav="processos"><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 4v6h-6"/><path d="M3 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 15-3.3L21 8"/><path d="M20.5 15a9 9 0 0 1-15 3.3L3 16"/></svg></span><span>Processos</span></a>
     <p class="sn-cap">Análises</p>
-    <a href="#analise" data-nav="analise"><span class="sn-ic">📈</span><span>Análise Social</span></a>
-    <a href="#organograma" data-nav="organograma"><span class="sn-ic">🧭</span><span>Organograma</span></a>
+    <a href="#analise" data-nav="analise"><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg></span><span>Análise Social</span></a>
+    <a href="#organograma" data-nav="organograma"><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="8.5" y="3" width="7" height="4.5" rx="1"/><rect x="3" y="16.5" width="7" height="4.5" rx="1"/><rect x="14" y="16.5" width="7" height="4.5" rx="1"/><path d="M12 7.5V11"/><path d="M6.5 16.5V14h11v2.5"/><path d="M12 11v3"/></svg></span><span>Organograma</span></a>
     <p class="sn-cap" data-need="re" hidden>Gestão</p>
-    <a href="#reestruturacao" data-nav="reestruturacao" data-need="re" hidden><span class="sn-ic">🧩</span><span>Reestruturações</span></a>
-    <a href="#financeiro" data-nav="financeiro" data-need="fin" hidden><span class="sn-ic">👥</span><span>Equipe</span></a>
+    <a href="#reestruturacao" data-nav="reestruturacao" data-need="re" hidden><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M1.5 14h5"/><path d="M9.5 8h5"/><path d="M17.5 16h5"/></svg></span><span>Reestruturações</span></a>
+    <a href="#financeiro" data-nav="financeiro" data-need="fin" hidden><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Equipe</span></a>
     <p class="sn-cap" data-need="admin" hidden>Administração</p>
-    <a href="#usuarios" data-nav="usuarios" data-need="admin" hidden><span class="sn-ic">🔐</span><span>Usuários</span></a>
+    <a href="#usuarios" data-nav="usuarios" data-need="admin" hidden><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><span>Usuários</span></a>
   </nav>
 </aside>
 <div id="navBackdrop" aria-hidden="true"></div>
@@ -894,33 +900,33 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
       <div class="wrap">
         <div class="home-grid">
           <div class="home-card">
-            <header><h3>📣 Campanhas ativas</h3><a class="mini-link" href="#campanhas">ver todas →</a></header>
+            <header><h3><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10v4h3l5 4V6l-5 4H3z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a9 9 0 0 1 0 12"/></svg> Campanhas ativas</h3><a class="mini-link" href="#campanhas">ver todas →</a></header>
             <div class="hc-body" id="homeCamps"><div class="load-note">Carregando…</div></div>
           </div>
           <div class="home-card">
-            <header><h3>📅 Eventos da semana</h3><button type="button" class="mini" id="dstEditBtn" data-need="re" hidden>Editar</button></header>
+            <header><h3><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg> Eventos da semana</h3><button type="button" class="mini" id="dstEditBtn" data-need="re" hidden>Editar</button></header>
             <div class="hc-body"><ul class="hc-list" id="homeEventos"></ul></div>
           </div>
           <div class="home-card">
-            <header><h3>👀 Fique de olho</h3></header>
+            <header><h3><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg> Fique de olho</h3></header>
             <div class="hc-body"><ul class="hc-list" id="homeAssuntos"></ul></div>
           </div>
           <div class="home-card">
-            <header><h3>🎵 Em alta no adulto contemporâneo</h3></header>
+            <header><h3><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg> Em alta no adulto contemporâneo</h3></header>
             <div class="hc-body mus-cols">
               <div><h4>Nacionais</h4><ol class="hc-list" id="homeMusBR"></ol></div>
               <div><h4>Internacionais</h4><ol class="hc-list" id="homeMusINT"></ol></div>
             </div>
           </div>
           <div class="home-card hc-wide">
-            <header><h3>💡 Brainstorm — últimas ideias</h3><a class="mini-link" href="#campanhas" data-gobs="1">ver todas →</a></header>
+            <header><h3><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-4.1 12.7c.7.5 1.1 1.4 1.1 2.3h6c0-.9.4-1.8 1.1-2.3A7 7 0 0 0 12 2z"/><path d="M9.5 20h5"/><path d="M10.5 22h3"/></svg> Brainstorm — últimas ideias</h3><a class="mini-link" href="#campanhas" data-gobs="1">ver todas →</a></header>
             <div class="hc-body" id="homeBs"><div class="load-note">Carregando…</div></div>
-            <div style="padding:0 1.2rem 1.1rem"><a class="btn primary" href="#campanhas" data-gobs="1" style="text-decoration:none;display:inline-block">💡 Soltar uma ideia</a></div>
+            <div style="padding:0 1.2rem 1.1rem"><a class="btn primary" href="#campanhas" data-gobs="1" style="text-decoration:none;display:inline-block"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-4.1 12.7c.7.5 1.1 1.4 1.1 2.3h6c0-.9.4-1.8 1.1-2.3A7 7 0 0 0 12 2z"/><path d="M9.5 20h5"/><path d="M10.5 22h3"/></svg> Soltar uma ideia</a></div>
           </div>
         </div>
 
         <div class="home-card" id="dstForm" hidden style="margin-top:1.4rem">
-          <header><h3>✏️ Editar destaques da semana</h3></header>
+          <header><h3><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg> Editar destaques da semana</h3></header>
           <div class="hc-body">
             <p class="lead" style="margin-top:0;font-size:.92rem">Um item por linha. Nas músicas, use o formato <b>Música — Artista</b>. Vale para toda a equipe assim que salvar.</p>
             <div class="cp-row">
@@ -1090,7 +1096,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
           <button type="button" data-ctab="ativas" class="on">Campanhas ativas</button>
           <button type="button" data-ctab="criar" data-need="re" hidden>Criar campanha</button>
           <button type="button" data-ctab="relatorios" data-need="re" hidden>Relatórios</button>
-          <button type="button" data-ctab="brainstorm">Brainstorm 💡</button>
+          <button type="button" data-ctab="brainstorm">Brainstorm</button>
         </div>
       </div>
     </div>
@@ -1199,7 +1205,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
 
             <div class="proj-actions">
               <button type="button" class="btn primary" id="cpSalvar">Salvar campanha</button>
-              <button type="button" class="btn publish" id="cpStatusBtn">🚀 Ativar campanha</button>
+              <button type="button" class="btn publish" id="cpStatusBtn">Ativar campanha</button>
               <button type="button" class="btn ghost danger" id="cpExcluir" hidden>Excluir campanha</button>
               <span class="fin-msg" id="cpMsg"></span>
             </div>
@@ -1258,7 +1264,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
       <div class="section">
         <div class="wrap">
           <div class="bs-form">
-            <h3 style="margin-top:0">Tem uma ideia? Solta aqui 💡</h3>
+            <h3 style="margin-top:0"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-4.1 12.7c.7.5 1.1 1.4 1.1 2.3h6c0-.9.4-1.8 1.1-2.3A7 7 0 0 0 12 2z"/><path d="M9.5 20h5"/><path d="M10.5 22h3"/></svg> Tem uma ideia? Solta aqui</h3>
             <p class="lead" style="margin-top:0">Espaço aberto para toda a equipe sugerir campanhas, ações e projetos. As melhores ideias viram campanha de verdade.</p>
             <div class="field"><label for="bsTitulo">Título da ideia</label>
               <input id="bsTitulo" class="fin-input" maxlength="80" placeholder="ex.: Café da manhã com ouvintes no estúdio"></div>

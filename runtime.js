@@ -312,6 +312,21 @@ function escHtml(s){
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+/* =================== ícones outline (traço fino) =================== */
+var ICONS = {
+  megafone: '<path d="M3 10v4h3l5 4V6l-5 4H3z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a9 9 0 0 1 0 12"/>',
+  alerta: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  camera: '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+  raio: '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',
+  alvo: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+  joinha: '<path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.3a2 2 0 0 0 2-1.7l1.4-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>',
+  cadeado: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  chave: '<circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2"/><path d="M17 6l3 3"/><path d="M14 9l2 2"/>'
+};
+function ic(nome){
+  return '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">' + (ICONS[nome] || '') + '</svg>';
+}
+
 /* =================== gráficos =================== */
 function buildFollowers(){
   var host = document.getElementById('followersBars');
@@ -566,7 +581,7 @@ function buildUsers(){
         }).join('');
         var lock = d.email === ADMIN_EMAIL;
         return '<tr data-uid="' + r.id + '">' +
-          '<td>' + escHtml(d.email || '') + (lock ? ' 🔑' : '') + '</td>' +
+          '<td>' + escHtml(d.email || '') + (lock ? ' ' + ic('chave') : '') + '</td>' +
           '<td>' + escHtml(d.nome || '—') + '</td>' +
           '<td><select class="fin-input u-setor"' + (lock ? ' disabled' : '') + '><option value="">—</option>' +
             ['Diretoria'].concat(SETORES).map(function(s){
@@ -807,7 +822,7 @@ function renderProcessos(ativos){
   var pend = SETORES.filter(function(s){ return !ativos[setorSlug(s)]; });
   var alertHost = document.getElementById('procAlert');
   alertHost.innerHTML = pend.length
-    ? '<div class="proc-pend">⚠ <b>' + pend.length + ' setor' + (pend.length > 1 ? 'es' : '') + ' sem processo ativo:</b> ' +
+    ? '<div class="proc-pend">' + ic('alerta') + ' <b>' + pend.length + ' setor' + (pend.length > 1 ? 'es' : '') + ' sem processo ativo:</b> ' +
       pend.map(escHtml).join(' · ') + '. A diretoria de cada setor precisa criar e publicar o processo na página Reestruturações.</div>'
     : '';
   document.getElementById('procList').innerHTML = SETORES.map(function(s){
@@ -987,7 +1002,7 @@ function fotoGridRender(host, arr, editable, max){
       (editable ? '<button type="button" class="f-del" data-i="' + i + '" title="Remover foto">×</button>' : '') + '</div>';
   }).join('') +
   (editable ? (arr.length < max
-    ? '<button type="button" class="mini" data-addfoto="1">📷 Adicionar foto</button>'
+    ? '<button type="button" class="mini" data-addfoto="1">' + ic('camera') + ' Adicionar foto</button>'
     : '<span class="chart-note" style="margin:0">máximo de ' + max + ' fotos</span>') : '');
   host.onclick = function(ev){
     var img = ev.target.closest('img[data-full]');
@@ -1087,7 +1102,7 @@ function renderCampAtivas(){
   var host = document.getElementById('campAtivasList');
   var ativas = campRows.filter(function(r){ return r.d.status === 'ativa'; });
   document.getElementById('campAtivasAlert').innerHTML = ativas.length ? '' :
-    '<div class="proc-pend">📣 <b>Nenhuma campanha ativa no momento.</b> ' +
+    '<div class="proc-pend">' + ic('megafone') + ' <b>Nenhuma campanha ativa no momento.</b> ' +
     (canRe() ? 'Crie e ative uma campanha na aba “Criar campanha”.' : 'A diretoria ainda não ativou nenhuma campanha.') + '</div>';
   host.innerHTML = ativas.map(campCard).join('');
   host.onclick = function(ev){
@@ -1193,8 +1208,8 @@ function cpStatusUI(){
   var pill = document.getElementById('cpStatusPill');
   pill.textContent = lbl[0];
   pill.className = 'st-pill ' + lbl[1];
-  document.getElementById('cpStatusBtn').textContent =
-    st === 'ativa' ? 'Encerrar campanha' : (st === 'encerrada' ? 'Reativar campanha' : '🚀 Ativar campanha');
+  document.getElementById('cpStatusBtn').innerHTML =
+    st === 'ativa' ? 'Encerrar campanha' : (st === 'encerrada' ? 'Reativar campanha' : ic('raio') + ' Ativar campanha');
   document.getElementById('cpExcluir').hidden = !CP.id;
 }
 function cpRenderCustos(){
@@ -1484,7 +1499,7 @@ function bsRender(rows){
       '<p class="tx">' + escHtml(d.texto || '') + '</p>' +
       (fotos ? '<div class="foto-grid">' + fotos + '</div>' : '') +
       '<div class="bs-foot">' +
-      '<button type="button" class="bs-apoiar' + (eu ? ' on' : '') + '" data-apoiar="1">👍 Apoiar' + (apoios.length ? ' · ' + apoios.length : '') + '</button>' +
+      '<button type="button" class="bs-apoiar' + (eu ? ' on' : '') + '" data-apoiar="1">' + ic('joinha') + ' Apoiar' + (apoios.length ? ' · ' + apoios.length : '') + '</button>' +
       (dono ? '<button type="button" class="mini del" data-delidea="1">Excluir</button>' : '') +
       '</div></div>';
   }).join('');
@@ -1617,7 +1632,7 @@ function renderHomeCamps(){
     var d = r.d;
     return '<a class="hc-camp" href="#campanhas"><b>' + escHtml(d.nome || '') + '</b>' +
       '<small>' + escHtml(fmtPeriodo(d)) + (d.setorLider ? ' · ' + escHtml(d.setorLider) : '') + '</small>' +
-      (d.foco ? '<small>🎯 ' + escHtml(d.foco) + '</small>' : '') + '</a>';
+      (d.foco ? '<small>' + ic('alvo') + ' ' + escHtml(d.foco) + '</small>' : '') + '</a>';
   }).join('');
 }
 function renderHomeBs(){
@@ -1631,7 +1646,7 @@ function renderHomeBs(){
     var d = r.d;
     var n = (d.apoios || []).length;
     return '<div class="hc-bs"><span><b>' + escHtml(d.titulo || '') + '</b> <small style="color:var(--muted)">· ' +
-      escHtml(d.autor || '') + '</small></span><span style="white-space:nowrap">👍 ' + n + '</span></div>';
+      escHtml(d.autor || '') + '</small></span><span style="white-space:nowrap">' + ic('joinha') + ' ' + n + '</span></div>';
   }).join('');
 }
 /* atalhos que abrem direto a aba Brainstorm */
