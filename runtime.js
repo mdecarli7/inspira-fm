@@ -184,6 +184,9 @@ function loadContent(){
 function enterApp(){
   /* view-inicio agora é o painel do dia (markup fixo); o hero antigo do Instagram vive na Análise Social */
   document.getElementById('view-analise').innerHTML = CONTENT.base.analise;
+  /* renomeada: Análise Social → Análise Redes Sociais (conteúdo vem do Firestore; título ajustado aqui) */
+  var anH2 = document.querySelector('#view-analise .page-hero h2');
+  if(anH2) anH2.textContent = 'Análise Redes Sociais';
   document.getElementById('view-organograma').innerHTML = CONTENT.base.organograma;
   if(CONTENT.fin) document.getElementById('view-financeiro').innerHTML = CONTENT.fin.html;
   /* Reestruturações: o hub é fixo; o relatório original (legado) injeta sob demanda */
@@ -201,11 +204,11 @@ function enterApp(){
 }
 
 /* =================== router =================== */
-var VIEWS = ['inicio','analise','processos','campanhas','reestruturacao','organograma','financeiro','usuarios'];
+var VIEWS = ['inicio','analise','dial','site','mobradio','processos','campanhas','reestruturacao','organograma','financeiro','usuarios','juridico'];
 var counted = false;
 
 function viewAllowed(id){
-  if(id === 'reestruturacao') return canRe();
+  if(id === 'reestruturacao' || id === 'juridico') return canRe();
   if(id === 'financeiro') return canFin();
   if(id === 'usuarios') return isAdmin();
   return true;
@@ -229,6 +232,8 @@ function route(){
   if(id === 'reestruturacao') projInit();
   if(id === 'processos') buildProcessos();
   if(id === 'campanhas') campInit();
+  if(id === 'dial') dialInit();
+  if(id === 'juridico') jurInit();
   requestAnimationFrame(armCharts);
 }
 window.addEventListener('hashchange', route);
@@ -1653,6 +1658,271 @@ function renderHomeBs(){
 document.addEventListener('click', function(ev){
   if(ev.target.closest('[data-gobs]')) CTAB = 'brainstorm';
 });
+
+/* =================== Análise Dial (pesquisas de audiência) =================== */
+var dialUnsub = null, dialBound = false, DIAL = null;
+function dialInit(){
+  if(!dialBound){
+    dialBound = true;
+    document.getElementById('dlEditBtn').addEventListener('click', dlEdit);
+    document.getElementById('dlCancelar').addEventListener('click', function(){
+      document.getElementById('dlForm').hidden = true;
+    });
+    document.getElementById('dlSalvar').addEventListener('click', dlSave);
+  }
+  if(dialUnsub) return;
+  dialUnsub = db.collection('analises').doc('dial').onSnapshot(function(snap){
+    DIAL = snap.exists ? snap.data() : null;
+    renderDial(false);
+  }, function(){
+    DIAL = null;
+    renderDial(true);
+  });
+}
+function renderDial(erro){
+  var rows = (DIAL && DIAL.rows) || [];
+  var k = document.getElementById('dlKpis');
+  var t = document.getElementById('dlTable');
+  if(!rows.length){
+    k.innerHTML = '';
+    t.innerHTML = '<div class="proj-empty">' + (erro
+      ? 'Sem acesso às pesquisas — as regras da coleção <b>analises</b> foram publicadas?'
+      : 'Nenhuma pesquisa cadastrada ainda.' + (canRe() ? ' Clique em <b>Editar pesquisas</b> para lançar a primeira rodada.' : ' A diretoria lança os números a cada rodada.')) + '</div>';
+    return;
+  }
+  var u = rows[rows.length - 1];
+  k.innerHTML =
+    '<div class="kpi"><div class="v">' + (u.pos ? escHtml(u.pos) + 'º' : '—') + '</div><div class="k">posição no ranking</div></div>' +
+    '<div class="kpi"><div class="v">' + escHtml(u.aud || '—') + '</div><div class="k">audiência</div></div>' +
+    '<div class="kpi"><div class="v">' + escHtml(u.sh || '—') + '</div><div class="k">share</div></div>' +
+    '<div class="kpi"><div class="v" style="font-size:1.15rem">' + escHtml(u.p || '—') + '</div><div class="k">última pesquisa' + (u.i ? ' · ' + escHtml(u.i) : '') + '</div></div>';
+  var body = rows.slice().reverse().map(function(r, idx){
+    return '<tr' + (idx === 0 ? ' class="hl-inspira"' : '') + '><td><b>' + escHtml(r.p || '') + '</b></td><td>' + escHtml(r.i || '—') +
+      '</td><td class="num">' + (r.pos ? escHtml(r.pos) + 'º' : '—') + '</td><td class="num">' + escHtml(r.aud || '—') +
+      '</td><td class="num">' + escHtml(r.sh || '—') + '</td><td style="min-width:16rem">' + escHtml(r.obs || '') + '</td></tr>';
+  }).join('');
+  t.innerHTML = '<table><thead><tr><th>Período</th><th>Instituto</th><th class="num">Posição</th><th class="num">Audiência</th><th class="num">Share</th><th>Observações</th></tr></thead><tbody>' + body + '</tbody></table>';
+}
+function dlRowHtml(r, i){
+  return '<div class="dial-row" data-i="' + i + '">' +
+    '<input class="fin-input d-p" value="' + escHtml(r.p || '') + '" placeholder="ex.: 1º tri 2026">' +
+    '<input class="fin-input d-i" value="' + escHtml(r.i || '') + '" placeholder="instituto">' +
+    '<input class="fin-input d-pos" value="' + escHtml(r.pos || '') + '" placeholder="nº">' +
+    '<input class="fin-input d-aud" value="' + escHtml(r.aud || '') + '" placeholder="ex.: 2,1 pts">' +
+    '<input class="fin-input d-sh" value="' + escHtml(r.sh || '') + '" placeholder="ex.: 4,8%">' +
+    '<input class="fin-input d-obs" value="' + escHtml(r.obs || '') + '" placeholder="observações">' +
+    '<button type="button" class="i-del" title="Remover">×</button></div>';
+}
+var DL_ROWS = [];
+function dlEdit(){
+  DL_ROWS = ((DIAL && DIAL.rows) || []).map(function(r){ return { p:r.p||'', i:r.i||'', pos:r.pos||'', aud:r.aud||'', sh:r.sh||'', obs:r.obs||'' }; });
+  if(!DL_ROWS.length) DL_ROWS.push({ p:'', i:'', pos:'', aud:'', sh:'', obs:'' });
+  dlRenderForm();
+  var f = document.getElementById('dlForm');
+  f.hidden = false;
+  f.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+}
+function dlRenderForm(){
+  var host = document.getElementById('dlRows');
+  host.innerHTML = DL_ROWS.map(dlRowHtml).join('') +
+    '<div class="pp-add"><button type="button" class="mini" data-add="1">+ Adicionar pesquisa</button></div>';
+  host.onclick = function(ev){
+    var b = ev.target.closest('button'); if(!b) return;
+    if(b.dataset.add){ DL_ROWS.push({ p:'', i:'', pos:'', aud:'', sh:'', obs:'' }); dlRenderForm(); }
+    else if(b.classList.contains('i-del')){ DL_ROWS.splice(+b.closest('.dial-row').dataset.i, 1); dlRenderForm(); }
+  };
+  host.oninput = function(ev){
+    var row = ev.target.closest('.dial-row'); if(!row) return;
+    var r = DL_ROWS[+row.dataset.i];
+    if(ev.target.classList.contains('d-p')) r.p = ev.target.value;
+    else if(ev.target.classList.contains('d-i')) r.i = ev.target.value;
+    else if(ev.target.classList.contains('d-pos')) r.pos = ev.target.value;
+    else if(ev.target.classList.contains('d-aud')) r.aud = ev.target.value;
+    else if(ev.target.classList.contains('d-sh')) r.sh = ev.target.value;
+    else if(ev.target.classList.contains('d-obs')) r.obs = ev.target.value;
+  };
+}
+function dlSave(){
+  var rows = DL_ROWS.filter(function(r){ return (r.p || '').trim(); });
+  var btn = document.getElementById('dlSalvar');
+  btn.disabled = true;
+  db.collection('analises').doc('dial').set({
+    rows: rows,
+    atualizadoPor: ME.nome || ME.email,
+    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function(){
+    document.getElementById('dlForm').hidden = true;
+  }).catch(function(){
+    flashMsg('dlMsg', 'Sem permissão para salvar — só a diretoria edita as pesquisas.');
+  }).finally(function(){ btn.disabled = false; });
+}
+
+/* =================== Jurídico (contratos e termos) =================== */
+var jurUnsub = null, jurBound = false, JR = null, jurRows = [];
+var JR_TIPOS = ['Contrato', 'Termo', 'Aditivo', 'Outro'];
+var JR_MODELOS = {
+  patrocinio: {
+    nome: 'Contrato de patrocínio / veiculação',
+    titulo: 'Contrato de Patrocínio e Veiculação Publicitária',
+    tipo: 'Contrato',
+    partes: 'Inspira FM 97.7 × [RAZÃO SOCIAL DA PATROCINADORA]',
+    texto: 'CONTRATADA: Inspira FM 97.7, emissora de radiodifusão com sede em Campinas/SP, doravante denominada EMISSORA.\n\nCONTRATANTE: [RAZÃO SOCIAL], inscrita no CNPJ sob nº [CNPJ], com sede em [ENDEREÇO], neste ato representada por [NOME DO REPRESENTANTE], doravante denominada PATROCINADORA.\n\nAs partes celebram o presente contrato, que se regerá pelas cláusulas seguintes:\n\nCLÁUSULA 1ª — DO OBJETO\nVeiculação de [QUANTIDADE] inserções publicitárias de [DURAÇÃO] segundos na programação da EMISSORA, no período e nos horários descritos na Cláusula 3ª, além das contrapartidas descritas no plano comercial apresentado à PATROCINADORA.\n\nCLÁUSULA 2ª — DO VALOR E DA FORMA DE PAGAMENTO\nPelo patrocínio, a PATROCINADORA pagará à EMISSORA o valor mensal de R$ [VALOR] ([VALOR POR EXTENSO]), com vencimento todo dia [DIA] de cada mês, mediante [FORMA DE PAGAMENTO].\nParágrafo único: o atraso superior a [X] dias implicará multa de 2%, juros de 1% ao mês e suspensão das veiculações até a regularização.\n\nCLÁUSULA 3ª — DO PERÍODO E DOS HORÁRIOS\nVigência de [DATA DE INÍCIO] a [DATA DE TÉRMINO], com inserções distribuídas [DESCREVER A DISTRIBUIÇÃO — ex.: de segunda a sexta, entre 7h e 19h].\n\nCLÁUSULA 4ª — DO MATERIAL PUBLICITÁRIO\nO material será produzido por [RESPONSÁVEL PELA PRODUÇÃO]. O conteúdo deve respeitar a legislação vigente e as normas internas da EMISSORA, que poderá recusar peça em desacordo.\n\nCLÁUSULA 5ª — DAS OBRIGAÇÕES DA EMISSORA\nVeicular as inserções contratadas; comunicar alterações relevantes de programação; disponibilizar comprovante de veiculação quando solicitado.\n\nCLÁUSULA 6ª — DAS OBRIGAÇÕES DA PATROCINADORA\nFornecer as informações e materiais necessários; efetuar os pagamentos nos prazos; responsabilizar-se pela veracidade das informações comerciais fornecidas.\n\nCLÁUSULA 7ª — DA RESCISÃO\nQualquer das partes poderá rescindir este contrato mediante aviso prévio de 30 (trinta) dias. O descumprimento de cláusula autoriza a rescisão imediata pela parte inocente, sem prejuízo da cobrança dos valores devidos.\n\nCLÁUSULA 8ª — DO FORO\nFica eleito o foro da Comarca de Campinas/SP para dirimir quaisquer controvérsias.\n\nE, por estarem justas e contratadas, as partes assinam o presente em duas vias de igual teor.\n\nCampinas, [DATA].\n\n\n_____________________________________\nInspira FM 97.7 — EMISSORA\n\n_____________________________________\n[RAZÃO SOCIAL] — PATROCINADORA\n\n_____________________________________\nTestemunha 1 — Nome/CPF\n\n_____________________________________\nTestemunha 2 — Nome/CPF'
+  },
+  permuta: {
+    nome: 'Contrato de permuta',
+    titulo: 'Contrato de Permuta de Serviços e Mídia',
+    tipo: 'Contrato',
+    partes: 'Inspira FM 97.7 × [RAZÃO SOCIAL DO PARCEIRO]',
+    texto: 'PERMUTANTE 1: Inspira FM 97.7, emissora de radiodifusão com sede em Campinas/SP, doravante denominada EMISSORA.\n\nPERMUTANTE 2: [RAZÃO SOCIAL], inscrita no CNPJ sob nº [CNPJ], com sede em [ENDEREÇO], doravante denominada PARCEIRA.\n\nCLÁUSULA 1ª — DO OBJETO\nPermuta entre as partes, sem envolvimento de valores em dinheiro: a EMISSORA fornecerá [DESCREVER A MÍDIA — ex.: X inserções semanais de 30 segundos + menções em redes sociais], e a PARCEIRA fornecerá [DESCREVER PRODUTOS/SERVIÇOS].\n\nCLÁUSULA 2ª — DA VALORAÇÃO\nPara fins de equivalência e registro, as partes atribuem à permuta o valor mensal de referência de R$ [VALOR].\n\nCLÁUSULA 3ª — DA VIGÊNCIA\nDe [DATA DE INÍCIO] a [DATA DE TÉRMINO], renovável por acordo escrito entre as partes.\n\nCLÁUSULA 4ª — DAS RESPONSABILIDADES\nCada parte responde pela qualidade e entrega daquilo que fornece, mantendo o padrão combinado durante toda a vigência.\n\nCLÁUSULA 5ª — DA RESCISÃO\nQualquer das partes poderá rescindir mediante aviso prévio de 30 (trinta) dias, quitando-se as obrigações pendentes até a data do encerramento.\n\nCLÁUSULA 6ª — DO FORO\nFica eleito o foro da Comarca de Campinas/SP.\n\nCampinas, [DATA].\n\n\n_____________________________________\nInspira FM 97.7 — EMISSORA\n\n_____________________________________\n[RAZÃO SOCIAL] — PARCEIRA'
+  },
+  imagem: {
+    nome: 'Termo de uso de imagem e voz',
+    titulo: 'Termo de Autorização de Uso de Imagem e Voz',
+    tipo: 'Termo',
+    partes: 'Inspira FM 97.7 × [NOME DO AUTORIZANTE]',
+    texto: 'Eu, [NOME COMPLETO], portador(a) do CPF nº [CPF], residente em [CIDADE/UF], AUTORIZO, de forma gratuita e por prazo indeterminado, a Inspira FM 97.7 a captar, utilizar, editar e veicular minha imagem e minha voz em:\n\na) programação da rádio (ao vivo ou gravada);\nb) redes sociais, site e aplicativo da emissora;\nc) materiais institucionais e de divulgação, digitais ou impressos.\n\n1. A autorização abrange o material captado em [DESCREVER O CONTEXTO — ex.: entrevista no estúdio em DATA / cobertura do evento X].\n\n2. A utilização não gera qualquer obrigação de pagamento, vínculo empregatício ou exclusividade.\n\n3. A emissora se compromete a utilizar o material com respeito, sem distorcer o contexto das declarações.\n\n4. Esta autorização pode ser revogada a qualquer momento, por escrito, valendo a revogação apenas para novas veiculações.\n\nCampinas, [DATA].\n\n\n_____________________________________\n[NOME COMPLETO] — Autorizante\n\n_____________________________________\nInspira FM 97.7'
+  },
+  servicos: {
+    nome: 'Contrato de prestação de serviços',
+    titulo: 'Contrato de Prestação de Serviços',
+    tipo: 'Contrato',
+    partes: 'Inspira FM 97.7 × [NOME/RAZÃO SOCIAL DO PRESTADOR]',
+    texto: 'CONTRATANTE: Inspira FM 97.7, emissora de radiodifusão com sede em Campinas/SP.\n\nCONTRATADO(A): [NOME/RAZÃO SOCIAL], inscrito(a) no CPF/CNPJ sob nº [DOCUMENTO], residente/sediado(a) em [ENDEREÇO].\n\nCLÁUSULA 1ª — DO OBJETO\nPrestação dos seguintes serviços: [DESCREVER OS SERVIÇOS — ex.: produção de conteúdo audiovisual, locução, edição].\n\nCLÁUSULA 2ª — DO VALOR E DO PAGAMENTO\nPelos serviços, a CONTRATANTE pagará R$ [VALOR] por [MÊS/ENTREGA], mediante [FORMA DE PAGAMENTO], até o dia [DIA].\n\nCLÁUSULA 3ª — DO PRAZO\nVigência de [DATA DE INÍCIO] a [DATA DE TÉRMINO], podendo ser renovado por acordo entre as partes.\n\nCLÁUSULA 4ª — DA NATUREZA DA RELAÇÃO\nEste contrato não gera vínculo empregatício. O(A) CONTRATADO(A) executa os serviços com autonomia, arcando com suas obrigações fiscais e previdenciárias.\n\nCLÁUSULA 5ª — DA CONFIDENCIALIDADE\nO(A) CONTRATADO(A) manterá sigilo sobre informações internas da EMISSORA (comerciais, financeiras e de programação) a que tiver acesso.\n\nCLÁUSULA 6ª — DA PROPRIEDADE DO MATERIAL\nO material produzido no âmbito deste contrato pertence à EMISSORA, que poderá utilizá-lo livremente em seus canais.\n\nCLÁUSULA 7ª — DA RESCISÃO\nQualquer das partes poderá rescindir mediante aviso prévio de 30 (trinta) dias, quitando-se os valores proporcionais aos serviços prestados.\n\nCLÁUSULA 8ª — DO FORO\nFica eleito o foro da Comarca de Campinas/SP.\n\nCampinas, [DATA].\n\n\n_____________________________________\nInspira FM 97.7 — CONTRATANTE\n\n_____________________________________\n[NOME/RAZÃO SOCIAL] — CONTRATADO(A)'
+  }
+};
+function jurInit(){
+  if(!canRe()) return;
+  if(!jurBound){
+    jurBound = true;
+    var selM = document.getElementById('jrModelo');
+    selM.innerHTML = '<option value="">Criar a partir de um modelo…</option>' + Object.keys(JR_MODELOS).map(function(k){
+      return '<option value="' + k + '">' + escHtml(JR_MODELOS[k].nome) + '</option>';
+    }).join('');
+    selM.addEventListener('change', function(){
+      var m = JR_MODELOS[this.value];
+      this.value = '';
+      if(!m) return;
+      jrOpen(null, { titulo: m.titulo, tipo: m.tipo, partes: m.partes, texto: m.texto });
+    });
+    document.getElementById('jrTipo').innerHTML = JR_TIPOS.map(function(x){
+      return '<option value="' + x + '">' + x + '</option>';
+    }).join('');
+    document.getElementById('jrNovo').addEventListener('click', function(){
+      jrOpen(null, { titulo: '', tipo: 'Contrato', partes: '', texto: '' });
+    });
+    document.getElementById('jrVoltar').addEventListener('click', jrShowHub);
+    document.getElementById('jrSalvar').addEventListener('click', jrSave);
+    document.getElementById('jrExcluir').addEventListener('click', jrDelete);
+    document.getElementById('jrVer').addEventListener('click', jrVer);
+    document.getElementById('jrFechar').addEventListener('click', function(){
+      document.getElementById('jrView').hidden = true;
+      document.getElementById('jrEditor').hidden = false;
+      window.scrollTo(0,0);
+    });
+    document.getElementById('jrImprimir').addEventListener('click', function(){ window.print(); });
+    ['jrTitulo','jrPartes','jrTexto'].forEach(function(id){
+      document.getElementById(id).addEventListener('input', function(){
+        if(!JR) return;
+        JR.data[id === 'jrTitulo' ? 'titulo' : (id === 'jrPartes' ? 'partes' : 'texto')] = this.value;
+      });
+    });
+    document.getElementById('jrTipo').addEventListener('change', function(){
+      if(JR) JR.data.tipo = this.value;
+    });
+  }
+  if(jurUnsub) return;
+  jurUnsub = db.collection('juridico').orderBy('atualizadoEm','desc').onSnapshot(function(qs){
+    jurRows = [];
+    qs.forEach(function(doc){ jurRows.push({ id: doc.id, d: doc.data() }); });
+    renderJurList();
+  }, function(){
+    document.getElementById('jrList').innerHTML =
+      '<div class="proj-empty">Não foi possível carregar os documentos. As regras da coleção <b>juridico</b> foram publicadas?</div>';
+  });
+}
+function renderJurList(){
+  var host = document.getElementById('jrList');
+  if(!jurRows.length){
+    host.innerHTML = '<div class="proj-empty">Nenhum documento ainda. Comece por um <b>modelo</b> ou crie um documento em branco.</div>';
+    return;
+  }
+  host.innerHTML = jurRows.map(function(r){
+    var d = r.d;
+    var quando = d.atualizadoEm && d.atualizadoEm.toDate ? d.atualizadoEm.toDate().toLocaleDateString('pt-BR') : '';
+    return '<button type="button" class="proj-row" data-id="' + r.id + '">' +
+      '<span class="pr-main"><span class="pr-nome">' + escHtml(d.titulo || '(sem título)') +
+      ' <span class="st-pill tipo-pill">' + escHtml(d.tipo || 'Documento') + '</span></span>' +
+      '<span class="pr-sub">' + escHtml(d.partes || '') + (d.autor ? ' · por ' + escHtml(d.autor) : '') +
+      (quando ? ' · atualizado em ' + quando : '') + '</span></span></button>';
+  }).join('');
+  host.querySelectorAll('.proj-row').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var row = null;
+      jurRows.forEach(function(r){ if(r.id === btn.dataset.id) row = r; });
+      if(row) jrOpen(row.id, row.d);
+    });
+  });
+}
+function jrShowHub(){
+  JR = null;
+  document.getElementById('jrEditor').hidden = true;
+  document.getElementById('jrView').hidden = true;
+  document.getElementById('jrHub').hidden = false;
+  window.scrollTo(0,0);
+}
+function jrOpen(id, data){
+  JR = { id: id, data: {
+    titulo: data.titulo || '', tipo: data.tipo || 'Contrato',
+    partes: data.partes || '', texto: data.texto || '',
+    autor: data.autor || (ME.nome || ME.email)
+  }};
+  document.getElementById('jrHub').hidden = true;
+  document.getElementById('jrView').hidden = true;
+  document.getElementById('jrEditor').hidden = false;
+  document.getElementById('jrTitulo').value = JR.data.titulo;
+  document.getElementById('jrTipo').value = JR.data.tipo;
+  document.getElementById('jrPartes').value = JR.data.partes;
+  document.getElementById('jrTexto').value = JR.data.texto;
+  document.getElementById('jrExcluir').hidden = !id;
+  document.getElementById('jrMeta').textContent = id ? 'Criado por ' + JR.data.autor : 'Documento novo — ainda não salvo.';
+  window.scrollTo(0,0);
+}
+function jrSave(){
+  if(!JR) return;
+  if(!JR.data.titulo.trim()){ flashMsg('jrMsg', 'Dê um título ao documento antes de salvar.'); return; }
+  var doc = {
+    titulo: JR.data.titulo.trim(), tipo: JR.data.tipo,
+    partes: JR.data.partes || '', texto: JR.data.texto || '',
+    autor: JR.data.autor || (ME.nome || ME.email), autorEmail: ME.email,
+    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  var btn = document.getElementById('jrSalvar');
+  btn.disabled = true;
+  var op = JR.id
+    ? db.collection('juridico').doc(JR.id).set(doc, { merge: true })
+    : db.collection('juridico').add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp() }, doc));
+  op.then(function(ref){
+    if(!JR.id && ref) JR.id = ref.id;
+    document.getElementById('jrExcluir').hidden = false;
+    flashMsg('jrMsg', 'Documento salvo ✓');
+  }).catch(function(){ flashMsg('jrMsg', 'Sem permissão para salvar.'); })
+    .finally(function(){ btn.disabled = false; });
+}
+function jrDelete(){
+  if(!JR || !JR.id) return;
+  if(!confirm('Excluir o documento "' + JR.data.titulo + '" para todos? Essa ação não pode ser desfeita.')) return;
+  db.collection('juridico').doc(JR.id).delete().then(jrShowHub)
+    .catch(function(){ flashMsg('jrMsg', 'Sem permissão para excluir.'); });
+}
+function jrVer(){
+  if(!JR) return;
+  document.getElementById('jrPTitulo').textContent = JR.data.titulo || 'Documento';
+  document.getElementById('jrPPartes').textContent = JR.data.partes || '';
+  document.getElementById('jrPTexto').textContent = JR.data.texto || '';
+  document.getElementById('jrEditor').hidden = true;
+  document.getElementById('jrView').hidden = false;
+  window.scrollTo(0,0);
+}
 
 /* =================== menu lateral =================== */
 (function(){
