@@ -613,6 +613,9 @@ footer small{color:var(--muted)}
 .radar-tiles button.on{background:var(--teal-900);border-color:var(--teal-900);color:#fff}
 .radar-tiles button.on small{color:#BFE0D2}
 @media (max-width:640px){.radar-tiles{grid-template-columns:1fr}}
+.radar-busca{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin:.2rem 0 1.1rem}
+.radar-busca input{flex:1;min-width:14rem}
+.radar-count{color:var(--muted);font-size:.85rem;font-weight:600;white-space:nowrap}
 /* planilhas do Radar: coluna longa absorve o espaço, as curtas ficam justas,
    nada de hifenização — quebra só em palavra inteira */
 #embTable th,#embTable td{text-align:left;-webkit-hyphens:none;hyphens:none;padding-right:1.1rem}
@@ -1229,7 +1232,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
       <div class="wrap">
         <p class="crumb">Conteúdo · Canais de distribuição</p>
         <h2 id="pg-title">Nossa Programação</h2>
-        <p class="sub">A grade de cada canal da Inspira — o que vai ao ar, quando e quem é o responsável. A diretoria mantém as grades atualizadas.</p>
+        <p class="sub">A grade de cada canal da Inspira — o que vai ao ar, quando e a proposta de cada programa. A diretoria mantém as grades atualizadas.</p>
       </div>
     </div>
     <div class="section" style="padding-top:1.4rem;padding-bottom:0">
@@ -1243,7 +1246,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
         </div>
         <div class="tbl-scroll" id="pgTable"><div class="load-note">Carregando…</div></div>
         <div id="pgForm" hidden style="margin-top:1.4rem">
-          <div class="pg-grid-head"><span>Dia(s)</span><span>Horário</span><span>Programa / conteúdo</span><span>Responsável</span><span></span></div>
+          <div class="pg-grid-head"><span>Dia(s)</span><span>Horário</span><span>Programa</span><span>Sobre o programa</span><span></span></div>
           <div id="pgRows"></div>
           <div class="proj-actions">
             <button type="button" class="btn primary" id="pgSalvar">Salvar grade</button>
@@ -1367,6 +1370,10 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
         <div class="proj-toolbar">
           <h3 style="margin:0" id="embTitulo">Radar de embaixadores</h3>
           <button type="button" class="btn primary" id="embNovo" data-need="re" hidden>+ Adicionar embaixador</button>
+        </div>
+        <div class="radar-busca">
+          <input id="embBusca" class="fin-input" type="search" placeholder="Buscar por nome, @perfil, nicho ou cidade…">
+          <span class="radar-count" id="embCount"></span>
         </div>
         <div id="embForm" hidden style="margin-bottom:1.6rem">
           <div class="cp-row">
@@ -1847,6 +1854,6 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="runtime.js?v=db64b30c"></script>
+<script src="runtime.js?v=24c1dc7c"></script>
 </body>
 </html>

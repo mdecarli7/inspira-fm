@@ -2144,11 +2144,13 @@ function renderProg(){
       (canRe() ? ' Clique em <b>Editar grade</b> para montar a primeira versão.' : '') + '</div>';
     return;
   }
-  host.innerHTML = '<table><thead><tr><th>Dia(s)</th><th>Horário</th><th>Programa / conteúdo</th><th>Responsável</th></tr></thead><tbody>' +
-    itens.map(function(r){
-      return '<tr><td><b>' + escHtml(r.d || '') + '</b></td><td>' + escHtml(r.h || '—') +
-        '</td><td>' + escHtml(r.t || '') + '</td><td>' + escHtml(r.r || '—') + '</td></tr>';
-    }).join('') + '</tbody></table>';
+  host.innerHTML = '<div class="qd-grid">' + itens.map(function(r){
+    var quando = escHtml(r.d || '');
+    if(r.h) quando += (quando ? ' · ' : '') + escHtml(r.h);
+    return '<div class="qd-card"><h4>' + escHtml(r.t || '') + '</h4>' +
+      (quando ? '<span class="qd-quando">' + quando + '</span>' : '') +
+      (r.r ? '<p class="qd-ctx">' + escHtml(r.r) + '</p>' : '') + '</div>';
+  }).join('') + '</div>';
 }
 function pgEdit(){
   PG_ROWS = (((PROG[PG_TAB] || {}).itens) || []).map(function(r){ return { d:r.d||'', h:r.h||'', t:r.t||'', r:r.r||'' }; });
@@ -2164,8 +2166,8 @@ function pgRenderForm(){
     return '<div class="pg-row" data-i="' + i + '">' +
       '<input class="fin-input g-d" value="' + escHtml(r.d) + '" placeholder="ex.: seg a sex">' +
       '<input class="fin-input g-h" value="' + escHtml(r.h) + '" placeholder="ex.: 7h–10h">' +
-      '<input class="fin-input g-t" value="' + escHtml(r.t) + '" placeholder="programa / conteúdo">' +
-      '<input class="fin-input g-r" value="' + escHtml(r.r) + '" placeholder="responsável">' +
+      '<input class="fin-input g-t" value="' + escHtml(r.t) + '" placeholder="nome do programa">' +
+      '<input class="fin-input g-r" value="' + escHtml(r.r) + '" placeholder="sobre o programa (1 linha)">' +
       '<button type="button" class="i-del" title="Remover">×</button></div>';
   }).join('') + '<div class="pp-add"><button type="button" class="mini" data-add="1">+ Adicionar linha</button></div>';
   host.onclick = function(ev){
@@ -2436,7 +2438,7 @@ function colDelete(){
 function clDelete(){ colDelete(); }
 
 /* =================== Radar (embaixadores, influenciadores e colunistas) =================== */
-var embUnsub = null, embBound = false, embRows = [], EMB_TAB = 'rademb', EB = null;
+var embUnsub = null, embBound = false, embRows = [], EMB_TAB = 'rademb', EB = null, EMB_Q = '';
 var EMB_TITULOS = {
   rademb: 'Radar de embaixadores', nossosemb: 'Nossos embaixadores',
   radinf: 'Radar de influenciadores', nossosinf: 'Nossos influenciadores',
@@ -2455,6 +2457,9 @@ function embTabSet(t){
   document.getElementById('rcForm').hidden = true;
   EB = null;
   CL = null;
+  EMB_Q = '';
+  var busca = document.getElementById('embBusca');
+  if(busca) busca.value = '';
   renderEmb();
 }
 function embInit(){
@@ -2480,6 +2485,8 @@ function embInit(){
       document.getElementById('rcForm').hidden = true;
     });
     document.getElementById('rcExcluir').addEventListener('click', colDelete);
+    var busca = document.getElementById('embBusca');
+    if(busca) busca.addEventListener('input', function(){ EMB_Q = this.value; renderEmb(); });
   }
   clListen();
   if(embUnsub) return;
@@ -2498,16 +2505,29 @@ function fmtSeg(n){
   if(n >= 1000) return (n / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil';
   return n.toLocaleString('pt-BR');
 }
+function embHit(q, parts){ return !q || parts.filter(Boolean).join(' | ').toLowerCase().indexOf(q) > -1; }
+function embSetCount(n, total){
+  var el = document.getElementById('embCount');
+  if(!el) return;
+  el.textContent = (EMB_Q && EMB_Q.trim())
+    ? n + ' de ' + total + (total === 1 ? ' resultado' : ' resultados')
+    : total + (total === 1 ? ' cadastrado' : ' cadastrados');
+}
 function renderEmb(){
   var host = document.getElementById('embTable');
   if(!host) return;
+  var q = (EMB_Q || '').trim().toLowerCase();
   if(EMB_TAB === 'colunistas' || EMB_TAB === 'radcol'){
     var querRadar = EMB_TAB === 'radcol';
-    var crows = clRows.filter(function(r){ return (r.d.radar === true) === querRadar; });
+    var cbase = clRows.filter(function(r){ return (r.d.radar === true) === querRadar; });
+    var crows = cbase.filter(function(r){ var d = r.d; return embHit(q, [d.nome, d.perfil, d.tema, d.dia, d.freq, d.obs]); });
+    embSetCount(crows.length, cbase.length);
     if(!crows.length){
-      host.innerHTML = '<div class="proj-empty">' + (querRadar
-        ? 'Nenhum colunista em prospecção ainda.' + (canRe() ? ' Clique em <b>+ Adicionar colunista</b> e marque <b>“Ainda em prospecção”</b>.' : '')
-        : 'Nenhum colunista cadastrado ainda.' + (canRe() ? ' Clique em <b>+ Adicionar colunista</b>.' : '')) + '</div>';
+      host.innerHTML = q
+        ? '<div class="proj-empty">Nenhum colunista encontrado para “' + escHtml(EMB_Q) + '”.</div>'
+        : '<div class="proj-empty">' + (querRadar
+          ? 'Nenhum colunista em prospecção ainda.' + (canRe() ? ' Clique em <b>+ Adicionar colunista</b> e marque <b>“Ainda em prospecção”</b>.' : '')
+          : 'Nenhum colunista cadastrado ainda.' + (canRe() ? ' Clique em <b>+ Adicionar colunista</b>.' : '')) + '</div>';
       return;
     }
     host.innerHTML = '<table><thead><tr><th>Nome</th><th>Perfil</th><th>Coluna</th><th>Dia</th><th>Frequência</th><th>Sobre a coluna</th>' +
@@ -2529,14 +2549,18 @@ function renderEmb(){
   }
   var querInf = EMB_TAB === 'radinf' || EMB_TAB === 'nossosinf';
   var querParceiro = EMB_TAB === 'nossosemb' || EMB_TAB === 'nossosinf';
-  var rows = embRows.filter(function(r){
+  var base = embRows.filter(function(r){
     return (ebTipoDe(r.d) === (querInf ? 'influenciador' : 'embaixador')) && (r.d.parceiro === true) === querParceiro;
   });
+  var rows = base.filter(function(r){ var d = r.d; return embHit(q, [d.nome, d.perfil, d.plataforma, d.nicho, d.cidade]); });
+  embSetCount(rows.length, base.length);
   if(!rows.length){
     var quem = querInf ? 'influenciador' : 'embaixador';
-    host.innerHTML = '<div class="proj-empty">' + (querParceiro
-      ? 'Nenhum ' + quem + ' parceiro ainda. Marque a caixa <b>“Já é parceiro”</b> ao cadastrar ou editar.'
-      : 'Nenhum ' + quem + ' no radar ainda.' + (canRe() ? ' Clique em <b>+ Adicionar ' + quem + '</b>.' : '')) + '</div>';
+    host.innerHTML = q
+      ? '<div class="proj-empty">Nenhum ' + quem + ' encontrado para “' + escHtml(EMB_Q) + '”.</div>'
+      : '<div class="proj-empty">' + (querParceiro
+        ? 'Nenhum ' + quem + ' parceiro ainda. Marque a caixa <b>“Já é parceiro”</b> ao cadastrar ou editar.'
+        : 'Nenhum ' + quem + ' no radar ainda.' + (canRe() ? ' Clique em <b>+ Adicionar ' + quem + '</b>.' : '')) + '</div>';
     return;
   }
   host.innerHTML = '<table><thead><tr><th>Nome</th><th>Perfil</th><th>Plataforma</th><th class="num">Seguidores</th><th>Nicho</th><th>Cidade</th><th>Status</th>' +
