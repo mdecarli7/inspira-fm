@@ -82,6 +82,12 @@
 - HTML/CSS/JS estático: **`index.html`** (casca: menu, login e as 16 views) +
   **`runtime.js`** (o app inteiro, ~172 KB). Fontes em `fonts/*.woff2` — externas,
   com `@font-face` inline no `<style>` do index (não são embutidas em base64).
+- **`bloom.js`** — fundo animado "Grid Bloom" (shader WebGL puro, sem three.js/React).
+  Adota qualquer `<canvas class="bloom">` da página; hoje há dois: o login (`#gate`) e o
+  cabeçalho do Início. Tudo se ajusta por `data-*` no próprio canvas (cor, densidade,
+  velocidade, vinheta, mouse) — ver cabeçalho do arquivo. Pausa via IntersectionObserver
+  quando a view está escondida e desenha um quadro estático em `prefers-reduced-motion`.
+  Sem WebGL, o canvas fica invisível e sobra o gradiente do container.
 - **Firebase Auth** (login Google + e-mail/senha) + **Firestore**. Coleções reais:
   `users`, `content`, `fin`, `projetos`, `processos`, `campanhas`, `brainstorm`,
   `analises`, `juridico`, `programacao`, `quadros`, `colunistas`, `embaixadores`,
@@ -109,8 +115,17 @@
 ## Fluxo de atualização
 
 **Não há build.** Editar `index.html` e/ou `runtime.js` direto na raiz e `git push`
-→ GitHub Pages. Ao mexer no `runtime.js`, atualizar o `?v=` no `<script src>` do
-`index.html` pra furar o cache do navegador.
+→ GitHub Pages. Ao mexer no `runtime.js` ou no `bloom.js`, atualizar o `?v=` no
+`<script src>` do `index.html` pra furar o cache do navegador.
+
+### Publicação automática (só neste projeto)
+
+Terminou uma mudança em código deste repositório? **Commita e dá push na `main` sem
+pedir autorização** — o site é publicado direto pelo GitHub Pages a partir da `main`.
+Isto sobrescreve, aqui, o "só faz push quando eu pedir" do `PADRAO-AGENCIA.md`.
+
+Continua valendo confirmar antes de: apagar arquivo, `push --force`, reescrever
+histórico, ou mexer em `firestore.rules` (é o controle de acesso do projeto).
 
 Conteúdo do dia a dia (campanhas, quadros, radar, processos, jurídico, programação)
 é editado **dentro do próprio app** e vive no Firestore — não no repositório.

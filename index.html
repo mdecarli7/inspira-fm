@@ -103,8 +103,15 @@ a{color:var(--teal-700)}
   background:var(--teal-900);overflow-y:auto;padding:1.5rem;
   -webkit-overflow-scrolling:touch;
 }
-#gate .waves{position:absolute;top:0;right:0;bottom:0;left:0;pointer-events:none}
-.gate-card{position:relative;text-align:center;max-width:24rem;width:100%;margin:auto}
+/* base do fundo: dá profundidade e serve de fallback se o WebGL não subir */
+#gate{background:radial-gradient(130% 95% at 50% 42%,var(--teal-800) 0%,var(--teal-900) 62%)}
+.gate-card{
+  position:relative;text-align:center;max-width:24rem;width:100%;margin:auto;
+  /* véu escuro sob o cartão: segura o contraste do formulário sobre o fundo animado.
+     Feito com fundo + sombra difusa (não com padding) pra não estreitar o form no mobile. */
+  border-radius:1.25rem;background:rgba(4,51,46,.55);
+  box-shadow:0 0 4.5rem 3rem rgba(4,51,46,.55);
+}
 .gate-row button[disabled]{opacity:.7;cursor:wait}
 .gate-card img{width:min(15rem,70%);height:auto;display:block;margin:0 auto 0.6rem}
 .gate-card .tagline{
@@ -133,6 +140,16 @@ a{color:var(--teal-700)}
 .gate-note{margin-top:2.4rem;font-size:.85rem;color:var(--muted-inverse-2)}
 .gate-card.shake{animation:shake .4s cubic-bezier(.36,.07,.19,.97)}
 @keyframes shake{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+
+/* ============ Grid Bloom (fundo WebGL — bloom.js) ============
+   O canvas entra transparente e só aparece quando o contexto WebGL sobe
+   (bloom.js marca .bloom-on). Sem WebGL fica o gradiente do container. */
+.bloom{
+  position:absolute;top:0;right:0;bottom:0;left:0;width:100%;height:100%;
+  display:block;pointer-events:none;opacity:0;transition:opacity .8s ease;
+}
+.bloom.bloom-on{opacity:var(--bloom-o,1)}
+@media(prefers-reduced-motion:reduce){.bloom{transition:none}}
 
 /* ============ Ondas (motivo da marca) ============ */
 .wave-drift{animation:waveDrift 14s ease-in-out infinite alternate}
@@ -241,6 +258,8 @@ a{color:var(--teal-700)}
 .page-hero h1,.page-hero h2{font-size:clamp(1.9rem,4.4vw,3rem);font-weight:800;color:var(--on-dark);max-width:22ch}
 .page-hero .sub{margin:.8rem 0 0;color:var(--muted-inverse);max-width:62ch;font-size:1.05rem}
 .page-hero .meta{margin:1.4rem 0 0;font-size:.88rem;color:var(--muted-inverse-2);font-weight:600}
+/* Início: fundo do Grid Bloom (as outras views seguem com as ondas SVG) */
+#view-inicio .page-hero{background:radial-gradient(125% 145% at 50% 32%,var(--teal-800) 0%,var(--teal-900) 66%)}
 
 /* faixa de destaques no topo do relatório */
 .kpis{display:flex;flex-wrap:wrap;gap:1px;background:rgba(255,255,255,.14);margin-top:2rem;border-radius:.9rem;overflow:hidden}
@@ -973,11 +992,10 @@ main:focus{outline:none}
 
 <!-- ======================= LOGIN ======================= -->
 <div id="gate">
-  <svg class="waves" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-    <path class="wave-drift" d="M-60,120 C240,40 420,220 720,150 C960,95 1100,170 1280,110 L1280,-40 L-60,-40 Z" fill="var(--teal-800)"/>
-    <path class="wave-drift w2" d="M-80,690 C180,600 460,760 760,680 C1000,615 1160,700 1300,650 L1300,860 L-80,860 Z" fill="var(--teal-950)"/>
-    <path class="wave-drift w3" d="M-60,760 C300,690 560,810 900,740 C1080,705 1220,760 1300,730 L1300,900 L-60,900 Z" fill="var(--lime)" opacity=".16"/>
-  </svg>
+  <canvas class="bloom" aria-hidden="true" style="--bloom-o:.55"
+          data-color="#82DD47" data-grid="11" data-speed=".75" data-rotation=".12"
+          data-fade="1.15" data-distortion=".06" data-flow-x="-.12" data-flow-y="-.24"
+          data-hover-light=".45" data-hover-radius=".9" data-hover-strength=".5"></canvas>
   <div class="gate-card">
     <img src="img/logo-clara.png" alt="Inspira FM 97.7" width="320" height="135" style="width:min(300px,72%);height:auto">
     <p class="tagline">Faz bem ouvir</p>
@@ -1070,10 +1088,10 @@ main:focus{outline:none}
 <main id="mainContent" tabindex="-1" aria-label="Conteúdo">
   <section id="view-inicio" class="view" aria-labelledby="hm-title">
     <div class="page-hero">
-      <svg class="waves" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="var(--teal-800)"/>
-        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="var(--teal-950)"/>
-      </svg>
+      <canvas class="bloom" aria-hidden="true" style="--bloom-o:.45"
+              data-color="#82DD47" data-grid="17" data-speed=".55" data-rotation=".08"
+              data-fade="2.4" data-distortion=".05" data-flow-x="-.1" data-flow-y="-.18"
+              data-hover-light=".4" data-hover-radius=".8" data-hover-strength=".35"></canvas>
       <div class="wrap">
         <p class="crumb" id="hojeData"></p>
         <h1 id="hm-title"><span id="saudacao">Bom dia</span>!</h1>
@@ -1935,6 +1953,7 @@ main:focus{outline:none}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="bloom.js?v=1" defer></script>
 <script src="runtime.js?v=762f878d"></script>
 </body>
 </html>
