@@ -37,9 +37,14 @@
   de todo mundo. Pelo mesmo motivo, o ramo do próprio usuário vem antes de `isAdmin()`.
 - **Cores:** `--lime`, `--lime-bright` e `--orange` só funcionam sobre fundo escuro
   (sobre `--paper` dão 1,65:1). `--dv-*` são dataviz, não texto.
-- **`fin/folha` × `fin/equipe`:** a folha completa (com nascimento) é `canFin()`; o
-  espelho sem nascimento é o que o diretor lê na Estruturação. `finSave()` grava os
-  dois num batch — ao mexer num, mexer no outro.
+- **`fin/folha` × `fin/equipe` × `fin/folha_anterior`:** a folha completa (com nascimento)
+  é `canFin()`; o espelho sem nascimento é o que o diretor lê na Estruturação; o
+  `folha_anterior` guarda a versão substituída no último save. `finSave()` grava os três
+  num batch — ao mexer num, mexer nos outros.
+  **Desfazer a folha:** Console do Firestore → `fin/folha_anterior` → copiar `rows` para
+  `fin/folha`. É um passo atrás só. O projeto está no **plano Spark**, que não tem
+  point-in-time recovery; se um dia migrar para Blaze, ligue o PITR e este documento
+  vira redundante.
 - **`CL` é global compartilhada** entre o form de colunista dos Quadros (`cl`) e o do
   Radar (`rc`). Sempre checar `CL.pfx` antes de zerar.
 - **`escAttr()` reintroduz `<b>`/`<br>` de propósito** e o destino é `tip.innerHTML`.

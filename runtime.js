@@ -542,14 +542,31 @@ function finRollback(){
 function finEspelho(){
   return finData.map(function(p){ return { n: p.n, s: p.s, f: p.f, v: p.v || 0 }; });
 }
+/* Rede de proteção da folha. O set() abaixo é SEM merge: substitui o documento inteiro,
+   então um "Restaurar padrão" clicado sem querer apaga a folha de todos de uma vez.
+   O projeto está no plano Spark, que não tem point-in-time recovery — sem isso não
+   existiria desfazer nenhum. Guarda um passo atrás em fin/folha_anterior.
+   Para restaurar: Console do Firestore → fin/folha_anterior → copiar o array `rows`
+   para fin/folha. (Não cobre sete dias nem exclusão de outras coleções, só o último save.) */
 function finSave(){
   var stamp = firebase.firestore.FieldValue.serverTimestamp();
-  var lote = db.batch();
-  lote.set(db.collection('fin').doc('folha'),
-    { rows: finData, atualizadoPor: ME.email, atualizadoEm: stamp });
-  lote.set(db.collection('fin').doc('equipe'),
-    { rows: finEspelho(), atualizadoEm: stamp });
-  return lote.commit()
+  var refFolha = db.collection('fin').doc('folha');
+  return refFolha.get().then(function(anterior){
+    var lote = db.batch();
+    if(anterior.exists && Array.isArray(anterior.data().rows)){
+      lote.set(db.collection('fin').doc('folha_anterior'), {
+        rows: anterior.data().rows,
+        eraDe: anterior.data().atualizadoPor || '',
+        substituidaPor: ME.email,
+        substituidaEm: stamp
+      });
+    }
+    lote.set(refFolha,
+      { rows: finData, atualizadoPor: ME.email, atualizadoEm: stamp });
+    lote.set(db.collection('fin').doc('equipe'),
+      { rows: finEspelho(), atualizadoEm: stamp });
+    return lote.commit();
+  })
     .catch(function(err){
       finMsg('Sem permissão para salvar.');
       // repropaga: sem isso o .then() de quem chamou rodava mesmo com a escrita negada

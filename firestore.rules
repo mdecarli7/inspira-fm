@@ -78,6 +78,13 @@ service cloud.firestore {
     match /fin/folha {
       allow read, write: if canFin();
     }
+    // Cópia da versão substituída no último save. Existe porque o projeto está no plano
+    // Spark (sem point-in-time recovery) e finSave() grava com set() sem merge — sem isso
+    // um "Restaurar padrão" acidental apagaria a folha sem desfazer possível.
+    // Mesma sensibilidade da folha: mesma permissão.
+    match /fin/folha_anterior {
+      allow read, write: if canFin();
+    }
     // Espelho enxuto para a Estruturação importar equipe: nome, setor, função e salário,
     // SEM data de nascimento. Escrito por finSave() junto com a folha.
     match /fin/equipe {
