@@ -1,0 +1,168 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    function signedIn() { return request.auth != null; }
+    // O email_verified é obrigatório aqui: com o provedor e-mail/senha ligado, token.email
+    // entra SEM verificação, então sem essa checagem bastaria registrar o e-mail do admin
+    // (caso a conta fosse removida ou o projeto migrado) para virar admin.
+    // Melhor ainda seria custom claim ou UID fixo — trocar quando houver Admin SDK.
+    function isAdminEmail() {
+      return signedIn()
+        && request.auth.token.email == 'mdecarli7contato@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+    function userDoc() { return /databases/$(db)/documents/users/$(request.auth.uid); }
+    // hasProfile() é obrigatório antes de qualquer userData(): no create o doc ainda não
+    // existe, get() devolve null e null.data é ERRO de avaliação — que nega o request
+    // inteiro em vez de valer false. Sem isso ninguém consegue se cadastrar.
+    function hasProfile() { return signedIn() && exists(userDoc()); }
+    function userData() { return get(userDoc()).data; }
+    function isAdmin() {
+      return isAdminEmail() || (hasProfile() && userData().role == 'admin');
+    }
+    function myRole() {
+      return isAdminEmail() ? 'admin' : (hasProfile() ? userData().role : 'pendente');
+    }
+    // a flag verFinanceiro só vale para quem já foi aprovado — nunca para 'pendente'
+    function canFin() {
+      return isAdmin() || (
+        hasProfile()
+        && userData().verFinanceiro == true
+        && userData().role in ['colaborador', 'diretor', 'admin']
+      );
+    }
+
+    // Perfis e permissões
+    match /users/{uid} {
+      allow read: if (signedIn() && request.auth.uid == uid) || isAdmin();
+      // cadastro novo: só os campos da lista, sempre 'pendente' e sem acesso ao financeiro.
+      // sem o hasOnly abaixo, dava para gravar verFinanceiro:true no próprio doc e ler a folha.
+      // o ramo do próprio usuário vem PRIMEIRO de propósito: assim o caso normal de
+      // cadastro nem chega a avaliar isAdmin(), que precisaria ler um doc inexistente
+      allow create: if (
+        signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(
+             ['email', 'nome', 'sobrenome', 'apelido', 'nascimento', 'setor', 'role', 'verFinanceiro', 'criadoEm'])
+        && request.resource.data.role == 'pendente'
+        && request.resource.data.verFinanceiro == false
+        && request.resource.data.email == request.auth.token.email
+      ) || isAdmin();
+      // a própria pessoa só pode completar o cadastro (dados pessoais) — nunca papel
+      allow update: if isAdmin() || (
+        signedIn() && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['setor', 'nome', 'sobrenome', 'apelido', 'nascimento'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Conteúdo dos relatórios
+    match /content/base {
+      allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+      allow write: if isAdmin();
+    }
+    // content/reestruturacao não é lido por ninguém no runtime.js (a Estruturação usa a
+    // coleção 'projetos'). Mantido só enquanto o doc existir no banco; remover junto com ele.
+    match /content/reestruturacao {
+      allow read: if signedIn() && myRole() in ['diretor', 'admin'];
+      allow write: if isAdmin();
+    }
+    match /content/financeiro {
+      allow read: if canFin();
+      allow write: if isAdmin();
+    }
+
+    // Folha completa da página Equipe (inclui data de nascimento): só quem tem a flag
+    // Balanço. Diretor NÃO lê este doc.
+    match /fin/folha {
+      allow read, write: if canFin();
+    }
+    // Espelho enxuto para a Estruturação importar equipe: nome, setor, função e salário,
+    // SEM data de nascimento. Escrito por finSave() junto com a folha.
+    match /fin/equipe {
+      allow read: if signedIn() && myRole() in ['diretor', 'admin'];
+      allow write: if canFin();
+    }
+
+    // Projetos de reestruturação — somente diretoria
+    match /projetos/{id} {
+      allow read, create, update, delete: if signedIn() && myRole() in ['diretor', 'admin'];
+    }
+
+    // Processos ativos por setor — todos leem; diretoria publica
+    match /processos/{setor} {
+      allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+      allow write: if signedIn() && myRole() in ['diretor', 'admin'];
+    }
+
+    // Análises (Dial etc.) — todos leem; diretoria edita
+    match /analises/{doc} {
+      allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+      allow write: if signedIn() && myRole() in ['diretor', 'admin'];
+    }
+
+    // Jurídico (contratos e termos) — somente diretoria
+    match /juridico/{id} {
+      allow read, create, update, delete: if signedIn() && myRole() in ['diretor', 'admin'];
+    }
+
+    // Programação, quadros, colunistas e embaixadores — todos leem; diretoria edita
+    match /programacao/{canal} {
+      allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+      allow write: if signedIn() && myRole() in ['diretor', 'admin'];
+    }
+    match /quadros/{id} {
+      allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+      allow write: if signedIn() && myRole() in ['diretor', 'admin'];
+    }
+    match /colunistas/{id} {
+      allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+      allow write: if signedIn() && myRole() in ['diretor', 'admin'];
+    }
+    match /embaixadores/{id} {
+      allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+      allow write: if signedIn() && myRole() in ['diretor', 'admin'];
+    }
+
+    // Destaques da semana (Início) — todos leem; diretoria edita
+    match /destaques/{doc} {
+      allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+      allow write: if signedIn() && myRole() in ['diretor', 'admin'];
+    }
+
+    // Campanhas — todos os aprovados veem; diretoria cria, edita e faz o relatório
+    match /campanhas/{id} {
+      allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+      allow create, update, delete: if signedIn() && myRole() in ['diretor', 'admin'];
+    }
+
+    // Brainstorm — todos os aprovados publicam ideias e apoiam
+    match /brainstorm/{id} {
+      allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+      allow create: if signedIn()
+        && myRole() in ['colaborador', 'diretor', 'admin']
+        && request.resource.data.autorEmail == request.auth.token.email
+        && request.resource.data.keys().hasOnly(
+             ['titulo', 'texto', 'autor', 'autorEmail', 'setor', 'fotos', 'apoios', 'criadoEm'])
+        && request.resource.data.titulo is string && request.resource.data.titulo.size() < 200
+        && request.resource.data.texto is string && request.resource.data.texto.size() < 5000
+        && (!('fotos' in request.resource.data) || request.resource.data.fotos.size() <= 3);
+      // dono edita a própria ideia; os demais só apoiam/desapoiam — e só com o PRÓPRIO uid.
+      // sem a checagem de diferença abaixo, qualquer um zerava ou inflava os apoios alheios.
+      allow update: if isAdmin() || (
+        signedIn() && myRole() in ['colaborador', 'diretor', 'admin'] && (
+          resource.data.autorEmail == request.auth.token.email
+          || (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['apoios'])
+            && request.resource.data.apoios.toSet().difference(resource.data.apoios.toSet())
+                 in [[].toSet(), [request.auth.uid].toSet()]
+            && resource.data.apoios.toSet().difference(request.resource.data.apoios.toSet())
+                 in [[].toSet(), [request.auth.uid].toSet()]
+          )
+        )
+      );
+      allow delete: if isAdmin() || (signedIn() && resource.data.autorEmail == request.auth.token.email);
+    }
+  }
+}

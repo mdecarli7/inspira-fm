@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
+<meta name="color-scheme" content="light">
 <meta name="theme-color" content="#032723">
 <meta name="description" content="Relatórios internos da Diretoria — Inspira FM 97.7">
 <title>Inspira FM 97.7 · Relatórios da Diretoria</title>
@@ -20,31 +21,50 @@
 
 /* ============ Tokens ============ */
 :root{
-  /* marca (inspirafm.com.br) */
+  /* marca — alinhado a assets/design-system/tokens.css.
+     A rampa escura (950/900/800/600) é extensão do site, sem par no design system:
+     mantida porque re-derivá-la obrigaria a reescrever os fills dos SVG de onda
+     e derrubaria o #7FA795 de .gate-note/.page-hero .meta para 4,62:1. */
   --teal-950:#032723;
   --teal-900:#04332E;
   --teal-800:#06443C;
-  --teal-700:#056250;
+  --teal-700:#005650;  /* --inspira-teal, âncora da marca (era #056250) — link sobe p/ 8,33:1 */
   --teal-600:#0B6D57;
-  --lime:#9CD776;
-  --lime-bright:#B9FF8C;
-  --lime-soft:#E4FFD6;
-  --orange:#EE9D67;
-  --coral:#EF4D45;
+  --lime:#82DD47;      /* --inspira-lime (era #9CD776, que era a paleta IMPRESSA print-05) */
+  --lime-bright:#B7EB94;
+  --lime-soft:#E9F9DE;
+  --orange:#EF9E67;    /* --inspira-print-04 exato (era #EE9D67, Δ=1) */
+  --coral:#F46C42;     /* --inspira-coral (era #EF4D45, que não existia no design system) */
+  /* tokens de marca que faltavam — usar no lugar dos hex soltos de .org-agency e das pendências */
+  --teal-bright:#00BAA8;
+  --amber:#FBB83B;
+  --purple:#8965A9;
   /* superfícies e texto */
-  --paper:#FBFCF9;
-  --paper-2:#F1F5EC;
-  --ink:#14231F;
+  --surface:#FFFFFF;   /* superfície de card — era #fff literal em 28 regras */
+  --on-dark:#FFFFFF;   /* texto sobre tinta escura/saturada — idem, 28 regras */
+  --paper:#FBFCF9;     /* o bg do design system (#F0F2E4) entra no --paper-2; aqui colapsaria a hierarquia */
+  --paper-2:#F0F2E4;   /* --inspira-paper (era #F1F5EC) */
+  --ink:#14231F;       /* = --color-text do design system */
+  /* NÃO trocar por --inspira-ink #5B5E56: cairia de 8,33:1 para 6,41:1 sobre --paper,
+     em 46 usos de texto secundário, e sairia da família verde-neutra */
   --muted:#3E5049;
   --line:#DCE5DC;
   --ink-inverse:#F2FBF4;
   --muted-inverse:#BFE0CE;
+  --muted-inverse-2:#9FC4B4;  /* texto terciário sobre fundo escuro (placeholder, meta, divisor) */
+  /* pares bg/texto que estavam repetidos em hex pelo CSS inteiro */
+  --tag-teal-bg:#DDF0E9;  --tag-teal-ink:#0A5B47;
+  --tag-blue-bg:#E4EAF4;  --tag-blue-ink:#33517E;
+  --purple-bg:#F5F1FC;    --purple-line:#C9BCE4;  --purple-ink:#4A3A78;
+  --amber-bg:#FDF6E7;     --amber-line:#E0B470;   --amber-ink:#7A5A10;
   /* dataviz — validado (light): teal, laranja, azul, verde */
   --dv-teal:#017A5C;
   --dv-orange:#C25A14;
   --dv-blue:#4C74B0;
   --dv-green:#4C8B22;
-  /* dataviz — validado (dark sobre teal-900) */
+  --dv-orange-ink:#8C3E0B;  /* anotação sobre fundo claro; --dv-orange como texto reprova AA */
+  /* dataviz — validado (dark sobre teal-900). Sem uso hoje: reservado para o tema
+     escuro, que ainda não foi ligado porque metade da paleta assume fundo claro. */
   --dvd-teal:#1E9E80;
   --dvd-orange:#D06D30;
   --dvd-blue:#5C82D6;
@@ -59,9 +79,12 @@
   --display:"Baloo 2","Trebuchet MS",system-ui,sans-serif;
   --body:"Nunito Sans","Segoe UI",system-ui,sans-serif;
   /* z-scale */
-  --z-nav:20; --z-gate:40; --z-tip:50;
+  /* --z-nav é a barra sticky interna; a topnav fixa fica acima de tudo */
+  --z-nav:20; --z-gate:40; --z-tip:50; --z-topnav:50;
+  --navh:4.3rem; --snw:15.5rem;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}  /* ~25 painéis são escondidos por .hidden=true via JS */
 html{scroll-behavior:smooth}
 body{
   margin:0;font-family:var(--body);color:var(--ink);background:var(--paper);
@@ -97,8 +120,8 @@ a{color:var(--teal-700)}
   background:rgba(255,255,255,.07);color:var(--ink-inverse);
   font:inherit;font-weight:600;padding:.7rem 1rem;letter-spacing:.08em;
 }
-.gate-row input::placeholder{color:#9FC4B4;letter-spacing:normal}
-.gate-row input:focus{outline:none;border-color:var(--lime)}
+.gate-row input::placeholder{color:var(--muted-inverse-2);letter-spacing:normal}
+.gate-row input:focus-visible{border-color:var(--lime)}
 .gate-row button{
   border:0;border-radius:.75rem;padding:.7rem 1.35rem;cursor:pointer;
   font-family:var(--display);font-weight:700;font-size:1.05rem;
@@ -107,7 +130,7 @@ a{color:var(--teal-700)}
 }
 .gate-row button:hover{background:var(--lime-bright);transform:translateY(-1px)}
 .gate-err{min-height:1.5rem;margin:.6rem 0 0;font-weight:700;color:#FFB4A6;text-align:left;font-size:.95rem}
-.gate-note{margin-top:2.4rem;font-size:.85rem;color:#7FA795}
+.gate-note{margin-top:2.4rem;font-size:.85rem;color:var(--muted-inverse-2)}
 .gate-card.shake{animation:shake .4s cubic-bezier(.36,.07,.19,.97)}
 @keyframes shake{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
 
@@ -137,7 +160,7 @@ a{color:var(--teal-700)}
   color:var(--muted-inverse);text-decoration:none;font-weight:700;font-size:.95rem;
   padding:.45rem .8rem;border-radius:.6rem;transition:color .15s,background .15s;
 }
-.topnav nav a:hover{color:#fff;background:rgba(255,255,255,.08)}
+.topnav nav a:hover{color:var(--on-dark);background:rgba(255,255,255,.08)}
 .topnav nav a[aria-current="page"]{color:var(--teal-950);background:var(--lime)}
 
 /* ============ Views ============ */
@@ -158,7 +181,7 @@ a{color:var(--teal-700)}
 }
 .hero h1{
   font-size:clamp(2.1rem,5.2vw,3.9rem);font-weight:800;letter-spacing:-.01em;
-  max-width:17ch;color:#fff;
+  max-width:17ch;color:var(--on-dark);
 }
 .hero h1 .big{color:var(--lime-bright)}
 .hero .hero-sub{
@@ -177,7 +200,7 @@ a{color:var(--teal-700)}
 }
 .dial-stop .num{
   font-family:var(--display);font-weight:800;font-size:clamp(1.9rem,3.6vw,2.7rem);
-  color:#fff;line-height:1.05;
+  color:var(--on-dark);line-height:1.05;
 }
 .dial-stop .num em{font-style:normal;color:var(--lime-bright)}
 .dial-stop .lbl{margin:.3rem 0 0;font-size:.95rem;color:var(--muted-inverse);max-width:22ch}
@@ -215,9 +238,9 @@ a{color:var(--teal-700)}
 .page-hero .waves{position:absolute;top:0;right:0;bottom:0;left:0;pointer-events:none;opacity:.85}
 .page-hero .wrap{position:relative}
 .page-hero .crumb{font-weight:800;font-size:.9rem;color:var(--orange);margin:0 0 .7rem}
-.page-hero h2{font-size:clamp(1.9rem,4.4vw,3rem);font-weight:800;color:#fff;max-width:22ch}
+.page-hero h1,.page-hero h2{font-size:clamp(1.9rem,4.4vw,3rem);font-weight:800;color:var(--on-dark);max-width:22ch}
 .page-hero .sub{margin:.8rem 0 0;color:var(--muted-inverse);max-width:62ch;font-size:1.05rem}
-.page-hero .meta{margin:1.4rem 0 0;font-size:.88rem;color:#7FA795;font-weight:600}
+.page-hero .meta{margin:1.4rem 0 0;font-size:.88rem;color:var(--muted-inverse-2);font-weight:600}
 
 /* faixa de destaques no topo do relatório */
 .kpis{display:flex;flex-wrap:wrap;gap:1px;background:rgba(255,255,255,.14);margin-top:2rem;border-radius:.9rem;overflow:hidden}
@@ -235,10 +258,10 @@ a{color:var(--teal-700)}
 .section h4{font-size:1.15rem;color:var(--teal-800);margin:1.8rem 0 .7rem}
 
 /* tabelas */
-.tbl-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:.8rem;background:#fff}
+.tbl-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:.8rem;background:var(--surface)}
 table{border-collapse:collapse;width:100%;font-size:.95rem;min-width:38rem}
 thead th{
-  background:var(--teal-900);color:#fff;text-align:left;font-family:var(--display);
+  background:var(--teal-900);color:var(--on-dark);text-align:left;font-family:var(--display);
   font-weight:700;font-size:.9rem;padding:.65rem .85rem;white-space:nowrap;
 }
 tbody td{padding:.6rem .85rem;border-top:1px solid var(--line);vertical-align:top}
@@ -246,8 +269,8 @@ tbody tr:nth-child(even){background:var(--paper-2)}
 tr.total td{background:var(--lime-soft);font-weight:800;color:var(--teal-900);border-top:2px solid var(--lime)}
 tr.subtotal td{font-weight:800;color:var(--teal-800)}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-tr.hl td{background:#EFFBE4}
-tr.hl-inspira td{background:#EFFBE4;font-weight:700}
+tr.hl td{background:var(--lime-soft)}
+tr.hl-inspira td{background:var(--lime-soft);font-weight:700}
 
 /* pills de alerta */
 .pill{
@@ -259,16 +282,16 @@ tr.hl-inspira td{background:#EFFBE4;font-weight:700}
 .pill.medio{background:var(--al-medio-bg);color:var(--al-medio)}
 .pill.baixo{background:var(--al-baixo-bg);color:var(--al-baixo)}
 .pill.sd{background:var(--al-sd-bg);color:var(--al-sd)}
-.pill.rede{background:#E4EAF4;color:#33517E}
-.pill.local{background:#DDF0E9;color:#0A5B47}
-.pill.inspira{background:var(--teal-700);color:#fff}
+.pill.rede{background:var(--tag-blue-bg);color:var(--tag-blue-ink)}
+.pill.local{background:var(--tag-teal-bg);color:var(--tag-teal-ink)}
+.pill.inspira{background:var(--teal-700);color:var(--on-dark)}
 
 /* fluxo antes/depois */
 .flow-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:1.6rem;align-items:start}
-.flow{border:1px solid var(--line);border-radius:.9rem;background:#fff;overflow:hidden}
+.flow{border:1px solid var(--line);border-radius:.9rem;background:var(--surface);overflow:hidden}
 .flow header{padding:.85rem 1.1rem;font-family:var(--display);font-weight:800;font-size:1.05rem}
 .flow.antes header{background:var(--paper-2);color:var(--muted)}
-.flow.depois header{background:var(--teal-700);color:#fff}
+.flow.depois header{background:var(--teal-700);color:var(--on-dark)}
 .flow ol{margin:0;padding:.4rem 0;list-style:none;counter-reset:etapa}
 .flow li{
   counter-increment:etapa;display:flex;gap:.85rem;padding:.7rem 1.1rem;
@@ -280,7 +303,7 @@ tr.hl-inspira td{background:#EFFBE4;font-weight:700}
   display:inline-flex;align-items:center;justify-content:center;font-size:.9rem;flex:none;
   position:relative;top:.2rem;
 }
-.flow.antes li::before{background:#8A9992;color:#fff}
+.flow.antes li::before{background:#6E7D76;color:var(--on-dark)}  /* era #8A9992 = 2,98:1, reprovava AA */
 .flow li b{display:block;font-size:.98rem;color:var(--teal-900)}
 .flow li span{display:block;font-size:.88rem;color:var(--muted)}
 
@@ -302,7 +325,8 @@ tr.hl-inspira td{background:#EFFBE4;font-weight:700}
 .warn-list p{flex:1 1 16rem;min-width:0}
 .warn-list li:last-child{border-bottom:1px solid var(--line)}
 .warn-list .who{
-  font-family:var(--display);font-weight:800;color:var(--dv-orange);min-width:9.5rem;font-size:1rem;
+  /* --dv-orange é cor de dataviz: como texto sobre --paper dá 4,28:1 e reprova AA */
+  font-family:var(--display);font-weight:800;color:#A94B10;min-width:9.5rem;font-size:1rem;
 }
 .warn-list p{margin:0;color:var(--muted);font-size:.97rem;max-width:62ch}
 
@@ -310,17 +334,17 @@ tr.hl-inspira td{background:#EFFBE4;font-weight:700}
 .org{--org-line:#B9CEC2}
 .org-exec{display:flex;flex-direction:column;align-items:center}
 .org-node{
-  background:#fff;border:1.5px solid var(--line);border-radius:.8rem;
+  background:var(--surface);border:1.5px solid var(--line);border-radius:.8rem;
   padding:.7rem 1.3rem;text-align:center;min-width:11rem;max-width:16rem;
 }
 .org-node b{display:block;font-family:var(--display);font-weight:800;color:var(--teal-900);font-size:1.02rem}
 .org-node span{display:block;font-size:.82rem;color:var(--muted);margin-top:.1rem}
 .org-node.lvl0{background:var(--teal-950);border-color:var(--teal-950)}
-.org-node.lvl0 b{color:#fff}.org-node.lvl0 span{color:var(--muted-inverse)}
+.org-node.lvl0 b{color:var(--on-dark)}.org-node.lvl0 span{color:var(--muted-inverse)}
 .org-node.lvl1{background:var(--teal-700);border-color:var(--teal-700)}
-.org-node.lvl1 b{color:#fff}.org-node.lvl1 span{color:#CDEBDD}
+.org-node.lvl1 b{color:var(--on-dark)}.org-node.lvl1 span{color:#CDEBDD}
 .org-node.dept{background:var(--teal-600);border-color:var(--teal-600)}
-.org-node.dept b{color:#fff}.org-node.dept span{color:#CDEBDD}
+.org-node.dept b{color:var(--on-dark)}.org-node.dept span{color:#CDEBDD}
 .org-node.ghost{border-style:dashed;border-color:#A9B8B0;background:transparent}
 .org-node.ghost b{color:var(--muted)}
 .org-vline{width:2px;height:1.4rem;background:var(--org-line)}
@@ -336,17 +360,17 @@ tr.hl-inspira td{background:#EFFBE4;font-weight:700}
 .org-committee b{font-family:var(--display);color:var(--teal-800)}
 .org-committee p{margin:.2rem 0 0;font-size:.9rem;color:var(--muted)}
 .org-agency{
-  margin-top:1rem;border:1.5px solid #C9BCE4;background:#F5F1FC;border-radius:.9rem;
+  margin-top:1rem;border:1.5px solid var(--purple-line);background:var(--purple-bg);border-radius:.9rem;
   padding:1rem 1.4rem;text-align:center;max-width:40rem;
 }
-.org-agency b{font-family:var(--display);color:#4A3A78}
+.org-agency b{font-family:var(--display);color:var(--purple-ink)}
 .org-agency p{margin:.2rem 0 0;font-size:.9rem;color:#5C4E86}
 .org-depts{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1.5rem;margin-top:2rem}
 .org-dept-col{display:flex;flex-direction:column;align-items:stretch;gap:.55rem}
 .org-dept-col .org-node{max-width:none;min-width:0}
 .org-dept-col>.head{margin-bottom:.4rem}
 .org-member{
-  background:#fff;border:1.5px solid var(--line);border-left:none;border-right:none;
+  background:var(--surface);border:1.5px solid var(--line);border-left:none;border-right:none;
   border:1.5px solid var(--line);border-radius:.7rem;padding:.55rem 1rem;text-align:center;
 }
 .org-member b{display:block;font-weight:800;color:var(--teal-900);font-size:.95rem}
@@ -379,7 +403,7 @@ tr.hl-inspira td{background:#EFFBE4;font-weight:700}
   font-size:.78rem;font-weight:800;color:var(--ink);margin-left:.45rem;white-space:nowrap;
   font-variant-numeric:tabular-nums;
 }
-.bar-val.inside{position:absolute;right:.55rem;margin:0;color:#fff}
+.bar-val.inside{position:absolute;right:.55rem;margin:0;color:var(--on-dark)}
 .pair-h{font-family:var(--display);font-weight:800;color:var(--teal-900);margin:0 0 .25rem;font-size:.98rem}
 .chart-note{font-size:.83rem;color:var(--muted);margin-top:.9rem;max-width:70ch}
 .svg-chart{width:100%;height:auto;display:block;margin-top:.6rem}
@@ -387,12 +411,14 @@ tr.hl-inspira td{background:#EFFBE4;font-weight:700}
 
 /* comparativo de custos */
 .cost-chart .bar-row{grid-template-columns:minmax(8.5rem,12rem) 1fr}
+/* especificidade (0,2,0) — precisa repetir dentro do @media de 720px, senão a barra
+   fica com ~178px no mobile porque o rótulo trava em 136px */
 .cost-pair{display:flex;flex-direction:column;gap:.25rem;margin-bottom:.9rem}
 
 /* tooltip */
 #tip{
   position:fixed;z-index:var(--z-tip);pointer-events:none;opacity:0;
-  background:var(--teal-950);color:#fff;border-radius:.6rem;padding:.55rem .8rem;
+  background:var(--teal-950);color:var(--on-dark);border-radius:.6rem;padding:.55rem .8rem;
   font-size:.83rem;line-height:1.45;max-width:19rem;transition:opacity .12s;
   box-shadow:0 6px 24px rgba(0,0,0,.25);
 }
@@ -400,7 +426,7 @@ tr.hl-inspira td{background:#EFFBE4;font-weight:700}
 #tip.on{opacity:1}
 
 /* linha de crescimento */
-.growth-wrap{background:#fff;border:1px solid var(--line);border-radius:.9rem;padding:1.2rem;margin-top:1rem;overflow-x:auto}
+.growth-wrap{background:var(--surface);border:1px solid var(--line);border-radius:.9rem;padding:1.2rem;margin-top:1rem;overflow-x:auto}
 .growth-wrap svg{min-width:34rem}
 
 /* alertas (análise) */
@@ -443,18 +469,18 @@ footer .waves{position:absolute;top:0;right:0;bottom:0;left:0;pointer-events:non
 footer .wrap{position:relative;padding-block:2.6rem;display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
 footer img{height:2.6rem;width:auto}
 footer .fslogan{font-family:var(--display);font-weight:700;color:var(--lime-bright)}
-footer small{margin-left:auto;font-size:.8rem;color:#7FA795}
+footer small{margin-left:auto;font-size:.8rem;color:var(--muted-inverse-2)}
 
 /* ============ Balanço Financeiro ============ */
 .fin-lock{
-  max-width:26rem;background:#fff;border:1px solid var(--line);border-radius:.9rem;padding:1.6rem;
+  max-width:26rem;background:var(--surface);border:1px solid var(--line);border-radius:.9rem;padding:1.6rem;
 }
 .fin-lock label{display:block;font-weight:700;font-size:.95rem;color:var(--muted);margin-bottom:.45rem}
 .fin-lock .gate-row input{
   border-color:var(--line);background:var(--paper-2);color:var(--ink);
 }
 .fin-lock .gate-row input:focus{border-color:var(--teal-700)}
-.fin-lock .gate-row button{background:var(--teal-700);color:#fff}
+.fin-lock .gate-row button{background:var(--teal-700);color:var(--on-dark)}
 .fin-lock .gate-row button:hover{background:var(--teal-600)}
 .fin-lock .gate-err{color:var(--al-alto)}
 .fin-lock.shake{animation:shake .4s cubic-bezier(.36,.07,.19,.97)}
@@ -462,13 +488,13 @@ footer small{margin-left:auto;font-size:.8rem;color:#7FA795}
 .fin-toolbar .field{min-width:14rem}
 .fin-input{
   border:1.5px solid var(--line);border-radius:.6rem;padding:.5rem .75rem;font:inherit;
-  background:#fff;color:var(--ink);width:100%;
+  background:var(--surface);color:var(--ink);width:100%;
 }
-.fin-input:focus{outline:none;border-color:var(--teal-700)}
+.fin-input:focus-visible{border-color:var(--teal-700)}
 .field>label{display:block;font-size:.83rem;font-weight:800;color:var(--muted);margin-bottom:.3rem}
 .fin-form{
   display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.9rem;
-  max-width:58rem;align-items:end;background:#fff;border:1px solid var(--line);
+  max-width:58rem;align-items:end;background:var(--surface);border:1px solid var(--line);
   border-radius:.9rem;padding:1.2rem;
 }
 .fin-form .full{grid-column:1/-1}
@@ -477,13 +503,13 @@ footer small{margin-left:auto;font-size:.8rem;color:#7FA795}
   font-family:var(--display);font-weight:700;font-size:.98rem;padding:.55rem 1.15rem;
   border-radius:.7rem;border:0;cursor:pointer;transition:background .15s,transform .15s;
 }
-.btn.primary{background:var(--teal-700);color:#fff}
+.btn.primary{background:var(--teal-700);color:var(--on-dark)}
 .btn.primary:hover{background:var(--teal-600)}
-.btn.ghost{background:#fff;border:1.5px solid var(--line);color:var(--teal-800)}
+.btn.ghost{background:var(--surface);border:1.5px solid var(--line);color:var(--teal-800)}
 .btn.ghost:hover{border-color:var(--teal-700)}
 .mini{
   font:inherit;font-size:.76rem;font-weight:800;padding:.18rem .6rem;border-radius:.5rem;
-  border:1px solid var(--line);background:#fff;cursor:pointer;color:var(--teal-800);white-space:nowrap;
+  border:1px solid var(--line);background:var(--surface);cursor:pointer;color:var(--teal-800);white-space:nowrap;
 }
 .mini:hover{border-color:var(--teal-700)}
 .mini.del{color:var(--al-alto)}
@@ -495,18 +521,20 @@ td.sal-nd{color:var(--muted);font-style:italic}
 .backrow{display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding-block:1.6rem}
 .backrow a{
   font-family:var(--display);font-weight:800;text-decoration:none;color:var(--teal-700);
-  padding:.5rem .9rem;border:1.5px solid var(--line);border-radius:.7rem;background:#fff;
+  padding:.5rem .9rem;border:1.5px solid var(--line);border-radius:.7rem;background:var(--surface);
 }
 .backrow a:hover{border-color:var(--teal-700)}
 
 /* ============ Motion / a11y ============ */
 :focus-visible{outline:3px solid var(--dv-orange);outline-offset:2px;border-radius:.3rem}
+/* sobre o chrome escuro o laranja cai pra 3,6:1; o lima claro dá 12,3:1 */
+.topnav :focus-visible,#sidenav :focus-visible,#gate :focus-visible{outline-color:var(--lime-bright)}
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.001s!important}
   html{scroll-behavior:auto}
 }
 @media(max-width:720px){
-  .bar-row{grid-template-columns:minmax(6rem,7.6rem) 1fr}
+  .bar-row,.cost-chart .bar-row{grid-template-columns:minmax(6rem,7.6rem) 1fr}
   .alert-list .who{min-width:100%}
   .warn-list .who{min-width:100%}
   /* nav em 1 linha rolável, sem quebrar em 2 linhas */
@@ -522,15 +550,30 @@ td.sal-nd{color:var(--muted);font-style:italic}
 /* alvos de toque maiores em telas de toque */
 @media(pointer:coarse){
   .topnav nav a{padding:.65rem .9rem}
-  .mini{padding:.45rem .85rem;font-size:.82rem}
+  .mini{padding:.45rem .85rem;font-size:.82rem;min-height:2.75rem}
   .backrow a{padding:.7rem 1.1rem}
+  /* WCAG 2.5.8: alvo mínimo 44×44px. Os botões de excluir chegavam a 24px. */
+  .bs-apoiar,.userchip button,.nav-burger,.camp-tabs button{min-width:2.75rem;min-height:2.75rem}
+  /* área de toque virtual: cresce o alvo sem mexer no grid que segura o ícone */
+  .foto-th .f-del,.pp-item .i-del{position:relative}
+  .foto-th .f-del::after,.pp-item .i-del::after{
+    content:"";position:absolute;top:50%;left:50%;
+    width:2.75rem;height:2.75rem;transform:translate(-50%,-50%);
+  }
 }
 
 /* texto corrido justificado em todo o site */
-main p,main li,main dd,main td:not(.num){text-align:justify;text-justify:inter-word;-webkit-hyphens:auto;hyphens:auto}
+main p,main li,main dd,main td:not(.num),
+.hero .hero-sub,.page-hero .sub,#pendingBox p,.gate-note{
+  text-align:justify;text-justify:inter-word;-webkit-hyphens:auto;hyphens:auto;
+}
+/* sem o limite, em coluna estreita no mobile o hyphens:auto quebra palavra de 4 letras */
+main p,main li,main dd,.hero .hero-sub,.page-hero .sub{hyphenate-limit-chars:6 3 3}
+/* pre-wrap + justify brigam: as linhas terminadas em \n saíam sem justificar,
+   dando alinhamento misto na coluna do Brainstorm */
+.bs-card p.tx{text-align:left;hyphens:none}
 /* ============ Header fixo + menu lateral ============ */
-:root{--navh:4.3rem;--snw:15.5rem}
-.topnav{position:fixed;top:0;left:0;right:0;height:var(--navh);z-index:50;background:var(--teal-950);border-bottom:1px solid rgba(255,255,255,.08)}
+.topnav{position:fixed;top:0;left:0;right:0;height:var(--navh);z-index:var(--z-topnav);background:var(--teal-950);border-bottom:1px solid rgba(255,255,255,.08)}
 .topnav .bar{display:flex;align-items:center;gap:.9rem;height:100%;padding-top:0;padding-bottom:0}
 .topnav .brand img{height:2.4rem;width:auto;display:block}
 .topnav .userchip{margin-left:auto}
@@ -552,6 +595,9 @@ body.nav-open #sidenav{transform:none}
 #sidenav a:hover{background:rgba(255,255,255,.09)}
 #sidenav a[aria-current="page"]{background:var(--lime);color:var(--teal-950);font-weight:800}
 #sidenav .sn-ic{flex:none;width:1.4rem;text-align:center}
+/* fallback do inert: visibility:hidden tira os 19 links do tab order em qualquer
+   navegador. A transição de transform continua funcionando. */
+#sidenav.nav-oculto{visibility:hidden}
 #navBackdrop{position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(2,20,17,.5);z-index:44;display:none}
 @media(max-width:1023px){body.nav-open #navBackdrop{display:block}}
 @media(min-width:1024px){
@@ -561,7 +607,7 @@ body.nav-open #sidenav{transform:none}
 @media(prefers-reduced-motion:reduce){#sidenav,main,footer,.nav-burger span{transition:none}}
 /* ============ Início: painel do dia ============ */
 .home-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(20rem,100%),1fr));gap:1.2rem}
-.home-card{border:1px solid var(--line);border-radius:1rem;background:#fff;overflow:hidden;display:flex;flex-direction:column}
+.home-card{border:1px solid var(--line);border-radius:1rem;background:var(--surface);overflow:hidden;display:flex;flex-direction:column}
 .home-card>header{display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.85rem 1.2rem;background:var(--paper-2);border-bottom:1px solid var(--line)}
 .home-card>header h3{margin:0;font-size:1.02rem}
 .home-card .hc-body{padding:.9rem 1.2rem 1.1rem;flex:1}
@@ -600,17 +646,17 @@ footer small{color:var(--muted)}
   .pg-grid-head{display:none}
   .pg-row{grid-template-columns:1fr 1fr 2rem}
 }
-.parc-badge{background:#DDF0E9;color:#0A5B47}
+.parc-badge{background:var(--tag-teal-bg);color:var(--tag-teal-ink)}
 /* Radar: navegação em quadros clicáveis, 2 por linha */
 .radar-tiles{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
 .radar-tiles button{
   text-align:left;cursor:pointer;font-family:var(--display);font-weight:700;font-size:1.02rem;
-  color:var(--teal-900);background:#fff;border:1px solid var(--line);border-radius:.9rem;
+  color:var(--teal-900);background:var(--surface);border:1px solid var(--line);border-radius:.9rem;
   padding:.95rem 1.15rem;display:flex;flex-direction:column;gap:.2rem;
 }
-.radar-tiles button small{font-family:inherit;font-weight:500;font-size:.8rem;color:var(--muted);text-align:left}
+.radar-tiles button small{font-family:inherit;font-weight:600;font-size:.8rem;color:var(--muted);text-align:left}  /* 500 não existe nos @font-face: o browser sintetizava */
 .radar-tiles button:hover{border-color:var(--teal-700)}
-.radar-tiles button.on{background:var(--teal-900);border-color:var(--teal-900);color:#fff}
+.radar-tiles button.on{background:var(--teal-900);border-color:var(--teal-900);color:var(--on-dark)}
 .radar-tiles button.on small{color:#BFE0D2}
 @media (max-width:640px){.radar-tiles{grid-template-columns:1fr}}
 .radar-busca{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin:.2rem 0 1.1rem}
@@ -626,7 +672,7 @@ footer small{color:var(--muted)}
 /* quadros em grade vertical */
 .qd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(17rem,100%),1fr));gap:1rem}
 .qd-card{
-  background:#fff;border:1px solid var(--line);border-top:4px solid var(--teal-700);
+  background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--teal-700);
   border-radius:1rem;padding:1.1rem 1.2rem 1rem;display:flex;flex-direction:column;gap:.4rem;
 }
 .qd-card h4{margin:0;font-size:1.12rem;color:var(--teal-900);line-height:1.25}
@@ -650,21 +696,21 @@ footer small{color:var(--muted)}
   .dial-row{grid-template-columns:1fr 1fr 2rem}
 }
 /* ============ páginas de integração futura ============ */
-.int-card{border:2px dashed var(--line);border-radius:1rem;background:#fff;padding:2.6rem 2rem;max-width:44rem;margin:0 auto;text-align:center}
+.int-card{border:2px dashed var(--line);border-radius:1rem;background:var(--surface);padding:2.6rem 2rem;max-width:44rem;margin:0 auto;text-align:center}
 .int-card>.ic{width:3rem;height:3rem;color:var(--teal-700);stroke-width:1.3}
 .int-card h3{margin:.9rem 0 .5rem}
 .int-card p{max-width:34rem;margin:.4rem auto}
 .int-card ul{display:inline-block;text-align:left;margin:.6rem auto 0;padding-left:1.2rem}
 .int-card li{padding:.2rem 0}
 /* ============ Jurídico (papel timbrado) ============ */
-.jr-paper{background:#fff;border:1px solid var(--line);border-radius:.6rem;max-width:50rem;margin:0 auto;padding:2.8rem 3rem}
+.jr-paper{background:var(--surface);border:1px solid var(--line);border-radius:.6rem;max-width:50rem;margin:0 auto;padding:2.8rem 3rem}
 .jr-head{display:flex;justify-content:center;border-bottom:3px solid var(--lime);padding-bottom:1.1rem;margin-bottom:1.7rem}
 .jr-head img{height:2.6rem;width:auto}
 .jr-titulo{text-align:center;font-size:1.15rem;letter-spacing:.02em;margin:0 0 .4rem;text-transform:uppercase}
 .jr-partes{text-align:center;color:var(--muted);font-size:.9rem;margin:0 0 1.7rem}
 .jr-body{white-space:pre-wrap;font-size:.93rem;line-height:1.75;text-align:justify;-webkit-hyphens:auto;hyphens:auto}
 .jr-foot{margin-top:2.4rem;border-top:1px solid var(--line);padding-top:.8rem;text-align:center;font-size:.78rem;color:var(--muted)}
-.tipo-pill{background:#E4EAF4;color:#33517E}
+.tipo-pill{background:var(--tag-blue-bg);color:var(--tag-blue-ink)}
 @media(max-width:720px){.jr-paper{padding:1.6rem 1.2rem}}
 @media print{
   .topnav,#sidenav,#navBackdrop,footer,.no-print,.page-hero{display:none !important}
@@ -672,7 +718,7 @@ footer small{color:var(--muted)}
   main{margin-left:0 !important}
   .section{padding:0}
   .jr-paper{border:0;border-radius:0;max-width:none;padding:0}
-  body{background:#fff}
+  body{background:var(--surface)}
 }
 ol.hc-list li.hc-empty::before{display:none}
 .hc-empty{color:var(--muted);font-size:.9rem;font-style:italic;margin:.2rem 0}
@@ -687,16 +733,20 @@ ol.hc-list li.hc-empty::before{display:none}
 @media(max-width:560px){.mus-cols{grid-template-columns:1fr}}
 /* ============ Login (Firebase) ============ */
 .authbox{display:flex;flex-direction:column;gap:.7rem;text-align:left}
+#authForm{display:flex;flex-direction:column;gap:.7rem}
+.authbox label{font-weight:700;font-size:.86rem;color:var(--muted-inverse);margin-bottom:-.35rem}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 .btn-google{
   display:flex;align-items:center;justify-content:center;gap:.6rem;width:100%;
   border:0;border-radius:.75rem;padding:.8rem 1rem;cursor:pointer;
   font-family:var(--display);font-weight:700;font-size:1.05rem;
+  /* branco literal de propósito: é diretriz de marca do Google, não superfície de card */
   background:#fff;color:#1F1F1F;transition:transform .18s cubic-bezier(.25,1,.5,1);
 }
 .btn-google:hover{transform:translateY(-1px)}
 .btn-google svg{flex:none}
 .auth-divider{
-  display:flex;align-items:center;gap:.8rem;color:#7FA795;font-size:.85rem;font-weight:700;
+  display:flex;align-items:center;gap:.8rem;color:var(--muted-inverse-2);font-size:.85rem;font-weight:700;
 }
 .auth-divider::before,.auth-divider::after{content:"";flex:1;height:1px;background:rgba(255,255,255,.18)}
 .authbox input{
@@ -704,8 +754,8 @@ ol.hc-list li.hc-empty::before{display:none}
   background:rgba(255,255,255,.07);color:var(--ink-inverse);
   font:inherit;font-weight:600;padding:.7rem 1rem;
 }
-.authbox input::placeholder{color:#9FC4B4}
-.authbox input:focus{outline:none;border-color:var(--lime)}
+.authbox input::placeholder{color:var(--muted-inverse-2)}
+.authbox input:focus-visible{border-color:var(--lime)}
 .auth-row{display:flex;gap:.55rem}
 .auth-row button{
   flex:1;border:0;border-radius:.75rem;padding:.7rem .5rem;cursor:pointer;
@@ -718,7 +768,10 @@ ol.hc-list li.hc-empty::before{display:none}
 #btnSignup{background:rgba(255,255,255,.12);color:var(--ink-inverse)}
 #btnSignup:hover{background:rgba(255,255,255,.2)}
 .auth-links{text-align:center;margin-top:.2rem}
-.auth-links a{color:#9FC4B4;font-size:.88rem;font-weight:700;cursor:pointer;text-decoration:underline}
+.auth-links .linkish{
+  background:0;border:0;padding:.5rem;font:inherit;color:var(--muted-inverse-2);
+  font-size:.88rem;font-weight:700;cursor:pointer;text-decoration:underline;
+}
 .auth-msg{min-height:1.4rem;margin:.2rem 0 0;font-weight:700;font-size:.92rem}
 .auth-msg.err{color:#FFB4A6}
 .auth-msg.ok{color:var(--lime-bright)}
@@ -736,7 +789,7 @@ ol.hc-list li.hc-empty::before{display:none}
   border:1px solid rgba(255,255,255,.25);background:transparent;color:var(--muted-inverse);
   border-radius:.55rem;padding:.3rem .7rem;cursor:pointer;font:inherit;font-weight:700;font-size:.8rem;
 }
-.userchip button:hover{color:#fff;border-color:#fff}
+.userchip button:hover{color:var(--on-dark);border-color:var(--on-dark)}
 @media(max-width:720px){.userchip .mail{display:none}}
 /* página Usuários (admin) */
 .users-wrap .fin-input{max-width:100%}
@@ -744,15 +797,15 @@ ol.hc-list li.hc-empty::before{display:none}
 .users-table select.fin-input,.users-table input.fin-input{padding:.35rem .5rem;font-size:.88rem}
 .users-table .pill{cursor:default}
 .role-pendente{background:var(--al-medio-bg);color:var(--al-medio)}
-.role-colaborador{background:#DDF0E9;color:#0A5B47}
-.role-diretor{background:#E4EAF4;color:#33517E}
-.role-admin{background:var(--teal-700);color:#fff}
+.role-colaborador{background:var(--tag-teal-bg);color:var(--tag-teal-ink)}
+.role-diretor{background:var(--tag-blue-bg);color:var(--tag-blue-ink)}
+.role-admin{background:var(--teal-700);color:var(--on-dark)}
 .load-note{padding:2.5rem 0;text-align:center;color:var(--muted)}
 /* ============ Reestruturações (hub + editor) ============ */
 .proj-toolbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.4rem}
 .proj-row{
   display:flex;align-items:center;gap:1.2rem;width:100%;text-align:left;
-  padding:1.1rem 1.2rem;border:1px solid var(--line);border-radius:.9rem;background:#fff;
+  padding:1.1rem 1.2rem;border:1px solid var(--line);border-radius:.9rem;background:var(--surface);
   cursor:pointer;font:inherit;transition:border-color .15s;margin-bottom:.7rem;
 }
 .proj-row:hover{border-color:var(--teal-700)}
@@ -768,13 +821,13 @@ ol.hc-list li.hc-empty::before{display:none}
 textarea.fin-input{resize:vertical;font-family:var(--body)}
 .kpis-light{background:var(--line)}
 .kpis-light .kpi{background:var(--teal-900)}
-.proj-panel{border:1px solid var(--line);border-radius:.9rem;background:#fff;overflow:hidden}
+.proj-panel{border:1px solid var(--line);border-radius:.9rem;background:var(--surface);overflow:hidden}
 .pp-h{
   display:flex;justify-content:space-between;align-items:baseline;gap:1rem;
   padding:.8rem 1.1rem;font-family:var(--display);font-weight:700;font-size:1.02rem;
 }
 .pp-h.antes{background:var(--paper-2);color:var(--muted)}
-.pp-h.depois{background:var(--teal-700);color:#fff}
+.pp-h.depois{background:var(--teal-700);color:var(--on-dark)}
 .pp-total{font-size:.9rem;font-variant-numeric:tabular-nums}
 .pp-body{padding: .4rem 1.1rem 1.1rem}
 .pp-body h4{margin:.9rem 0 .45rem;font-size:.95rem}
@@ -784,7 +837,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
 .pp-item .i-funcao{flex:3}
 .pp-item .i-valor{flex:0 0 6.4rem;text-align:right;font-variant-numeric:tabular-nums}
 .pp-item .i-del{
-  flex:none;border:1px solid var(--line);background:#fff;color:var(--al-alto);border-radius:.5rem;
+  flex:none;border:1px solid var(--line);background:var(--surface);color:var(--al-alto);border-radius:.5rem;
   width:1.9rem;height:1.9rem;cursor:pointer;font-weight:800;line-height:1;
 }
 .pp-item .i-del:hover{border-color:var(--al-alto)}
@@ -807,12 +860,12 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
   .proc-row .i-etapa{grid-column:2}
   .proc-row .i-antes,.proc-row .i-depois{grid-column:2}
 }
-.btn.publish{background:var(--dv-orange);color:#fff}
-.btn.publish:hover{background:#B25012}
+.btn.publish{background:#B25012;color:var(--on-dark)}  /* --dv-orange dava 4,41:1, reprovava AA por pouco */
+.btn.publish:hover{background:#8E3F0E}                 /* base subiu pro antigo hover; hover precisa descer junto */
 /* página Processos */
-.proc-card{border:1px solid var(--line);border-radius:.9rem;background:#fff;margin-bottom:1.2rem;overflow:hidden}
+.proc-card{border:1px solid var(--line);border-radius:.9rem;background:var(--surface);margin-bottom:1.2rem;overflow:hidden}
 .proc-card>header{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;flex-wrap:wrap;padding:.9rem 1.2rem;background:var(--teal-900)}
-.proc-card>header h4{margin:0;color:#fff;font-size:1.05rem}
+.proc-card>header h4{margin:0;color:var(--on-dark);font-size:1.05rem}
 .proc-card>header small{color:var(--muted-inverse);font-size:.8rem}
 .proc-card ol{margin:0;padding:.4rem 0;list-style:none;counter-reset:et}
 .proc-card li{counter-increment:et;display:flex;gap:.85rem;padding:.65rem 1.2rem;border-top:1px solid var(--line);align-items:baseline}
@@ -825,8 +878,8 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
 .proc-card li span{display:block;font-size:.86rem;color:var(--muted)}
 .proc-card li.vazio::before{display:none}
 .proc-pend{
-  border:2px dashed #E0B470;background:#FDF6E7;border-radius:.9rem;
-  padding:1rem 1.3rem;margin-bottom:1.2rem;color:#7A5A10;font-weight:600;font-size:.95rem;
+  border:2px dashed var(--amber-line);background:var(--amber-bg);border-radius:.9rem;
+  padding:1rem 1.3rem;margin-bottom:1.2rem;color:var(--amber-ink);font-weight:600;font-size:.95rem;
 }
 .proc-pend b{color:#5F4700}
 /* ============ Campanhas ============ */
@@ -839,23 +892,23 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
 .camp-tabs button.on{color:var(--teal-900);border-bottom-color:var(--dv-orange)}
 .camp-tabs button:hover{color:var(--teal-900)}
 .st-pill{display:inline-block;border-radius:999px;padding:.18rem .7rem;font-size:.72rem;font-weight:800;letter-spacing:.02em;vertical-align:middle}
-.st-rascunho{background:#FDF3DC;color:#7A5A10}
-.st-ativa{background:#DDF0E9;color:#0A5B47}
+.st-rascunho{background:#FDF3DC;color:var(--amber-ink)}
+.st-ativa{background:var(--tag-teal-bg);color:var(--tag-teal-ink)}
 .st-encerrada{background:#E8E8E8;color:#4A4A4A}
 .st-comerc{background:#FBE7C6;color:#8A5A12}
 /* aba comercializar campanha */
-.com-card{background:#fff;border:1px solid var(--line);border-radius:1rem;padding:1.2rem 1.3rem;margin-bottom:1rem}
+.com-card{background:var(--surface);border:1px solid var(--line);border-radius:1rem;padding:1.2rem 1.3rem;margin-bottom:1rem}
 .com-card h4{margin:0 0 .3rem}
 .com-meta{display:flex;flex-wrap:wrap;gap:.3rem 1.2rem;color:var(--muted);font-size:.9rem;margin:.1rem 0 .7rem}
 .com-dias{font-weight:700}
-.com-dias.ok{color:#0A5B47}
+.com-dias.ok{color:var(--tag-teal-ink)}
 .com-dias.atras{color:#B23B2E}
 .com-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(12rem,100%),1fr));gap:.7rem;margin:.4rem 0}
 .com-bar{height:.7rem;background:var(--paper-2);border-radius:999px;overflow:hidden;margin:.6rem 0 .3rem}
 .com-bar > i{display:block;height:100%;background:var(--teal-700);border-radius:999px;transition:width .25s ease}
-.camp-card{border:1px solid var(--line);border-radius:.9rem;background:#fff;margin-bottom:1.4rem;overflow:hidden}
+.camp-card{border:1px solid var(--line);border-radius:.9rem;background:var(--surface);margin-bottom:1.4rem;overflow:hidden}
 .camp-card>header{display:flex;justify-content:space-between;gap:.4rem 1rem;flex-wrap:wrap;align-items:baseline;padding:1rem 1.3rem;background:var(--teal-900)}
-.camp-card>header h4{margin:0;color:#fff;font-size:1.12rem}
+.camp-card>header h4{margin:0;color:var(--on-dark);font-size:1.12rem}
 .camp-card>header small{color:var(--muted-inverse)}
 .camp-body{padding:1.1rem 1.3rem}
 .camp-facts{display:flex;gap:.5rem 1.6rem;flex-wrap:wrap;margin:.6rem 0 .9rem;font-size:.9rem}
@@ -875,32 +928,44 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
   .parc-row{grid-template-columns:1fr 2rem}
 }
 .canal-checks{display:flex;gap:.4rem .7rem;flex-wrap:wrap}
-.canal-checks label{display:flex;align-items:center;gap:.4rem;font-size:.92rem;font-weight:600;border:1px solid var(--line);border-radius:.6rem;padding:.4rem .7rem;cursor:pointer;background:#fff}
+.canal-checks label{display:flex;align-items:center;gap:.4rem;font-size:.92rem;font-weight:600;border:1px solid var(--line);border-radius:.6rem;padding:.4rem .7rem;cursor:pointer;background:var(--surface)}
 .canal-checks input{accent-color:var(--teal-700)}
 .env-row{display:grid;grid-template-columns:10rem 1fr;gap:.6rem;margin-bottom:.5rem;align-items:start}
 .env-row b{font-size:.9rem;padding-top:.55rem;color:var(--teal-900)}
 @media(max-width:720px){.env-row{grid-template-columns:1fr}.env-row b{padding-top:0}}
-.radar{border:1px solid #E0B470;background:#FDF6E7;border-radius:.9rem;padding:1rem 1.2rem;margin:1.4rem 0 0}
+.radar{border:1px solid var(--amber-line);background:var(--amber-bg);border-radius:.9rem;padding:1rem 1.2rem;margin:1.4rem 0 0}
 .radar h4{margin:.2rem 0 .4rem;color:#5F4700}
-.radar p.hint{font-size:.88rem;color:#7A5A10;margin:0 0 .9rem}
+.radar p.hint{font-size:.88rem;color:var(--amber-ink);margin:0 0 .9rem}
 /* fotos */
 .foto-grid{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin:.5rem 0}
 .foto-th{position:relative;width:7.2rem;height:5.4rem;border-radius:.6rem;overflow:hidden;border:1px solid var(--line);flex:none}
 .foto-th img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
-.foto-th .f-del{position:absolute;top:.25rem;right:.25rem;border:0;background:rgba(0,0,0,.55);color:#fff;border-radius:.4rem;width:1.5rem;height:1.5rem;cursor:pointer;font-weight:800;line-height:1}
+.foto-th .f-del{position:absolute;top:.25rem;right:.25rem;border:0;background:rgba(0,0,0,.55);color:var(--on-dark);border-radius:.4rem;width:1.5rem;height:1.5rem;cursor:pointer;font-weight:800;line-height:1}
 #lightbox{position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(3,39,35,.93);display:none;align-items:center;justify-content:center;z-index:80;cursor:zoom-out;padding:1.5rem}
 #lightbox.on{display:flex}
+#lightbox[hidden]{display:none}  /* vence o .on: o atributo é a fonte de verdade */
 #lightbox img{max-width:100%;max-height:100%;border-radius:.6rem}
+#lightbox .lb-close{
+  position:fixed;top:1rem;right:1rem;min-width:2.75rem;min-height:2.75rem;
+  border:0;border-radius:.6rem;background:rgba(255,255,255,.15);color:var(--on-dark);
+  font-size:1.3rem;line-height:1;cursor:pointer;
+}
+.skip{position:absolute;left:-9999px;z-index:100;border:0;font:inherit;cursor:pointer}
+.skip:focus{
+  left:1rem;top:.6rem;padding:.6rem 1rem;background:var(--lime);color:var(--teal-950);
+  border-radius:.6rem;font-weight:800;text-decoration:none;
+}
+main:focus{outline:none}
 /* brainstorm */
-.bs-form{border:1px solid var(--line);border-radius:.9rem;background:#fff;padding:1.1rem 1.3rem;margin-bottom:1.8rem}
-.bs-card{border:1px solid var(--line);border-radius:.9rem;background:#fff;padding:1rem 1.3rem;margin-bottom:1rem}
+.bs-form{border:1px solid var(--line);border-radius:.9rem;background:var(--surface);padding:1.1rem 1.3rem;margin-bottom:1.8rem}
+.bs-card{border:1px solid var(--line);border-radius:.9rem;background:var(--surface);padding:1rem 1.3rem;margin-bottom:1rem}
 .bs-head{display:flex;justify-content:space-between;gap:.4rem .8rem;flex-wrap:wrap;align-items:baseline}
 .bs-head h4{margin:0;font-size:1.05rem;color:var(--teal-900)}
 .bs-head small{color:var(--muted)}
 .bs-card p.tx{margin:.5rem 0 .3rem;white-space:pre-wrap}
 .bs-foot{display:flex;gap:.7rem;align-items:center;margin-top:.6rem;flex-wrap:wrap}
-.bs-apoiar{border:1px solid var(--line);background:#fff;border-radius:999px;padding:.32rem .95rem;cursor:pointer;font:inherit;font-weight:700;font-size:.85rem}
-.bs-apoiar.on{background:var(--teal-700);color:#fff;border-color:var(--teal-700)}
+.bs-apoiar{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:.32rem .95rem;cursor:pointer;font:inherit;font-weight:700;font-size:.85rem}
+.bs-apoiar.on{background:var(--teal-700);color:var(--on-dark);border-color:var(--teal-700)}
 </style>
 </head>
 <body>
@@ -909,9 +974,9 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
 <!-- ======================= LOGIN ======================= -->
 <div id="gate">
   <svg class="waves" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-    <path class="wave-drift" d="M-60,120 C240,40 420,220 720,150 C960,95 1100,170 1280,110 L1280,-40 L-60,-40 Z" fill="#06443C"/>
-    <path class="wave-drift w2" d="M-80,690 C180,600 460,760 760,680 C1000,615 1160,700 1300,650 L1300,860 L-80,860 Z" fill="#032723"/>
-    <path class="wave-drift w3" d="M-60,760 C300,690 560,810 900,740 C1080,705 1220,760 1300,730 L1300,900 L-60,900 Z" fill="#9CD776" opacity=".16"/>
+    <path class="wave-drift" d="M-60,120 C240,40 420,220 720,150 C960,95 1100,170 1280,110 L1280,-40 L-60,-40 Z" fill="var(--teal-800)"/>
+    <path class="wave-drift w2" d="M-80,690 C180,600 460,760 760,680 C1000,615 1160,700 1300,650 L1300,860 L-80,860 Z" fill="var(--teal-950)"/>
+    <path class="wave-drift w3" d="M-60,760 C300,690 560,810 900,740 C1080,705 1220,760 1300,730 L1300,900 L-60,900 Z" fill="var(--lime)" opacity=".16"/>
   </svg>
   <div class="gate-card">
     <img src="img/logo-clara.png" alt="Inspira FM 97.7" width="320" height="135" style="width:min(300px,72%);height:auto">
@@ -923,20 +988,27 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
         Entrar com Google
       </button>
       <div class="auth-divider">ou com e-mail e senha</div>
-      <input id="authEmail" type="email" placeholder="seu e-mail" autocomplete="username">
-      <input id="authPass" type="password" placeholder="senha" autocomplete="current-password">
-      <div class="auth-row">
-        <button type="button" id="btnLogin">Entrar</button>
-        <button type="button" id="btnSignup">Criar conta</button>
-      </div>
-      <div class="auth-links"><a id="btnReset">Esqueci minha senha</a></div>
+      <form id="authForm" novalidate>
+        <label for="authEmail">E-mail</label>
+        <input id="authEmail" name="email" type="email" placeholder="seu e-mail"
+               autocomplete="username" required aria-describedby="authMsg">
+        <label for="authPass">Senha</label>
+        <input id="authPass" name="password" type="password" placeholder="senha"
+               autocomplete="current-password" required aria-describedby="authMsg">
+        <div class="auth-row">
+          <button type="submit" id="btnLogin">Entrar</button>
+          <button type="button" id="btnSignup">Criar conta</button>
+        </div>
+      </form>
+      <div class="auth-links"><button type="button" class="linkish" id="btnReset">Esqueci minha senha</button></div>
       <p class="auth-msg" id="authMsg" role="alert"></p>
     </div>
 
     <div id="setorBox" hidden>
-      <p style="font-family:var(--display);font-weight:800;font-size:1.2rem;color:#fff;margin:0">Quase lá!</p>
+      <p style="font-family:var(--display);font-weight:800;font-size:1.2rem;color:var(--on-dark);margin:0">Quase lá!</p>
       <p style="color:var(--muted-inverse);max-width:32ch;margin:.4rem auto 1.1rem">Para concluir seu cadastro, diga em qual setor da Inspira você atua:</p>
       <div class="authbox">
+        <label for="setorSelect" class="sr-only">Setor em que você atua</label>
         <select id="setorSelect" class="fin-input" style="background:rgba(255,255,255,.07);color:var(--ink-inverse);border:2px solid rgba(255,255,255,.25)">
           <option value="">Selecione o setor…</option>
         </select>
@@ -946,7 +1018,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
     </div>
 
     <div id="pendingBox" hidden>
-      <p style="font-family:var(--display);font-weight:800;font-size:1.2rem;color:#fff;margin:0">Acesso pendente</p>
+      <p style="font-family:var(--display);font-weight:800;font-size:1.2rem;color:var(--on-dark);margin:0">Acesso pendente</p>
       <p>Sua conta <span class="pendmail" id="pendMail"></span> foi criada com sucesso e está em análise. Assim que o acesso for liberado pela administração, basta recarregar esta página para entrar.</p>
       <button type="button" class="btn-sair" id="btnSairPend">Sair</button>
     </div>
@@ -957,10 +1029,13 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
 
 <!-- ======================= APP ======================= -->
 <div id="app" hidden>
+<!-- botão, não âncora: href="#mainContent" dispararia o hashchange e o router
+     coagiria a rota desconhecida de volta pro Início -->
+<button type="button" class="skip" id="skipLink">Pular para o conteúdo</button>
 
 <header class="topnav">
   <div class="wrap bar">
-    <button type="button" class="nav-burger" id="navToggle" aria-label="Abrir ou fechar o menu" aria-controls="sidenav"><span></span><span></span><span></span></button>
+    <button type="button" class="nav-burger" id="navToggle" aria-label="Abrir ou fechar o menu" aria-controls="sidenav" aria-expanded="false"><span></span><span></span><span></span></button>
     <a class="brand" href="#inicio"><img src="img/logo-clara.png" alt="Inspira FM 97.7 — Início"></a>
     <div class="userchip"><span class="mail" id="chipEmail"></span><button type="button" id="btnSair">Sair</button></div>
   </div>
@@ -992,16 +1067,16 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
 </aside>
 <div id="navBackdrop" aria-hidden="true"></div>
 
-<main>
+<main id="mainContent" tabindex="-1" aria-label="Conteúdo">
   <section id="view-inicio" class="view" aria-labelledby="hm-title">
     <div class="page-hero">
       <svg class="waves" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="#06443C"/>
-        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="#032723"/>
+        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="var(--teal-800)"/>
+        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="var(--teal-950)"/>
       </svg>
       <div class="wrap">
         <p class="crumb" id="hojeData"></p>
-        <h2 id="hm-title"><span id="saudacao">Bom dia</span>!</h2>
+        <h1 id="hm-title"><span id="saudacao">Bom dia</span>!</h1>
         <p class="sub" id="fraseDia"></p>
       </div>
     </div>
@@ -1053,7 +1128,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
             <div class="proj-actions">
               <button type="button" class="btn primary" id="dstSalvar">Salvar destaques</button>
               <button type="button" class="btn ghost" id="dstCancelar">Cancelar</button>
-              <span class="fin-msg" id="dstMsg"></span>
+              <span class="fin-msg" id="dstMsg" role="status" aria-live="polite"></span>
             </div>
           </div>
         </div>
@@ -1064,12 +1139,12 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
   <section id="view-reestruturacao" class="view" aria-label="Estruturação">
     <div class="page-hero">
       <svg class="waves" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="#06443C"/>
-        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="#032723"/>
+        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="var(--teal-800)"/>
+        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="var(--teal-950)"/>
       </svg>
       <div class="wrap">
         <p class="crumb">Diretoria · Simulador de equipe</p>
-        <h2>Estruturação</h2>
+        <h1 id="re-title">Estruturação</h1>
         <p class="sub">Cada projeto simula uma mudança de equipe — contratação, desligamento ou ajuste de salário — e calcula o impacto no custo fixo antes de a decisão ser tomada. Tudo fica salvo e editável.</p>
       </div>
     </div>
@@ -1155,7 +1230,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
             <button type="button" class="btn primary" id="pjSalvar">Salvar projeto</button>
             <button type="button" class="btn publish" id="pjPublicar">Publicar processo do setor</button>
             <button type="button" class="btn ghost danger" id="pjExcluir" hidden>Excluir projeto</button>
-            <span class="fin-msg" id="pjMsg"></span>
+            <span class="fin-msg" id="pjMsg" role="status" aria-live="polite"></span>
           </div>
           <p class="chart-note">“Publicar processo” torna as etapas da coluna “como ficaria” o processo oficial do setor na página Processos — visível para toda a equipe.</p>
         </div>
@@ -1169,12 +1244,12 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
   <section id="view-processos" class="view" aria-labelledby="pc-title">
     <div class="page-hero">
       <svg class="waves" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="#06443C"/>
-        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="#032723"/>
+        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="var(--teal-800)"/>
+        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="var(--teal-950)"/>
       </svg>
       <div class="wrap">
         <p class="crumb">Operação · Como trabalhamos</p>
-        <h2 id="pc-title">Processos</h2>
+        <h1 id="pc-title">Processos</h1>
         <p class="sub">O processo de trabalho ativo de cada setor, validado pela diretoria. Publicados a partir dos projetos de Estruturação.</p>
       </div>
     </div>
@@ -1189,12 +1264,12 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
   <section id="view-conta" class="view" aria-labelledby="mc-title">
     <div class="page-hero">
       <svg class="waves" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="#06443C"/>
-        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="#032723"/>
+        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="var(--teal-800)"/>
+        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="var(--teal-950)"/>
       </svg>
       <div class="wrap">
         <p class="crumb">Seu perfil na Inspira</p>
-        <h2 id="mc-title">Minha conta</h2>
+        <h1 id="mc-title">Minha conta</h1>
         <p class="sub">Seus dados na plataforma. Mantenha tudo atualizado — o aniversário, por exemplo, aparece para a equipe.</p>
       </div>
     </div>
@@ -1215,7 +1290,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
           </div>
           <div class="proj-actions">
             <button type="button" class="btn primary" id="mcSalvar">Salvar meus dados</button>
-            <span class="fin-msg" id="mcMsg"></span>
+            <span class="fin-msg" id="mcMsg" role="status" aria-live="polite"></span>
           </div>
           <p class="chart-note">E-mail e setor são alterados pela administração — fale com a diretoria se algo estiver errado.</p>
         </div>
@@ -1226,12 +1301,12 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
   <section id="view-programacao" class="view" aria-labelledby="pg-title">
     <div class="page-hero">
       <svg class="waves" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="#06443C"/>
-        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="#032723"/>
+        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="var(--teal-800)"/>
+        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="var(--teal-950)"/>
       </svg>
       <div class="wrap">
         <p class="crumb">Conteúdo · Canais de distribuição</p>
-        <h2 id="pg-title">Nossa Programação</h2>
+        <h1 id="pg-title">Nossa Programação</h1>
         <p class="sub">A grade de cada canal da Inspira — o que vai ao ar, quando e a proposta de cada programa. A diretoria mantém as grades atualizadas.</p>
       </div>
     </div>
@@ -1251,7 +1326,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
           <div class="proj-actions">
             <button type="button" class="btn primary" id="pgSalvar">Salvar grade</button>
             <button type="button" class="btn ghost" id="pgCancelar">Cancelar</button>
-            <span class="fin-msg" id="pgMsg"></span>
+            <span class="fin-msg" id="pgMsg" role="status" aria-live="polite"></span>
           </div>
         </div>
       </div>
@@ -1261,12 +1336,12 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
   <section id="view-quadros" class="view" aria-labelledby="qd-title">
     <div class="page-hero">
       <svg class="waves" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="#06443C"/>
-        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="#032723"/>
+        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="var(--teal-800)"/>
+        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="var(--teal-950)"/>
       </svg>
       <div class="wrap">
         <p class="crumb">Conteúdo · Programas e colunas</p>
-        <h2 id="qd-title">Quadros da Inspira</h2>
+        <h1 id="qd-title">Quadros da Inspira</h1>
         <p class="sub">Quem apresenta cada quadro, em qual canal e com qual proposta — mais os colunistas que publicam matérias no nosso site.</p>
       </div>
     </div>
@@ -1304,7 +1379,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
             <button type="button" class="btn primary" id="qdSalvar">Salvar quadro</button>
             <button type="button" class="btn ghost" id="qdCancelarBtn">Cancelar</button>
             <button type="button" class="btn ghost danger" id="qdExcluir" hidden>Excluir</button>
-            <span class="fin-msg" id="qdMsg"></span>
+            <span class="fin-msg" id="qdMsg" role="status" aria-live="polite"></span>
           </div>
         </div>
         <div id="qdList"><div class="load-note">Carregando quadros…</div></div>
@@ -1333,7 +1408,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
             <button type="button" class="btn primary" id="clSalvar">Salvar colunista</button>
             <button type="button" class="btn ghost" id="clCancelarBtn">Cancelar</button>
             <button type="button" class="btn ghost danger" id="clExcluir" hidden>Excluir</button>
-            <span class="fin-msg" id="clMsg"></span>
+            <span class="fin-msg" id="clMsg" role="status" aria-live="polite"></span>
           </div>
         </div>
         <div class="tbl-scroll" id="clTable"><div class="load-note">Carregando colunistas…</div></div>
@@ -1344,12 +1419,12 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
   <section id="view-embaixadores" class="view" aria-labelledby="eb-title">
     <div class="page-hero">
       <svg class="waves" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="#06443C"/>
-        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="#032723"/>
+        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="var(--teal-800)"/>
+        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="var(--teal-950)"/>
       </svg>
       <div class="wrap">
         <p class="crumb">Conteúdo · Embaixadores, influenciadores e colunistas</p>
-        <h2 id="eb-title">Radar</h2>
+        <h1 id="eb-title">Radar</h1>
         <p class="sub">O mapa de quem fala com o nosso público: embaixadores e influenciadores da região — os que já são parceiros e os que queremos por perto — e os colunistas do site.</p>
       </div>
     </div>
@@ -1372,7 +1447,8 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
           <button type="button" class="btn primary" id="embNovo" data-need="re" hidden>+ Adicionar embaixador</button>
         </div>
         <div class="radar-busca">
-          <input id="embBusca" class="fin-input" type="search" placeholder="Buscar por nome, @perfil, nicho ou cidade…">
+          <label for="embBusca" class="sr-only">Buscar no radar</label>
+          <input id="embBusca" class="fin-input" type="search" autocomplete="off" placeholder="Buscar por nome, @perfil, nicho ou cidade…">
           <span class="radar-count" id="embCount"></span>
         </div>
         <div id="embForm" hidden style="margin-bottom:1.6rem">
@@ -1397,7 +1473,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
             <button type="button" class="btn primary" id="ebSalvar">Salvar</button>
             <button type="button" class="btn ghost" id="ebCancelarBtn">Cancelar</button>
             <button type="button" class="btn ghost danger" id="ebExcluir" hidden>Excluir</button>
-            <span class="fin-msg" id="ebMsg"></span>
+            <span class="fin-msg" id="ebMsg" role="status" aria-live="polite"></span>
           </div>
         </div>
         <div id="rcForm" hidden style="margin-bottom:1.6rem">
@@ -1419,7 +1495,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
             <button type="button" class="btn primary" id="rcSalvar">Salvar colunista</button>
             <button type="button" class="btn ghost" id="rcCancelarBtn">Cancelar</button>
             <button type="button" class="btn ghost danger" id="rcExcluir" hidden>Excluir</button>
-            <span class="fin-msg" id="rcMsg"></span>
+            <span class="fin-msg" id="rcMsg" role="status" aria-live="polite"></span>
           </div>
         </div>
         <div class="tbl-scroll" id="embTable"><div class="load-note">Carregando…</div></div>
@@ -1430,12 +1506,12 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
   <section id="view-dial" class="view" aria-labelledby="dl-title">
     <div class="page-hero">
       <svg class="waves" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="#06443C"/>
-        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="#032723"/>
+        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="var(--teal-800)"/>
+        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="var(--teal-950)"/>
       </svg>
       <div class="wrap">
         <p class="crumb">Audiência · Pesquisas de mercado</p>
-        <h2 id="dl-title">Análise Dial</h2>
+        <h1 id="dl-title">Análise Dial</h1>
         <p class="sub">Os resultados da Inspira nas pesquisas de audiência (Ibope/IPEC e similares), rodada a rodada. A diretoria atualiza os números a cada nova pesquisa.</p>
       </div>
     </div>
@@ -1456,7 +1532,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
           <div class="proj-actions">
             <button type="button" class="btn primary" id="dlSalvar">Salvar pesquisas</button>
             <button type="button" class="btn ghost" id="dlCancelar">Cancelar</button>
-            <span class="fin-msg" id="dlMsg"></span>
+            <span class="fin-msg" id="dlMsg" role="status" aria-live="polite"></span>
           </div>
         </div>
       </div>
@@ -1466,12 +1542,12 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
   <section id="view-site" class="view" aria-labelledby="st-title">
     <div class="page-hero">
       <svg class="waves" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="#06443C"/>
-        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="#032723"/>
+        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="var(--teal-800)"/>
+        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="var(--teal-950)"/>
       </svg>
       <div class="wrap">
         <p class="crumb">Performance digital · inspirafm.com.br</p>
-        <h2 id="st-title">Análise Site</h2>
+        <h1 id="st-title">Análise Site</h1>
         <p class="sub">Desempenho do site oficial da Inspira, direto do Google Analytics.</p>
       </div>
     </div>
@@ -1496,12 +1572,12 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
   <section id="view-mobradio" class="view" aria-labelledby="mb-title">
     <div class="page-hero">
       <svg class="waves" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="#06443C"/>
-        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="#032723"/>
+        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="var(--teal-800)"/>
+        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="var(--teal-950)"/>
       </svg>
       <div class="wrap">
         <p class="crumb">Aplicativo · Rádio no celular</p>
-        <h2 id="mb-title">Análise MobRadio</h2>
+        <h1 id="mb-title">Análise MobRadio</h1>
         <p class="sub">Audiência do aplicativo da Inspira, direto da plataforma MobRadio.</p>
       </div>
     </div>
@@ -1526,12 +1602,12 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
   <section id="view-juridico" class="view" aria-labelledby="jr-title">
     <div class="page-hero">
       <svg class="waves" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="#06443C"/>
-        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="#032723"/>
+        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="var(--teal-800)"/>
+        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="var(--teal-950)"/>
       </svg>
       <div class="wrap">
         <p class="crumb">Gestão · Contratos e termos</p>
-        <h2 id="jr-title">Jurídico</h2>
+        <h1 id="jr-title">Jurídico</h1>
         <p class="sub">Contratos, termos e documentos da rádio em um só lugar — com modelos prontos e impressão em papel timbrado da Inspira.</p>
       </div>
     </div>
@@ -1542,6 +1618,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
           <div class="proj-toolbar">
             <h3 style="margin:0">Documentos</h3>
             <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
+              <label for="jrModelo" class="sr-only">Modelo de contrato</label>
               <select id="jrModelo" class="fin-input" style="max-width:17rem"><option value="">Criar a partir de um modelo…</option></select>
               <button type="button" class="btn primary" id="jrNovo">+ Documento em branco</button>
             </div>
@@ -1570,7 +1647,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
             <button type="button" class="btn primary" id="jrSalvar">Salvar documento</button>
             <button type="button" class="btn publish" id="jrVer"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Papel timbrado / imprimir</button>
             <button type="button" class="btn ghost danger" id="jrExcluir" hidden>Excluir</button>
-            <span class="fin-msg" id="jrMsg"></span>
+            <span class="fin-msg" id="jrMsg" role="status" aria-live="polite"></span>
           </div>
           <p class="chart-note">Os modelos são um ponto de partida — antes de assinar, revise as cláusulas e valide com um advogado ou contador.</p>
         </div>
@@ -1599,12 +1676,12 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
   <section id="view-campanhas" class="view" aria-labelledby="cm-title">
     <div class="page-hero">
       <svg class="waves" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="#06443C"/>
-        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="#032723"/>
+        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="var(--teal-800)"/>
+        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="var(--teal-950)"/>
       </svg>
       <div class="wrap">
         <p class="crumb">Ações da rádio · Da ideia ao resultado</p>
-        <h2 id="cm-title">Campanhas</h2>
+        <h1 id="cm-title">Campanhas</h1>
         <p class="sub">O brainstorm de todos, o planejamento da diretoria, as campanhas no ar e o relatório de impacto no final de cada uma.</p>
       </div>
     </div>
@@ -1727,7 +1804,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
               <button type="button" class="btn primary" id="cpSalvar">Salvar campanha</button>
               <button type="button" class="btn publish" id="cpStatusBtn">Ativar campanha</button>
               <button type="button" class="btn ghost danger" id="cpExcluir" hidden>Excluir campanha</button>
-              <span class="fin-msg" id="cpMsg"></span>
+              <span class="fin-msg" id="cpMsg" role="status" aria-live="polite"></span>
             </div>
             <p class="chart-note">“Enviar para comercialização” manda a campanha ao comercial, que tem um prazo para vendê-la na aba “Comercializar campanha”. Depois de viável, ela é ativada e aparece em “Campanhas ativas” com as tarefas de cada setor. “Encerrar” move a campanha para os Relatórios.</p>
           </div>
@@ -1781,7 +1858,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
             <div class="foto-grid" id="rpFotos"></div>
             <div class="proj-actions">
               <button type="button" class="btn primary" id="rpSalvar">Salvar relatório</button>
-              <span class="fin-msg" id="rpMsg"></span>
+              <span class="fin-msg" id="rpMsg" role="status" aria-live="polite"></span>
             </div>
             <p class="chart-note">Salvar o relatório encerra a campanha automaticamente.</p>
           </div>
@@ -1803,7 +1880,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
             <div class="foto-grid" id="bsFotos"></div>
             <div class="proj-actions" style="margin-top:.4rem">
               <button type="button" class="btn primary" id="bsEnviar">Publicar ideia</button>
-              <span class="fin-msg" id="bsMsg"></span>
+              <span class="fin-msg" id="bsMsg" role="status" aria-live="polite"></span>
             </div>
           </div>
           <div id="bsFeed"><div class="load-note">Carregando ideias…</div></div>
@@ -1815,12 +1892,12 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
   <section id="view-usuarios" class="view" aria-labelledby="us-title">
     <div class="page-hero">
       <svg class="waves" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="#06443C"/>
-        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="#032723"/>
+        <path class="wave-drift" d="M-80,110 C320,30 620,200 980,120 C1220,68 1380,140 1520,90 L1520,-60 L-80,-60 Z" fill="var(--teal-800)"/>
+        <path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="var(--teal-950)"/>
       </svg>
       <div class="wrap">
         <p class="crumb">Administração · Acesso restrito</p>
-        <h2 id="us-title">Usuários e permissões</h2>
+        <h1 id="us-title">Usuários e permissões</h1>
         <p class="sub">Aprove quem entrou, defina o setor e o nível de acesso de cada pessoa. As regras valem na hora, aplicadas pelo servidor.</p>
       </div>
     </div>
@@ -1837,7 +1914,7 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
 
 <footer>
   <svg class="waves" viewBox="0 0 1440 260" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-    <path class="wave-drift" d="M-80,200 C340,130 700,270 1080,190 C1280,150 1430,210 1540,180 L1540,320 L-80,320 Z" fill="#9CD776" opacity=".12"/>
+    <path class="wave-drift" d="M-80,200 C340,130 700,270 1080,190 C1280,150 1430,210 1540,180 L1540,320 L-80,320 Z" fill="var(--lime)" opacity=".12"/>
   </svg>
   <div class="wrap">
     <img src="img/logo-horizontal.png" alt="Inspira FM 97.7">
@@ -1849,11 +1926,15 @@ textarea.fin-input{resize:vertical;font-family:var(--body)}
 </div><!-- /app -->
 
 <div id="tip" role="tooltip"></div>
-<div id="lightbox" aria-hidden="true"><img alt="Foto ampliada"></div>
+<div id="srLive" class="sr-only" role="status" aria-live="polite"></div>
+<div id="lightbox" role="dialog" aria-modal="true" aria-label="Foto ampliada" hidden>
+  <img alt="Foto ampliada">
+  <button type="button" class="lb-close" aria-label="Fechar foto">&times;</button>
+</div>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="runtime.js?v=24c1dc7c"></script>
+<script src="runtime.js?v=b651d041"></script>
 </body>
 </html>

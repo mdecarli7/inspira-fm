@@ -1,17 +1,44 @@
-# Inspira FM 97.7 — Relatórios da Diretoria
+# Inspira FM 97.7 — Plataforma interna da Diretoria
 
-Site interno de apresentação dos relatórios da Diretoria de Marketing da Inspira FM 97.7.
+Plataforma web interna da Diretoria de Marketing da Inspira FM 97.7: análises,
+gestão de conteúdo (programação, quadros, radar, campanhas), processos, jurídico
+e equipe.
 
-- **Acesso:** https://mdecarli7.github.io/inspira-fm/ (protegido por senha)
-- Todo o conteúdo (relatórios, organograma e balanço financeiro) está **criptografado com AES-256-GCM** dentro do `index.html`. Sem a senha, o conteúdo não pode ser lido — nem inspecionando o código-fonte.
-- O Balanço Financeiro tem uma segunda senha própria, pedida a cada acesso.
+- **Acesso:** https://mdecarli7.github.io/inspira-fm/
+- **Autenticação:** Firebase Auth (Google ou e-mail/senha). Cadastro novo entra
+  como *pendente* até liberação por um admin.
+- **Permissões por papel:** pendente → colaborador → diretor → admin. Páginas
+  restritas via `data-need` (`re` / `fin` / `admin`).
 
 ## Estrutura
 
-- `index.html` — site completo (arquivo único, conteúdo criptografado, fontes embutidas).
+- `index.html` — casca do app: menu, tela de login e as 16 views.
+- `runtime.js` — a aplicação (Firebase Auth + Firestore, CRUD de todas as seções).
+- `firestore.rules` — as regras de autorização. **É aqui que mora a segurança do
+  projeto**, não no HTML.
+- `fonts/`, `img/` — fontes woff2 e logos consumidos pelo site.
+- `assets/design-system/` — tokens de marca, fontes e logos oficiais.
 
-O arquivo-fonte em texto plano e o script de build **não** ficam neste repositório.
+O conteúdo dinâmico vive no Firestore, **não** no repositório. Três views
+(`view-analise`, `view-organograma`, `view-financeiro`) têm o HTML servido dos
+documentos `content/base` e `content/financeiro`.
+
+## Segurança
+
+O `index.html` publicado é casca pública, **sem conteúdo sensível e sem
+criptografia**. Quem decide o que cada pessoa lê é o `firestore.rules`. A
+`apiKey` do Firebase aparece em claro no `runtime.js` — isso é normal e esperado
+num app web (é identificador, não credencial), mas significa que **qualquer furo
+nas regras é um furo real**, alcançável direto pelo SDK, sem passar pela UI.
+
+Nunca commitar: a folha salarial, o `seed.html`, senhas.
 
 ## Como atualizar
 
-O site é gerado a partir de um arquivo-fonte local por um script de build que criptografa o conteúdo. Para alterar qualquer coisa (textos, tabelas, organograma, senhas), edite o fonte local, rode o build e faça push do novo `index.html`. O link não muda.
+Não há build. Edite `index.html` / `runtime.js` e faça push — o GitHub Pages
+publica. Ao alterar o `runtime.js`, atualize o `?v=` no
+`<script src="runtime.js?v=…">` do `index.html` para invalidar o cache do
+navegador. O link não muda.
+
+Conteúdo (campanhas, quadros, radar, contratos, programação) é editado dentro do
+próprio app.

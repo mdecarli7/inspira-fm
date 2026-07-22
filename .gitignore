@@ -3,8 +3,15 @@ build.js
 fonts-inline.css
 *.local.html
 
-# versão Firebase — nunca commitar:
+# conteúdo sensível (folha salarial, nomes) — NUNCA commitar:
 seed.html
+
+# pipeline de migração aposentado (não roda: o HTML-fonte não existe mais)
 site-src/
-firestore.rules
 build-firebase.js
+
+# firestore.rules NÃO entra aqui: é infraestrutura como código, sem credencial,
+# e é a única camada que protege o balanço financeiro. Precisa de diff e histórico.
+
+# Firecrawl scrape cache
+.firecrawl/

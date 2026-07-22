@@ -35,6 +35,31 @@ function setorSlug(s){
 var ME = null;            // {uid,email,role,setor,verFinanceiro,nome}
 var CONTENT = {};         // {base:{inicio,analise,organograma}, re:{html,cost}, fin:{html,defaults}}
 var appInitDone = false;
+
+/* Registro dos onSnapshot vivos. Cada xListen() guarda aqui a função de cancelamento
+   e usa a própria chave como trava de "já ligado". Sem isso os 12 streams ficavam
+   abertos até o reload — inclusive depois do signOut, com as permissões da conta antiga. */
+var UNSUB = {};
+function detachAll(){
+  Object.keys(UNSUB).forEach(function(k){
+    try{ if(typeof UNSUB[k] === 'function') UNSUB[k](); }catch(e){}
+    delete UNSUB[k];
+  });
+  /* cortar os streams não basta: o markup já renderizado continua no DOM. Nos caminhos
+     de saída SEM reload (sessão expirada, signOut em outra aba, botão do pendente), a
+     próxima conta a logar herdaria na tela o Balanço e as listas da conta anterior. */
+  CONTENT = {};
+  var fin = document.getElementById('view-financeiro');
+  if(fin) fin.innerHTML = '<div class="load-note">Carregando…</div>';
+}
+/* PENDÊNCIA DE PERFORMANCE — a Home baixa TODA campanha e TODA ideia, cada uma com até
+   6 fotos base64 de ~130 KB, para qualquer colaborador a cada carregamento.
+   .limit() NÃO resolve: campanhas, radar, colunistas, jurídico e quadros alimentam
+   filtros e contadores que operam sobre a lista inteira no cliente — cortar a query
+   faz item sumir da tela sem aviso (campanha ativa antiga desaparece do painel,
+   busca do Radar devolve "0 resultados" para quem existe no banco).
+   O conserto real é tirar as fotos base64 do documento de lista: subir para o Storage
+   e guardar só a URL, ou manter as fotos num subdocumento carregado sob demanda. */
 var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* =================== helpers de UI de login =================== */
@@ -67,7 +92,9 @@ document.getElementById('btnGoogle').addEventListener('click', function(){
     .catch(function(e){ msg(ptError(e)); })
     .finally(function(){ authBusy(false); });
 });
-document.getElementById('btnLogin').addEventListener('click', function(){
+// submit, não click: agora o Enter no campo de senha entra, em vez de não fazer nada
+document.getElementById('authForm').addEventListener('submit', function(ev){
+  ev.preventDefault();
   var em = document.getElementById('authEmail').value.trim();
   var pw = document.getElementById('authPass').value;
   if(!em || !pw){ msg('Preencha e-mail e senha.'); return; }
@@ -82,7 +109,11 @@ document.getElementById('btnSignup').addEventListener('click', function(){
   if(!em || !pw){ msg('Preencha e-mail e a senha desejada.'); return; }
   authBusy(true); msg('', true);
   auth.createUserWithEmailAndPassword(em, pw)
-    .then(function(){ msg('Conta criada! Aguarde a aprovação do administrador.', true); })
+    .then(function(c){
+      // confirma o e-mail: sem isso nada garante que quem cadastrou é dono do endereço
+      return c.user.sendEmailVerification().catch(function(){});
+    })
+    .then(function(){ msg('Conta criada! Confirme o e-mail que enviamos e aguarde a aprovação do administrador.', true); })
     .catch(function(e){ msg(ptError(e)); })
     .finally(function(){ authBusy(false); });
 });
@@ -101,6 +132,10 @@ document.getElementById('btnSair').addEventListener('click', function(){
 /* =================== sessão =================== */
 auth.onAuthStateChanged(function(user){
   if(!user){
+    // sessão caiu (logout, expiração, signOut em outra aba): derruba os streams antes
+    // de mostrar o login, senão eles seguem tentando ler com a conta que saiu
+    detachAll();
+    ME = null;
     gate.style.display = 'flex';
     authBox.hidden = false; pendingBox.hidden = true;
     app.hidden = true;
@@ -154,14 +189,14 @@ document.getElementById('setorSalvar').addEventListener('click', function(){
   var s = document.getElementById('setorSelect').value;
   var msgEl = document.getElementById('setorMsg');
   if(!s){ msgEl.textContent = 'Escolha um setor da lista.'; msgEl.className = 'auth-msg err'; return; }
-  var btn = this; btn.disabled = true;
+  var btn = this; btnBusy(btn, true);
   db.collection('users').doc(ME.uid).update({ setor: s }).then(function(){
     ME.setor = s;
     document.getElementById('setorBox').hidden = true;
     if(ME.role === 'pendente') showPending(); else loadContent();
   }).catch(function(){
     msgEl.textContent = 'Não foi possível salvar. Tente de novo.'; msgEl.className = 'auth-msg err';
-  }).finally(function(){ btn.disabled = false; });
+  }).finally(function(){ btnBusy(btn, false); });
 });
 
 function canRe(){ return ME && (ME.role === 'diretor' || ME.role === 'admin'); }
@@ -205,7 +240,6 @@ function enterApp(){
 
 /* =================== router =================== */
 var VIEWS = ['inicio','conta','analise','dial','site','mobradio','processos','campanhas','reestruturacao','organograma','financeiro','usuarios','juridico','programacao','quadros','embaixadores'];
-var counted = false;
 
 function viewAllowed(id){
   if(id === 'reestruturacao' || id === 'juridico') return canRe();
@@ -213,10 +247,23 @@ function viewAllowed(id){
   if(id === 'usuarios') return isAdmin();
   return true;
 }
+/* região aria-live única: limpar antes de escrever força o leitor de tela a
+   reanunciar mesmo quando o texto se repete */
+function liveAnnounce(txt){
+  var el = document.getElementById('srLive');
+  if(!el) return;
+  el.textContent = '';
+  setTimeout(function(){ el.textContent = txt; }, 60);
+}
 function route(){
   if(app.hidden) return;
   var id = (location.hash || '#inicio').slice(1);
-  if(VIEWS.indexOf(id) < 0 || !viewAllowed(id)) id = 'inicio';
+  if(VIEWS.indexOf(id) < 0 || !viewAllowed(id)){
+    id = 'inicio';
+    // a URL continuava em #financeiro com o Início na tela: recarregar repetia o
+    // desvio em silêncio e o link compartilhado parecia página quebrada
+    if(location.hash && location.hash !== '#inicio') location.replace('#inicio');
+  }
   VIEWS.forEach(function(v){
     var sec = document.getElementById('view-' + v);
     var active = v === id;
@@ -227,6 +274,12 @@ function route(){
     });
   });
   window.scrollTo(0,0);
+  /* leva o foco pro conteúdo e anuncia a view: antes o foco ficava no link do menu
+     e quem usa leitor de tela ou teclado não era avisado da troca */
+  var main = document.getElementById('mainContent');
+  if(main) main.focus({ preventScroll: true });
+  var tit = document.querySelector('#view-' + id + ' h1, #view-' + id + ' h2');
+  liveAnnounce(tit ? tit.textContent.trim() : 'Página carregada');
   if(id === 'inicio') homeInit();
   if(id === 'usuarios') buildUsers();
   if(id === 'reestruturacao') projInit();
@@ -241,24 +294,27 @@ function route(){
   requestAnimationFrame(armCharts);
 }
 window.addEventListener('hashchange', route);
+document.getElementById('skipLink').addEventListener('click', function(){
+  var m = document.getElementById('mainContent');
+  if(m){ m.focus({ preventScroll: true }); m.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' }); }
+});
 
-/* =================== count-up =================== */
-function runCountUps(){
-  if(counted) return;
-  counted = true;
-  document.querySelectorAll('[data-count]').forEach(function(el){
-    var target = parseInt(el.getAttribute('data-count'), 10);
-    if(reduceMotion){ el.textContent = fmtInt(target); return; }
-    var dur = 1400, t0 = null;
-    function step(ts){
-      if(t0 === null) t0 = ts;
-      var p = Math.min((ts - t0) / dur, 1);
-      var eased = 1 - Math.pow(1 - p, 4);
-      el.textContent = fmtInt(Math.round(target * eased));
-      if(p < 1) requestAnimationFrame(step);
-    }
-    requestAnimationFrame(step);
-  });
+/* runCountUps() removido: não tinha chamador e o index.html não tem nenhum
+   [data-count]. Era resquício da versão de relatórios estáticos. */
+/* botão de salvar durante a escrita: além de desabilitar, muda o rótulo e marca
+   aria-busy. Em conexão lenta o botão só ficava cinza e parecia travado. */
+function btnBusy(btn, on, rotulo){
+  if(!btn) return;
+  if(on){
+    if(btn.dataset.lbl === undefined) btn.dataset.lbl = btn.textContent;
+    btn.textContent = rotulo || 'Salvando…';
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+  }else{
+    if(btn.dataset.lbl !== undefined){ btn.textContent = btn.dataset.lbl; delete btn.dataset.lbl; }
+    btn.disabled = false;
+    btn.removeAttribute('aria-busy');
+  }
 }
 function fmtInt(n){ return n.toLocaleString('pt-BR'); }
 function fmtBRL(v){ return v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
@@ -306,19 +362,36 @@ function tipHide(){ tip.classList.remove('on'); }
 window.addEventListener('scroll', tipHide, {passive:true});
 function bindTips(root){
   root.querySelectorAll('[data-tip]').forEach(function(el){
+    if(!el.hasAttribute('tabindex') && !el.matches('a,button,input,select,textarea')) el.tabIndex = 0;
     el.addEventListener('mouseenter', function(e){ tipShow(el.getAttribute('data-tip'), e.clientX, e.clientY); });
     el.addEventListener('mousemove', function(e){ tipMove(e.clientX, e.clientY); });
     el.addEventListener('mouseleave', tipHide);
-    el.addEventListener('focus', function(){ var r = el.getBoundingClientRect(); tipShow(el.getAttribute('data-tip'), r.left + r.width/2, r.top); });
-    el.addEventListener('blur', tipHide);
+    el.addEventListener('focus', function(){
+      var r = el.getBoundingClientRect();
+      tipShow(el.getAttribute('data-tip'), r.left + r.width/2, r.top);
+      // aponta pro tooltip só enquanto ele está visível: fixar aria-describedby faria
+      // o leitor de tela ler um nó vazio (ou o texto do tooltip anterior) o tempo todo
+      el.setAttribute('aria-describedby', 'tip');
+    });
+    el.addEventListener('blur', function(){ el.removeAttribute('aria-describedby'); tipHide(); });
   });
 }
+/* escAttr reintroduz <b> e <br> de propósito: o destino é data-tip, que vai pra
+   tip.innerHTML em tipShow(). Só use com texto CONSTANTE do próprio código (PERFIS).
+   Nunca passe dado vindo do Firestore por aqui — vira XSS direto. */
 function escAttr(s){
-  return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
           .replace(/&lt;(\/?b)&gt;/g,'<$1>').replace(/&lt;br&gt;/g,'<br>');
 }
 function escHtml(s){
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+/* fotos vêm do Firestore como data URL gerado por fotoCompress(), mas isso é validação
+   de cliente — quem escreve direto pelo SDK põe o que quiser. Só deixa passar imagem
+   embutida; qualquer outra coisa (javascript:, URL remota, quebra de atributo) vira ''. */
+function safeFotoSrc(s){
+  s = String(s || '');
+  return /^data:image\/(jpeg|jpg|png|webp|gif);base64,[A-Za-z0-9+/=\s]+$/.test(s) ? s : '';
 }
 
 /* =================== ícones outline (traço fino) =================== */
@@ -377,7 +450,7 @@ function buildEngagement(){
 function buildRanking(){
   var host = document.getElementById('rankTable');
   if(!host) return;
-  var head = '<table><thead><tr><th>#</th><th>Rádio (FM)</th><th>Perfil</th><th>Tipo</th><th class="num">Seguidores</th><th>Curtidas méd./post</th><th class="num">Engaj.</th><th>Alerta</th><th>Observação</th></tr></thead><tbody>';
+  var head = '<table><thead><tr><th scope="col">#</th><th scope="col">Rádio (FM)</th><th scope="col">Perfil</th><th scope="col">Tipo</th><th scope="col" class="num">Seguidores</th><th scope="col">Curtidas méd./post</th><th scope="col" class="num">Engaj.</th><th scope="col">Alerta</th><th scope="col">Observação</th></tr></thead><tbody>';
   var rows = PERFIS.map(function(p){
     var tipoPill = p.tipo === 'inspira' ? '<span class="pill inspira">INSPIRA</span>' :
       p.tipo === 'rede' ? '<span class="pill rede">REDE</span>' : '<span class="pill local">LOCAL</span>';
@@ -402,8 +475,8 @@ function buildGrowth(){
   function Y(v){ return padT + (1 - v / maxY) * ih; }
   var grid = '';
   [0, 5000, 10000, 15000, 20000, 25000].forEach(function(v){
-    grid += '<line x1="' + padL + '" y1="' + Y(v) + '" x2="' + (W - padR) + '" y2="' + Y(v) + '" stroke="#E3EAE2" stroke-width="1"/>' +
-      '<text x="' + (padL - 8) + '" y="' + (Y(v) + 4) + '" text-anchor="end" font-size="12" fill="#5A6B63">' + (v/1000) + ' mil</text>';
+    grid += '<line x1="' + padL + '" y1="' + Y(v) + '" x2="' + (W - padR) + '" y2="' + Y(v) + '" stroke="var(--line)" stroke-width="1"/>' +
+      '<text x="' + (padL - 8) + '" y="' + (Y(v) + 4) + '" text-anchor="end" font-size="12" fill="var(--muted)">' + (v/1000) + ' mil</text>';
   });
   var lineD = pts.map(function(p, i){ return (i ? 'L' : 'M') + X(i).toFixed(1) + ',' + Y(p[1]).toFixed(1); }).join(' ');
   var areaD = lineD + ' L' + X(pts.length - 1).toFixed(1) + ',' + Y(0) + ' L' + X(0) + ',' + Y(0) + ' Z';
@@ -411,19 +484,19 @@ function buildGrowth(){
   pts.forEach(function(p, i){
     var vx = X(i), vy = Y(p[1]);
     var viral = p[0] === '14/Jul';
-    dots += '<circle cx="' + vx + '" cy="' + vy + '" r="' + (viral ? 7 : 4.5) + '" fill="' + (viral ? '#C25A14' : '#017A5C') + '" stroke="#fff" stroke-width="2"><title>' + p[0] + ': ' + fmtInt(p[1]) + ' seguidores</title></circle>';
-    labels += '<text x="' + vx + '" y="' + (H - padB + 20) + '" text-anchor="middle" font-size="12" fill="#5A6B63">' + p[0] + '</text>';
+    dots += '<circle cx="' + vx + '" cy="' + vy + '" r="' + (viral ? 7 : 4.5) + '" fill="' + (viral ? 'var(--dv-orange)' : 'var(--dv-teal)') + '" stroke="var(--surface)" stroke-width="2"><title>' + p[0] + ': ' + fmtInt(p[1]) + ' seguidores</title></circle>';
+    labels += '<text x="' + vx + '" y="' + (H - padB + 20) + '" text-anchor="middle" font-size="12" fill="var(--muted)">' + p[0] + '</text>';
   });
   var annX = X(pts.length - 1), annY = Y(23991);
-  var ann = '<g font-size="12.5" fill="#8C3E0B">' +
+  var ann = '<g font-size="12.5" fill="var(--dv-orange-ink)">' +
     '<text x="' + (annX + 12) + '" y="' + (annY + 2) + '" font-weight="800">23.991 seguidores</text>' +
     '<text x="' + (annX + 12) + '" y="' + (annY + 18) + '">+~9 mil em 1 semana:</text>' +
     '<text x="' + (annX + 12) + '" y="' + (annY + 34) + '">reel viral de 09/07</text></g>';
   host.innerHTML =
     '<p class="chart-title">Trajetória estimada de seguidores desde a estreia (jan/2026)</p>' +
     '<svg class="svg-chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Gráfico de linha: crescimento da Inspira FM de 0 seguidores em janeiro de 2026 a 23.991 em 14 de julho.">' +
-    grid + '<path d="' + areaD + '" fill="#017A5C" opacity="0.08"/>' +
-    '<path d="' + lineD + '" fill="none" stroke="#017A5C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>' +
+    grid + '<path d="' + areaD + '" fill="var(--dv-teal)" opacity="0.08"/>' +
+    '<path d="' + lineD + '" fill="none" stroke="var(--dv-teal)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>' +
     dots + labels + ann + '</svg>';
 }
 
@@ -459,10 +532,30 @@ function finLoad(){
     return finDefaults();
   }).catch(function(){ return finDefaults(); });
 }
+/* a escrita foi negada: recarrega do servidor pra tela parar de mostrar
+   a alteração local que não foi aceita */
+function finRollback(){
+  return finLoad().then(function(rows){ finData = rows; finCancelEdit(); finRender(); });
+}
+/* espelho sem data de nascimento, que é o único campo da folha que a Estruturação
+   não usa — assim o diretor importa equipe sem receber dado pessoal a mais */
+function finEspelho(){
+  return finData.map(function(p){ return { n: p.n, s: p.s, f: p.f, v: p.v || 0 }; });
+}
 function finSave(){
-  return db.collection('fin').doc('folha').set({ rows: finData, atualizadoPor: ME.email,
-    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() })
-    .catch(function(){ finMsg('Sem permissão para salvar.'); });
+  var stamp = firebase.firestore.FieldValue.serverTimestamp();
+  var lote = db.batch();
+  lote.set(db.collection('fin').doc('folha'),
+    { rows: finData, atualizadoPor: ME.email, atualizadoEm: stamp });
+  lote.set(db.collection('fin').doc('equipe'),
+    { rows: finEspelho(), atualizadoEm: stamp });
+  return lote.commit()
+    .catch(function(err){
+      finMsg('Sem permissão para salvar.');
+      // repropaga: sem isso o .then() de quem chamou rodava mesmo com a escrita negada
+      // e exibia "Salvo" por cima do erro
+      throw err;
+    });
 }
 function finSetores(){
   var s = [];
@@ -496,7 +589,7 @@ function finRender(){
   var totLbl = filter === '__all' ? 'Total geral' : 'Total — ' + escHtml(filter);
   rows += '<tr class="total"><td colspan="4">' + totLbl + ' (' + count + ' pessoa' + (count === 1 ? '' : 's') +
     (semSalario ? ' · ' + semSalario + ' sem salário informado' : '') + ')</td><td class="num">' + fmtBRL(total) + '</td>' + (edit ? '<td></td>' : '') + '</tr>';
-  host.innerHTML = '<table><thead><tr><th>Nome</th><th>Setor</th><th>Função</th><th>Nascimento</th><th class="num">Salário (R$/mês)</th>' + (edit ? '<th></th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table>';
+  host.innerHTML = '<table><thead><tr><th scope="col">Nome</th><th scope="col">Setor</th><th scope="col">Função</th><th scope="col">Nascimento</th><th scope="col" class="num">Salário (R$/mês)</th>' + (edit ? '<th scope="col"></th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table>';
 }
 function finCancelEdit(){
   finEditIdx = -1;
@@ -540,7 +633,7 @@ function initFin(){
     document.getElementById('finReset').addEventListener('click', function(){
       if(!confirm('Restaurar a tabela para o padrão original? As edições serão perdidas para todos.')) return;
       finData = finDefaults();
-      finSave().then(function(){ finCancelEdit(); finRender(); finMsg('Tabela restaurada.'); });
+      finSave().then(function(){ finCancelEdit(); finRender(); finMsg('Tabela restaurada.'); }).catch(finRollback);
     });
     document.getElementById('finTable').addEventListener('click', function(ev){
       var btn = ev.target.closest('button'); if(!btn) return;
@@ -562,7 +655,7 @@ function initFin(){
         var i = +btn.dataset.del;
         if(!confirm('Excluir "' + finData[i].n + '" da tabela (para todos)?')) return;
         finData.splice(i, 1);
-        finSave().then(function(){ finCancelEdit(); finRender(); finMsg('Removido.'); });
+        finSave().then(function(){ finCancelEdit(); finRender(); finMsg('Removido.'); }).catch(finRollback);
       }
     });
     document.getElementById('finEditForm').addEventListener('submit', function(ev){
@@ -577,7 +670,7 @@ function initFin(){
       if(!p.n || !p.s || !p.f) return;
       if(finEditIdx >= 0){ finData[finEditIdx] = p; }
       else{ finData.push(p); }
-      finSave().then(function(){ finCancelEdit(); finRender(); finMsg('Salvo para todos os autorizados.'); });
+      finSave().then(function(){ finCancelEdit(); finRender(); finMsg('Salvo para todos os autorizados.'); }).catch(finRollback);
     });
     document.getElementById('finCancel').addEventListener('click', finCancelEdit);
   });
@@ -585,16 +678,15 @@ function initFin(){
 /* o financeiro agora abre direto para quem tem permissão (regras no servidor) */
 
 /* =================== Usuários (admin) =================== */
-var usersUnsub = null;
 function buildUsers(){
   if(!isAdmin()) return;
   var host = document.getElementById('usersTable');
-  if(usersUnsub) return; // já ligado (onSnapshot mantém atualizado)
-  usersUnsub = db.collection('users').onSnapshot(function(qs){
+  if(UNSUB.users) return; // já ligado (onSnapshot mantém atualizado)
+  UNSUB.users = db.collection('users').onSnapshot(function(qs){
     var rows = [];
     qs.forEach(function(doc){ rows.push({ id: doc.id, d: doc.data() }); });
     rows.sort(function(a,b){ return (a.d.email||'').localeCompare(b.d.email||''); });
-    host.innerHTML = '<table class="users-table"><thead><tr><th>E-mail</th><th>Nome</th><th>Setor</th><th>Nível</th><th>Balanço</th><th>Nível atual</th><th></th></tr></thead><tbody>' +
+    host.innerHTML = '<table class="users-table"><thead><tr><th scope="col">E-mail</th><th scope="col">Nome</th><th scope="col">Setor</th><th scope="col">Nível</th><th scope="col">Balanço</th><th scope="col">Nível atual</th><th scope="col"></th></tr></thead><tbody>' +
       rows.map(function(r){
         var d = r.d;
         var roleOpts = ['pendente','colaborador','diretor','admin'].map(function(x){
@@ -625,13 +717,20 @@ function buildUsers(){
       setor: tr.querySelector('.u-setor').value.trim(),
       role: tr.querySelector('.u-role').value,
       verFinanceiro: tr.querySelector('.u-fin').checked
-    }).then(function(){ btn.textContent = 'Salvo ✓'; setTimeout(function(){ btn.disabled = false; btn.textContent = 'Salvar'; }, 1500); })
-      .catch(function(){ btn.disabled = false; btn.textContent = 'Erro'; });
+    }).then(function(){
+      btn.textContent = 'Salvo ✓';
+      liveAnnounce('Permissões salvas.');
+      setTimeout(function(){ btn.disabled = false; btn.textContent = 'Salvar'; }, 1500);
+    }).catch(function(){
+      // antes o rótulo ficava 'Erro' para sempre e o botão nunca voltava a 'Salvar'
+      btn.textContent = 'Erro — tentar de novo';
+      liveAnnounce('Não foi possível salvar as permissões.');
+      setTimeout(function(){ btn.disabled = false; btn.textContent = 'Salvar'; }, 2500);
+    });
   });
 }
 
 /* =================== Reestruturações (projetos) =================== */
-var projUnsub = null;
 var PJ = null; // projeto aberto: {id, data}
 var PROJ_BLANK = function(){
   return { nome:'', setor:'', contexto:'', autor: ME ? (ME.nome || ME.email) : '', autorEmail: ME ? ME.email : '',
@@ -639,8 +738,8 @@ var PROJ_BLANK = function(){
 };
 
 function projInit(){
-  if(!canRe() || projUnsub) return;
-  projUnsub = db.collection('projetos').orderBy('atualizadoEm','desc').onSnapshot(function(qs){
+  if(!canRe() || UNSUB.proj) return;
+  UNSUB.proj = db.collection('projetos').orderBy('atualizadoEm','desc').onSnapshot(function(qs){
     var rows = [];
     qs.forEach(function(doc){ rows.push({id:doc.id, d:doc.data()}); });
     renderProjList(rows);
@@ -669,8 +768,13 @@ function projInit(){
   });
 }
 function projTotals(lado){
-  var folha = lado.pessoas.reduce(function(s,p){ return s + (+p.v || 0); }, 0);
-  var extras = lado.extras.reduce(function(s,p){ return s + (+p.v || 0); }, 0);
+  // tolera doc legado/malformado: uma exceção aqui roda dentro do callback do
+  // onSnapshot e deixa a lista inteira em branco, sem disparar o handler de erro
+  var l = lado || {};
+  var soma = function(arr){
+    return (Array.isArray(arr) ? arr : []).reduce(function(s,p){ return s + (+(p && p.v) || 0); }, 0);
+  };
+  var folha = soma(l.pessoas), extras = soma(l.extras);
   return { folha: folha, extras: extras, total: folha + extras };
 }
 function renderProjList(rows){
@@ -705,15 +809,24 @@ function showHub(){
   window.scrollTo(0,0);
 }
 function openProj(id, data){
+  // o Timestamp precisa sair ANTES do clone: JSON.stringify o achata em
+  // {seconds,nanoseconds} e o .toDate() some, deixando o projeto sempre sem data
+  var ts = data && data.atualizadoEm && data.atualizadoEm.toDate ? data.atualizadoEm.toDate() : null;
   PJ = { id: id, data: JSON.parse(JSON.stringify(data)) };
+  // docs legados podem não ter todos os campos; renderPanels/renderAtencao estouram sem isso
+  if(!PJ.data.antes || !PJ.data.antes.pessoas) PJ.data.antes = { pessoas: [], extras: [] };
+  if(!PJ.data.antes.extras) PJ.data.antes.extras = [];
+  if(!PJ.data.depois || !PJ.data.depois.pessoas) PJ.data.depois = { pessoas: [], extras: [] };
+  if(!PJ.data.depois.extras) PJ.data.depois.extras = [];
+  if(!Array.isArray(PJ.data.processo)) PJ.data.processo = [];
+  if(!Array.isArray(PJ.data.atencao)) PJ.data.atencao = [];
   document.getElementById('projHub').hidden = true;
   document.getElementById('projEditor').hidden = false;
   document.getElementById('pjNome').value = PJ.data.nome || '';
   document.getElementById('pjSetor').value = PJ.data.setor || '';
   document.getElementById('pjContexto').value = PJ.data.contexto || '';
-  if(!PJ.data.processo) PJ.data.processo = [];
   document.getElementById('pjExcluir').hidden = !id;
-  var quando = PJ.data.atualizadoEm && PJ.data.atualizadoEm.toDate ? ' · atualizado em ' + PJ.data.atualizadoEm.toDate().toLocaleDateString('pt-BR') : '';
+  var quando = ts ? ' · atualizado em ' + ts.toLocaleDateString('pt-BR') : '';
   document.getElementById('pjMeta').textContent = id ? 'Desenvolvido por ' + (PJ.data.autor || '—') + quando : 'Projeto novo — ainda não salvo.';
   renderPanels();
   renderProcesso();
@@ -726,8 +839,8 @@ function itemRow(lado, tipo, i, item){
   return '<div class="pp-item" data-lado="' + lado + '" data-tipo="' + tipo + '" data-i="' + i + '">' +
     '<input class="fin-input i-nome" value="' + escHtml(item.n || '') + '" placeholder="' + (comFuncao ? 'nome' : 'item') + '">' +
     (comFuncao ? '<input class="fin-input i-funcao" value="' + escHtml(item.f || '') + '" placeholder="função">' : '') +
-    '<input class="fin-input i-valor" type="number" min="0" step="0.01" value="' + (item.v || '') + '" placeholder="R$/mês">' +
-    '<button type="button" class="i-del" title="Remover">×</button></div>';
+    '<input class="fin-input i-valor" type="number" min="0" step="0.01" value="' + escHtml(item.v || '') + '" placeholder="R$/mês">' +
+    '<button type="button" class="i-del" title="Remover" aria-label="Remover">×</button></div>';
 }
 function renderPanels(){
   ['antes','depois'].forEach(function(lado){
@@ -766,7 +879,13 @@ function renderPanels(){
 function importEquipe(btn){
   var setor = PJ.data.setor;
   btn.disabled = true; btn.textContent = 'Importando…';
-  db.collection('fin').doc('folha').get().then(function(snap){
+  // lê o espelho, não a folha: diretor não precisa (nem tem permissão para) as datas de nascimento.
+  // o espelho só passa a existir no primeiro save da página Equipe — até lá, quem tem
+  // permissão de folha cai no fallback e continua funcionando
+  db.collection('fin').doc('equipe').get().then(function(snap){
+    if(snap.exists) return snap;
+    return db.collection('fin').doc('folha').get();
+  }).then(function(snap){
     if(!snap.exists) throw new Error('folha vazia');
     var rows = (snap.data().rows || []).filter(function(p){ return p.s === setor; });
     if(!rows.length){ pjMsgShow('Nenhuma pessoa do setor ' + setor + ' na página Equipe.'); return; }
@@ -774,7 +893,7 @@ function importEquipe(btn){
     renderPanels(); recalc();
     pjMsgShow(rows.length + ' pessoa(s) importada(s) da página Equipe.');
   }).catch(function(){
-    pjMsgShow('Sem acesso à folha — os salários são geridos pela diretoria Adm/Financeiro.');
+    pjMsgShow('Lista da equipe indisponível. Peça à diretoria Adm/Financeiro para abrir a página Equipe e salvar uma vez — isso publica a lista usada aqui.');
   }).finally(function(){ renderPanels(); });
 }
 
@@ -788,7 +907,7 @@ function renderProcesso(){
       '<input class="fin-input i-etapa" value="' + escHtml(p.e || '') + '" placeholder="etapa (ex.: Planejamento de pauta)">' +
       '<input class="fin-input i-antes" value="' + escHtml(p.a || '') + '" placeholder="responsável hoje">' +
       '<input class="fin-input i-depois" value="' + escHtml(p.d || '') + '" placeholder="como ficaria">' +
-      '<button type="button" class="i-del" title="Remover etapa">×</button></div>';
+      '<button type="button" class="i-del" title="Remover etapa" aria-label="Remover etapa">×</button></div>';
   }).join('') + '<div class="pp-add"><button type="button" class="mini" data-add="1">+ Adicionar etapa</button></div>';
   host.onclick = function(ev){
     var b = ev.target.closest('button'); if(!b) return;
@@ -814,7 +933,7 @@ function projPublicar(){
   if(!etapas.length){ pjMsgShow('Adicione as etapas do processo antes de publicar.'); return; }
   if(!confirm('Publicar este processo como o oficial do setor ' + PJ.data.setor + '?\nEle substituirá o processo ativo atual e ficará visível para toda a equipe.')) return;
   var btn = document.getElementById('pjPublicar');
-  btn.disabled = true;
+  btnBusy(btn, true);
   db.collection('processos').doc(setorSlug(PJ.data.setor)).set({
     setor: PJ.data.setor,
     etapas: etapas,
@@ -824,14 +943,13 @@ function projPublicar(){
     publicadoEm: firebase.firestore.FieldValue.serverTimestamp()
   }).then(function(){ pjMsgShow('Processo do setor ' + PJ.data.setor + ' publicado ✓'); })
     .catch(function(){ pjMsgShow('Sem permissão para publicar.'); })
-    .finally(function(){ btn.disabled = false; });
+    .finally(function(){ btnBusy(btn, false); });
 }
 
 /* =================== página Processos =================== */
-var procUnsub = null;
 function buildProcessos(){
-  if(procUnsub) return;
-  procUnsub = db.collection('processos').onSnapshot(function(qs){
+  if(UNSUB.proc) return;
+  UNSUB.proc = db.collection('processos').onSnapshot(function(qs){
     var ativos = {};
     qs.forEach(function(doc){ ativos[doc.id] = doc.data(); });
     renderProcessos(ativos);
@@ -867,7 +985,7 @@ function renderAtencao(){
   var arr = PJ.data.atencao;
   host.innerHTML = arr.map(function(t,i){
     return '<div class="at-item" data-i="' + i + '"><textarea class="fin-input" rows="2">' + escHtml(t) + '</textarea>' +
-      '<button type="button" class="i-del" title="Remover">×</button></div>';
+      '<button type="button" class="i-del" title="Remover" aria-label="Remover">×</button></div>';
   }).join('') + '<div class="pp-add"><button type="button" class="mini" data-add="1">+ Adicionar ponto de atenção</button></div>';
   host.onclick = function(ev){
     var b = ev.target.closest('button'); if(!b) return;
@@ -929,7 +1047,7 @@ function projSave(){
     atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
   };
   var btn = document.getElementById('pjSalvar');
-  btn.disabled = true;
+  btnBusy(btn, true);
   var op = PJ.id
     ? db.collection('projetos').doc(PJ.id).set(doc, {merge:true})
     : db.collection('projetos').add(Object.assign({criadoEm: firebase.firestore.FieldValue.serverTimestamp()}, doc));
@@ -937,7 +1055,7 @@ function projSave(){
     if(!PJ.id && ref){ PJ.id = ref.id; document.getElementById('pjExcluir').hidden = false; }
     pjMsgShow('Projeto salvo ✓');
   }).catch(function(){ pjMsgShow('Sem permissão para salvar.'); })
-    .finally(function(){ btn.disabled = false; });
+    .finally(function(){ btnBusy(btn, false); });
 }
 function projDelete(){
   if(!PJ || !PJ.id) return;
@@ -948,7 +1066,7 @@ function projDelete(){
 /* =================== Campanhas =================== */
 var CANAIS = ['Spots no ar','Instagram','Site e app','WhatsApp','Eventos presenciais','Parceiros e permutas','Imprensa local'];
 var CUSTO_CATS = ['Brindes','Prêmios','Mão de obra','Terceirizados','Mídia / Divulgação','Outros'];
-var campUnsub = null, campRows = [], CP = null, campBound = false, CTAB = 'brainstorm';
+var campRows = [], CP = null, campBound = false, CTAB = 'brainstorm';
 var ST_LBL = { rascunho:['EM DISCUSSÃO','st-rascunho'], comercializacao:['EM COMERCIALIZAÇÃO','st-comerc'], ativa:['ATIVA','st-ativa'], encerrada:['ENCERRADA','st-encerrada'] };
 
 function campBlank(){
@@ -959,7 +1077,15 @@ function campBlank(){
     autor: ME ? (ME.nome || ME.email) : '', autorEmail: ME ? ME.email : '' };
 }
 function campCustoTotal(d){ return (d.custos || []).reduce(function(s,c){ return s + (+c.v || 0); }, 0); }
-function fmtData(s){ if(!s) return ''; var p = String(s).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : s; }
+/* Só formata ISO de verdade; qualquer outra coisa vira string vazia. O campo de origem
+   é sempre <input type="date">, então não-ISO significa dado corrompido ou injetado.
+   Devolver '' (em vez de escapar) evita tanto o XSS quanto o escape duplo nos
+   chamadores que já passam o resultado por escHtml. */
+function fmtData(s){
+  if(!s) return '';
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s).trim());
+  return m ? m[3] + '/' + m[2] + '/' + m[1] : '';
+}
 function fmtPeriodo(d){
   if(d.inicio && d.fim) return fmtData(d.inicio) + ' a ' + fmtData(d.fim);
   return d.inicio ? 'a partir de ' + fmtData(d.inicio) : 'período a definir';
@@ -1012,16 +1138,30 @@ function fotoCompress(file){
     img.src = url;
   });
 }
+var lbPrevFocus = null;
 function lightbox(src){
   var lb = document.getElementById('lightbox');
-  lb.querySelector('img').src = src;
-  lb.classList.add('on');
+  lbPrevFocus = document.activeElement;
+  lb.querySelector('img').src = safeFotoSrc(src);
+  lb.hidden = false; lb.classList.add('on');
+  lb.querySelector('.lb-close').focus();   // sem isso o foco ficava no elemento atrás do modal
 }
-document.getElementById('lightbox').addEventListener('click', function(){ this.classList.remove('on'); });
+function closeLightbox(){
+  var lb = document.getElementById('lightbox');
+  if(lb.hidden) return;
+  lb.classList.remove('on'); lb.hidden = true;
+  if(lbPrevFocus && lbPrevFocus.focus) lbPrevFocus.focus();
+  lbPrevFocus = null;
+}
+document.getElementById('lightbox').addEventListener('click', function(ev){
+  if(ev.target === this || ev.target.closest('.lb-close')) closeLightbox();
+});
 function fotoGridRender(host, arr, editable, max){
   host.innerHTML = arr.map(function(f, i){
-    return '<div class="foto-th"><img src="' + f + '" alt="foto ' + (i + 1) + '" data-full="1">' +
-      (editable ? '<button type="button" class="f-del" data-i="' + i + '" title="Remover foto">×</button>' : '') + '</div>';
+    var src = safeFotoSrc(f);
+    if(!src) return '';   // src="" faz o browser re-baixar a propria pagina como imagem
+    return '<div class="foto-th"><img src="' + escHtml(src) + '" alt="Foto ' + (i + 1) + '" data-full="1">' +
+      (editable ? '<button type="button" class="f-del" data-i="' + i + '" title="Remover foto" aria-label="Remover foto ' + (i + 1) + '">×</button>' : '') + '</div>';
   }).join('') +
   (editable ? (arr.length < max
     ? '<button type="button" class="mini" data-addfoto="1">' + ic('camera') + ' Adicionar foto</button>'
@@ -1049,7 +1189,7 @@ function campTab(t){
     var pane = document.getElementById('ctab-' + x);
     if(pane) pane.hidden = x !== t;
     document.querySelectorAll('.camp-tabs [data-ctab="' + x + '"]').forEach(function(b){
-      b.classList.toggle('on', x === t);
+      b.classList.toggle('on', x === t); b.setAttribute('aria-pressed', x === t ? 'true' : 'false');
     });
   });
 }
@@ -1101,8 +1241,8 @@ function campInit(){
   campTab(CTAB);
 }
 function campListen(){
-  if(campUnsub) return;
-  campUnsub = db.collection('campanhas').orderBy('atualizadoEm','desc').onSnapshot(function(qs){
+  if(UNSUB.camp) return;
+  UNSUB.camp = db.collection('campanhas').orderBy('atualizadoEm','desc').onSnapshot(function(qs){
     campRows = [];
     qs.forEach(function(doc){ campRows.push({ id: doc.id, d: doc.data() }); });
     renderCampAtivas();
@@ -1141,7 +1281,8 @@ function campCard(r){
     return '<li><b>' + escHtml(e.setor) + '</b><span>' + escHtml(e.tarefa) + '</span></li>';
   }).join('');
   var fotos = (d.fotos || []).map(function(f, i){
-    return '<div class="foto-th"><img src="' + f + '" alt="foto ' + (i + 1) + '" data-full="1"></div>';
+    var src = safeFotoSrc(f);
+    return src ? '<div class="foto-th"><img src="' + escHtml(src) + '" alt="Foto ' + (i + 1) + ' da campanha" data-full="1"></div>' : '';
   }).join('');
   return '<div class="camp-card"><header><h4>' + escHtml(d.nome || '(sem nome)') + '</h4>' +
     '<small>' + escHtml(fmtPeriodo(d)) + (d.setorLider ? ' · liderada por ' + escHtml(d.setorLider) : '') + '</small></header>' +
@@ -1203,8 +1344,9 @@ function comercMeta(d){ var m = +d.comMeta; return m > 0 ? m : campCustoTotal(d)
 function comercDias(prazo){
   if(!prazo) return { txt:'', cls:'' };
   var hoje = new Date(); hoje.setHours(0,0,0,0);
-  var p = String(prazo).split('-');
-  var alvo = new Date(+p[0], (+p[1] - 1), +p[2]);
+  var p = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(prazo).trim());
+  if(!p) return { txt:'', cls:'' };   // sem isso, prazo inválido rendia "vencido há NaN dias"
+  var alvo = new Date(+p[1], (+p[2] - 1), +p[3]);
   var diff = Math.round((alvo - hoje) / 86400000);
   if(diff > 1) return { txt: 'faltam ' + diff + ' dias (até ' + fmtData(prazo) + ')', cls:'ok' };
   if(diff === 1) return { txt: 'falta 1 dia (até ' + fmtData(prazo) + ')', cls:'ok' };
@@ -1358,8 +1500,8 @@ function cpRenderCustos(){
     return '<div class="custo-row" data-i="' + i + '">' +
       '<select class="fin-input i-cat">' + opts + '</select>' +
       '<input class="fin-input i-nome" value="' + escHtml(c.n || '') + '" placeholder="descrição (ex.: 200 canecas personalizadas)">' +
-      '<input class="fin-input i-valor" type="number" min="0" step="0.01" value="' + (c.v || '') + '" placeholder="R$">' +
-      '<button type="button" class="i-del" title="Remover">×</button></div>';
+      '<input class="fin-input i-valor" type="number" min="0" step="0.01" value="' + escHtml(c.v || '') + '" placeholder="R$">' +
+      '<button type="button" class="i-del" title="Remover" aria-label="Remover">×</button></div>';
   }).join('') + '<div class="pp-add"><button type="button" class="mini" data-add="1">+ Adicionar custo</button></div>';
   host.onclick = function(ev){
     var b = ev.target.closest('button'); if(!b) return;
@@ -1385,7 +1527,7 @@ function cpRenderParceiros(){
       '<input class="fin-input i-nome" value="' + escHtml(p.n || '') + '" placeholder="parceiro">' +
       '<input class="fin-input i-oferece" value="' + escHtml(p.oferece || '') + '" placeholder="o que oferece">' +
       '<input class="fin-input i-contra" value="' + escHtml(p.contrapartida || '') + '" placeholder="contrapartida (o que pede)">' +
-      '<button type="button" class="i-del" title="Remover">×</button></div>';
+      '<button type="button" class="i-del" title="Remover" aria-label="Remover">×</button></div>';
   }).join('') + '<div class="pp-add"><button type="button" class="mini" data-add="1">+ Adicionar parceiro</button></div>';
   host.onclick = function(ev){
     var b = ev.target.closest('button'); if(!b) return;
@@ -1476,7 +1618,7 @@ function campSave(auto){
     atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
   };
   var btn = document.getElementById('cpSalvar');
-  btn.disabled = true;
+  btnBusy(btn, true);
   var op = CP.id
     ? db.collection('campanhas').doc(CP.id).set(doc, { merge: true })
     : db.collection('campanhas').add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp(), relatorio: null }, doc));
@@ -1485,7 +1627,7 @@ function campSave(auto){
     cpStatusUI();
     cpMsgShow(auto ? 'Status atualizado ✓' : 'Campanha salva ✓');
   }).catch(function(){ cpMsgShow('Sem permissão para salvar.'); })
-    .finally(function(){ btn.disabled = false; });
+    .finally(function(){ btnBusy(btn, false); });
 }
 function campDelete(){
   if(!CP || !CP.id) return;
@@ -1573,18 +1715,18 @@ function repSave(){
     preenchidoEm: firebase.firestore.FieldValue.serverTimestamp()
   };
   var btn = document.getElementById('rpSalvar');
-  btn.disabled = true;
+  btnBusy(btn, true);
   db.collection('campanhas').doc(RP.id).set({
     relatorio: rel, status: 'encerrada',
     atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
   }, { merge: true }).then(function(){
     rpMsgShow('Relatório salvo ✓ — campanha encerrada.');
   }).catch(function(){ rpMsgShow('Sem permissão para salvar.'); })
-    .finally(function(){ btn.disabled = false; });
+    .finally(function(){ btnBusy(btn, false); });
 }
 
 /* ---- aba Brainstorm ---- */
-var bsUnsub = null, bsBound = false, BS_FOTOS = [], BS_ROWS = [];
+var bsBound = false, BS_FOTOS = [], BS_ROWS = [];
 function bsInit(){
   if(!bsBound){
     bsBound = true;
@@ -1594,8 +1736,8 @@ function bsInit(){
   bsListen();
 }
 function bsListen(){
-  if(bsUnsub) return;
-  bsUnsub = db.collection('brainstorm').orderBy('criadoEm','desc').onSnapshot(function(qs){
+  if(UNSUB.bs) return;
+  UNSUB.bs = db.collection('brainstorm').orderBy('criadoEm','desc').onSnapshot(function(qs){
     BS_ROWS = [];
     qs.forEach(function(doc){ BS_ROWS.push({ id: doc.id, d: doc.data() }); });
     bsRender(BS_ROWS);
@@ -1610,8 +1752,12 @@ function bsPublicar(){
   var ti = document.getElementById('bsTitulo').value.trim();
   var tx = document.getElementById('bsTexto').value.trim();
   if(!ti || !tx){ bsMsgShow('Dê um título e conte a ideia antes de publicar.'); return; }
+  // os mesmos tetos da regra do Firestore: sem checar aqui, o servidor nega e o usuário
+  // recebe "sem permissão" — mensagem que aponta pro problema errado
+  if(ti.length >= 200){ bsMsgShow('O título passou de 200 caracteres. Encurte um pouco.'); return; }
+  if(tx.length >= 5000){ bsMsgShow('A ideia passou de 5.000 caracteres. Resuma um pouco.'); return; }
   var btn = document.getElementById('bsEnviar');
-  btn.disabled = true;
+  btnBusy(btn, true);
   db.collection('brainstorm').add({
     titulo: ti, texto: tx, fotos: BS_FOTOS.slice(),
     autor: ME.nome || ME.email, autorEmail: ME.email, setor: ME.setor || '',
@@ -1624,7 +1770,7 @@ function bsPublicar(){
     fotoGridRender(document.getElementById('bsFotos'), BS_FOTOS, true, 3);
     bsMsgShow('Ideia publicada ✓');
   }).catch(function(){ bsMsgShow('Sem permissão para publicar.'); })
-    .finally(function(){ btn.disabled = false; });
+    .finally(function(){ btnBusy(btn, false); });
 }
 function bsRender(rows){
   var host = document.getElementById('bsFeed');
@@ -1639,7 +1785,8 @@ function bsRender(rows){
     var eu = ME && apoios.indexOf(ME.uid) > -1;
     var dono = ME && (d.autorEmail === ME.email || isAdmin());
     var fotos = (d.fotos || []).map(function(f){
-      return '<div class="foto-th"><img src="' + f + '" alt="foto da ideia" data-full="1"></div>';
+      var src = safeFotoSrc(f);
+      return src ? '<div class="foto-th"><img src="' + escHtml(src) + '" alt="Foto da ideia" data-full="1"></div>' : '';
     }).join('');
     return '<div class="bs-card" data-id="' + r.id + '">' +
       '<div class="bs-head"><h4>' + escHtml(d.titulo || '') + '</h4>' +
@@ -1661,9 +1808,13 @@ function bsRender(rows){
       var op = apoiar.classList.contains('on')
         ? firebase.firestore.FieldValue.arrayRemove(ME.uid)
         : firebase.firestore.FieldValue.arrayUnion(ME.uid);
-      db.collection('brainstorm').doc(id).update({ apoios: op });
+      db.collection('brainstorm').doc(id).update({ apoios: op })
+        .catch(function(){ bsMsgShow('Não foi possível registrar seu apoio.'); });
     }else if(ev.target.closest('[data-delidea]')){
-      if(confirm('Excluir esta ideia para todos?')) db.collection('brainstorm').doc(id).delete();
+      if(confirm('Excluir esta ideia para todos?')){
+        db.collection('brainstorm').doc(id).delete()
+          .catch(function(){ bsMsgShow('Sem permissão para excluir esta ideia.'); });
+      }
     }
   };
 }
@@ -1692,7 +1843,7 @@ var FRASES = [
   'Grandes marcas se constroem um dia de cada vez — hoje é um deles.',
   'A melhor propaganda da Inspira é o jeito como a gente trabalha.'
 ];
-var homeBound = false, dstUnsub = null, DST = null;
+var homeBound = false, DST = null;
 
 function homeInit(){
   if(!homeBound){
@@ -1714,8 +1865,8 @@ function homeInit(){
   document.getElementById('fraseDia').textContent = FRASES[doy % FRASES.length];
   campListen();
   bsListen();
-  if(!dstUnsub){
-    dstUnsub = db.collection('destaques').doc('semana').onSnapshot(function(snap){
+  if(!UNSUB.dst){
+    UNSUB.dst = db.collection('destaques').doc('semana').onSnapshot(function(snap){
       DST = snap.exists ? snap.data() : null;
       renderDestaques(false);
     }, function(){
@@ -1753,7 +1904,7 @@ function dstLines(id){
 }
 function dstSave(){
   var btn = document.getElementById('dstSalvar');
-  btn.disabled = true;
+  btnBusy(btn, true);
   db.collection('destaques').doc('semana').set({
     eventos: dstLines('dstEventos'),
     assuntos: dstLines('dstAssuntos'),
@@ -1765,7 +1916,7 @@ function dstSave(){
     document.getElementById('dstForm').hidden = true;
   }).catch(function(){
     flashMsg('dstMsg', 'Sem permissão para salvar — só a diretoria edita os destaques.');
-  }).finally(function(){ btn.disabled = false; });
+  }).finally(function(){ btnBusy(btn, false); });
 }
 function renderHomeCamps(){
   var host = document.getElementById('homeCamps');
@@ -1803,7 +1954,7 @@ document.addEventListener('click', function(ev){
 });
 
 /* =================== Análise Dial (pesquisas de audiência) =================== */
-var dialUnsub = null, dialBound = false, DIAL = null;
+var dialBound = false, DIAL = null;
 function dialInit(){
   if(!dialBound){
     dialBound = true;
@@ -1813,8 +1964,8 @@ function dialInit(){
     });
     document.getElementById('dlSalvar').addEventListener('click', dlSave);
   }
-  if(dialUnsub) return;
-  dialUnsub = db.collection('analises').doc('dial').onSnapshot(function(snap){
+  if(UNSUB.dial) return;
+  UNSUB.dial = db.collection('analises').doc('dial').onSnapshot(function(snap){
     DIAL = snap.exists ? snap.data() : null;
     renderDial(false);
   }, function(){
@@ -1844,7 +1995,7 @@ function renderDial(erro){
       '</td><td class="num">' + (r.pos ? escHtml(r.pos) + 'º' : '—') + '</td><td class="num">' + escHtml(r.aud || '—') +
       '</td><td class="num">' + escHtml(r.sh || '—') + '</td><td style="min-width:16rem">' + escHtml(r.obs || '') + '</td></tr>';
   }).join('');
-  t.innerHTML = '<table><thead><tr><th>Período</th><th>Instituto</th><th class="num">Posição</th><th class="num">Audiência</th><th class="num">Share</th><th>Observações</th></tr></thead><tbody>' + body + '</tbody></table>';
+  t.innerHTML = '<table><thead><tr><th scope="col">Período</th><th scope="col">Instituto</th><th scope="col" class="num">Posição</th><th scope="col" class="num">Audiência</th><th scope="col" class="num">Share</th><th scope="col">Observações</th></tr></thead><tbody>' + body + '</tbody></table>';
 }
 function dlRowHtml(r, i){
   return '<div class="dial-row" data-i="' + i + '">' +
@@ -1854,7 +2005,7 @@ function dlRowHtml(r, i){
     '<input class="fin-input d-aud" value="' + escHtml(r.aud || '') + '" placeholder="ex.: 2,1 pts">' +
     '<input class="fin-input d-sh" value="' + escHtml(r.sh || '') + '" placeholder="ex.: 4,8%">' +
     '<input class="fin-input d-obs" value="' + escHtml(r.obs || '') + '" placeholder="observações">' +
-    '<button type="button" class="i-del" title="Remover">×</button></div>';
+    '<button type="button" class="i-del" title="Remover" aria-label="Remover">×</button></div>';
 }
 var DL_ROWS = [];
 function dlEdit(){
@@ -1888,7 +2039,7 @@ function dlRenderForm(){
 function dlSave(){
   var rows = DL_ROWS.filter(function(r){ return (r.p || '').trim(); });
   var btn = document.getElementById('dlSalvar');
-  btn.disabled = true;
+  btnBusy(btn, true);
   db.collection('analises').doc('dial').set({
     rows: rows,
     atualizadoPor: ME.nome || ME.email,
@@ -1897,11 +2048,11 @@ function dlSave(){
     document.getElementById('dlForm').hidden = true;
   }).catch(function(){
     flashMsg('dlMsg', 'Sem permissão para salvar — só a diretoria edita as pesquisas.');
-  }).finally(function(){ btn.disabled = false; });
+  }).finally(function(){ btnBusy(btn, false); });
 }
 
 /* =================== Jurídico (contratos e termos) =================== */
-var jurUnsub = null, jurBound = false, JR = null, jurRows = [];
+var jurBound = false, JR = null, jurRows = [];
 var JR_TIPOS = ['Contrato', 'Termo', 'Aditivo', 'Outro'];
 var JR_MODELOS = {
   "embaixador": {
@@ -2001,8 +2152,8 @@ function jurInit(){
       if(JR) JR.data.tipo = this.value;
     });
   }
-  if(jurUnsub) return;
-  jurUnsub = db.collection('juridico').orderBy('atualizadoEm','desc').onSnapshot(function(qs){
+  if(UNSUB.jur) return;
+  UNSUB.jur = db.collection('juridico').orderBy('atualizadoEm','desc').onSnapshot(function(qs){
     jurRows = [];
     qs.forEach(function(doc){ jurRows.push({ id: doc.id, d: doc.data() }); });
     renderJurList();
@@ -2068,7 +2219,7 @@ function jrSave(){
     atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
   };
   var btn = document.getElementById('jrSalvar');
-  btn.disabled = true;
+  btnBusy(btn, true);
   var op = JR.id
     ? db.collection('juridico').doc(JR.id).set(doc, { merge: true })
     : db.collection('juridico').add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp() }, doc));
@@ -2077,7 +2228,7 @@ function jrSave(){
     document.getElementById('jrExcluir').hidden = false;
     flashMsg('jrMsg', 'Documento salvo ✓');
   }).catch(function(){ flashMsg('jrMsg', 'Sem permissão para salvar.'); })
-    .finally(function(){ btn.disabled = false; });
+    .finally(function(){ btnBusy(btn, false); });
 }
 function jrDelete(){
   if(!JR || !JR.id) return;
@@ -2096,7 +2247,7 @@ function jrVer(){
 }
 
 /* =================== Nossa Programação =================== */
-var progUnsub = null, progBound = false, PROG = {}, PG_TAB = 'radio-ao-vivo', PG_ROWS = [];
+var progBound = false, PROG = {}, PG_TAB = 'radio-ao-vivo', PG_ROWS = [];
 var PG_CANAIS = [['Rádio Ao Vivo','radio-ao-vivo'],['Instagram','instagram'],['TikTok','tiktok'],['YouTube','youtube']];
 function progInit(){
   if(!progBound){
@@ -2117,8 +2268,8 @@ function progInit(){
     });
     document.getElementById('pgSalvar').addEventListener('click', pgSave);
   }
-  if(progUnsub) return;
-  progUnsub = db.collection('programacao').onSnapshot(function(qs){
+  if(UNSUB.prog) return;
+  UNSUB.prog = db.collection('programacao').onSnapshot(function(qs){
     PROG = {};
     qs.forEach(function(doc){ PROG[doc.id] = doc.data(); });
     renderProg();
@@ -2134,7 +2285,7 @@ function pgLabel(){
 }
 function renderProg(){
   document.querySelectorAll('#pgTabs [data-pgtab]').forEach(function(b){
-    b.classList.toggle('on', b.dataset.pgtab === PG_TAB);
+    b.classList.toggle('on', b.dataset.pgtab === PG_TAB); b.setAttribute('aria-pressed', b.dataset.pgtab === PG_TAB ? 'true' : 'false');
   });
   document.getElementById('pgCanalTitulo').textContent = 'Grade — ' + pgLabel();
   var itens = (PROG[PG_TAB] && PROG[PG_TAB].itens) || [];
@@ -2168,7 +2319,7 @@ function pgRenderForm(){
       '<input class="fin-input g-h" value="' + escHtml(r.h) + '" placeholder="ex.: 7h–10h">' +
       '<input class="fin-input g-t" value="' + escHtml(r.t) + '" placeholder="nome do programa">' +
       '<input class="fin-input g-r" value="' + escHtml(r.r) + '" placeholder="sobre o programa (1 linha)">' +
-      '<button type="button" class="i-del" title="Remover">×</button></div>';
+      '<button type="button" class="i-del" title="Remover" aria-label="Remover">×</button></div>';
   }).join('') + '<div class="pp-add"><button type="button" class="mini" data-add="1">+ Adicionar linha</button></div>';
   host.onclick = function(ev){
     var b = ev.target.closest('button'); if(!b) return;
@@ -2187,7 +2338,7 @@ function pgRenderForm(){
 function pgSave(){
   var itens = PG_ROWS.filter(function(r){ return (r.t || '').trim() || (r.d || '').trim(); });
   var btn = document.getElementById('pgSalvar');
-  btn.disabled = true;
+  btnBusy(btn, true);
   db.collection('programacao').doc(PG_TAB).set({
     canal: pgLabel(), itens: itens,
     atualizadoPor: ME.nome || ME.email,
@@ -2196,17 +2347,17 @@ function pgSave(){
     document.getElementById('pgForm').hidden = true;
   }).catch(function(){
     flashMsg('pgMsg', 'Sem permissão para salvar — só a diretoria edita a grade.');
-  }).finally(function(){ btn.disabled = false; });
+  }).finally(function(){ btnBusy(btn, false); });
 }
 
 /* =================== Quadros da Inspira + Colunistas =================== */
-var qdUnsub = null, clUnsub = null, qdBound = false, qdRows = [], clRows = [], QD = null, CL = null;
+var qdBound = false, qdRows = [], clRows = [], QD = null, CL = null;
 var QD_CANAIS = ['Rádio Ao Vivo','Instagram','TikTok','YouTube'];
 var QD_TAB = 'radio';
 var QD_TITULOS = { radio: 'Quadros no ar — Rádio', redes: 'Quadros das redes sociais' };
 function qdTab(t){
   QD_TAB = t;
-  document.querySelectorAll('[data-qdtab]').forEach(function(b){ b.classList.toggle('on', b.dataset.qdtab === t); });
+  document.querySelectorAll('[data-qdtab]').forEach(function(b){ b.classList.toggle('on', b.dataset.qdtab === t); b.setAttribute('aria-pressed', b.dataset.qdtab === t ? 'true' : 'false'); });
   /* na aba Site só existem os colunistas — o bloco de quadros some inteiro */
   document.getElementById('qdMainSection').hidden = t === 'site';
   document.getElementById('clSection').hidden = t !== 'site';
@@ -2234,14 +2385,16 @@ function qdInit(){
     document.getElementById('qdExcluir').addEventListener('click', qdDelete);
     document.getElementById('clNovo').addEventListener('click', function(){ clOpen(null, {}); });
     document.getElementById('clCancelarBtn').addEventListener('click', function(){
-      CL = null;
+      // CL é compartilhado com o form 'rc' do Radar: só limpa se for deste form,
+      // senão cancelar aqui matava silenciosamente a edição aberta lá
+      if(CL && CL.pfx === 'cl') CL = null;
       document.getElementById('clForm').hidden = true;
     });
     document.getElementById('clSalvar').addEventListener('click', clSave);
     document.getElementById('clExcluir').addEventListener('click', clDelete);
   }
-  if(!qdUnsub){
-    qdUnsub = db.collection('quadros').orderBy('nome').onSnapshot(function(qs){
+  if(!UNSUB.qd){
+    UNSUB.qd = db.collection('quadros').orderBy('nome').onSnapshot(function(qs){
       qdRows = [];
       qs.forEach(function(doc){ qdRows.push({ id: doc.id, d: doc.data() }); });
       renderQuadros();
@@ -2253,8 +2406,8 @@ function qdInit(){
   clListen();
 }
 function clListen(){
-  if(clUnsub) return;
-  clUnsub = db.collection('colunistas').orderBy('nome').onSnapshot(function(qs){
+  if(UNSUB.cl) return;
+  UNSUB.cl = db.collection('colunistas').orderBy('nome').onSnapshot(function(qs){
     clRows = [];
     qs.forEach(function(doc){ clRows.push({ id: doc.id, d: doc.data() }); });
     renderColunistas();
@@ -2349,7 +2502,7 @@ function qdSave(){
     atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
   };
   var btn = document.getElementById('qdSalvar');
-  btn.disabled = true;
+  btnBusy(btn, true);
   var op = QD.id
     ? db.collection('quadros').doc(QD.id).set(doc, { merge: true })
     : db.collection('quadros').add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp() }, doc));
@@ -2357,7 +2510,7 @@ function qdSave(){
     QD = null;
     document.getElementById('qdForm').hidden = true;
   }).catch(function(){ flashMsg('qdMsg', 'Sem permissão para salvar.'); })
-    .finally(function(){ btn.disabled = false; });
+    .finally(function(){ btnBusy(btn, false); });
 }
 function qdDelete(){
   if(!QD || !QD.id) return;
@@ -2415,7 +2568,7 @@ function colSave(){
   };
   if(pfx === 'rc') doc.radar = document.getElementById('rcRadar').checked;
   var btn = document.getElementById(pfx + 'Salvar');
-  btn.disabled = true;
+  btnBusy(btn, true);
   var op = CL.id
     ? db.collection('colunistas').doc(CL.id).set(doc, { merge: true })
     : db.collection('colunistas').add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp() }, doc));
@@ -2423,7 +2576,7 @@ function colSave(){
     CL = null;
     document.getElementById(pfx + 'Form').hidden = true;
   }).catch(function(){ flashMsg(pfx + 'Msg', 'Sem permissão para salvar.'); })
-    .finally(function(){ btn.disabled = false; });
+    .finally(function(){ btnBusy(btn, false); });
 }
 function clSave(){ colSave(); }
 function colDelete(){
@@ -2438,7 +2591,7 @@ function colDelete(){
 function clDelete(){ colDelete(); }
 
 /* =================== Radar (embaixadores, influenciadores e colunistas) =================== */
-var embUnsub = null, embBound = false, embRows = [], EMB_TAB = 'rademb', EB = null, EMB_Q = '';
+var embBound = false, embRows = [], EMB_TAB = 'rademb', EB = null, EMB_Q = '';
 var EMB_TITULOS = {
   rademb: 'Radar de embaixadores', nossosemb: 'Nossos embaixadores',
   radinf: 'Radar de influenciadores', nossosinf: 'Nossos influenciadores',
@@ -2447,7 +2600,7 @@ var EMB_TITULOS = {
 function ebTipoDe(d){ return d.tipo === 'influenciador' ? 'influenciador' : 'embaixador'; }
 function embTabSet(t){
   EMB_TAB = t;
-  document.querySelectorAll('[data-embtab]').forEach(function(x){ x.classList.toggle('on', x.dataset.embtab === t); });
+  document.querySelectorAll('[data-embtab]').forEach(function(x){ x.classList.toggle('on', x.dataset.embtab === t); x.setAttribute('aria-pressed', x.dataset.embtab === t ? 'true' : 'false'); });
   document.getElementById('embTitulo').textContent = EMB_TITULOS[t];
   var btn = document.getElementById('embNovo');
   btn.hidden = !canRe();
@@ -2456,7 +2609,7 @@ function embTabSet(t){
   document.getElementById('embForm').hidden = true;
   document.getElementById('rcForm').hidden = true;
   EB = null;
-  CL = null;
+  if(CL && CL.pfx === 'rc') CL = null;   // não derruba o form 'cl' de Quadros
   EMB_Q = '';
   var busca = document.getElementById('embBusca');
   if(busca) busca.value = '';
@@ -2489,8 +2642,8 @@ function embInit(){
     if(busca) busca.addEventListener('input', function(){ EMB_Q = this.value; renderEmb(); });
   }
   clListen();
-  if(embUnsub) return;
-  embUnsub = db.collection('embaixadores').orderBy('seguidores','desc').onSnapshot(function(qs){
+  if(UNSUB.emb) return;
+  UNSUB.emb = db.collection('embaixadores').orderBy('seguidores','desc').onSnapshot(function(qs){
     embRows = [];
     qs.forEach(function(doc){ embRows.push({ id: doc.id, d: doc.data() }); });
     renderEmb();
@@ -2530,8 +2683,8 @@ function renderEmb(){
           : 'Nenhum colunista cadastrado ainda.' + (canRe() ? ' Clique em <b>+ Adicionar colunista</b>.' : '')) + '</div>';
       return;
     }
-    host.innerHTML = '<table><thead><tr><th>Nome</th><th>Perfil</th><th>Coluna</th><th>Dia</th><th>Frequência</th><th>Sobre a coluna</th>' +
-      (canRe() ? '<th></th>' : '') + '</tr></thead><tbody>' +
+    host.innerHTML = '<table><thead><tr><th scope="col">Nome</th><th scope="col">Perfil</th><th scope="col">Coluna</th><th scope="col">Dia</th><th scope="col">Frequência</th><th scope="col">Sobre a coluna</th>' +
+      (canRe() ? '<th scope="col"></th>' : '') + '</tr></thead><tbody>' +
       crows.map(function(r){
         var d = r.d;
         return '<tr><td><b>' + escHtml(d.nome || '') + '</b></td><td>' + escHtml(d.perfil || '—') +
@@ -2563,8 +2716,8 @@ function renderEmb(){
         : 'Nenhum ' + quem + ' no radar ainda.' + (canRe() ? ' Clique em <b>+ Adicionar ' + quem + '</b>.' : '')) + '</div>';
     return;
   }
-  host.innerHTML = '<table><thead><tr><th>Nome</th><th>Perfil</th><th>Plataforma</th><th class="num">Seguidores</th><th>Nicho</th><th>Cidade</th><th>Status</th>' +
-    (canRe() ? '<th></th>' : '') + '</tr></thead><tbody>' +
+  host.innerHTML = '<table><thead><tr><th scope="col">Nome</th><th scope="col">Perfil</th><th scope="col">Plataforma</th><th scope="col" class="num">Seguidores</th><th scope="col">Nicho</th><th scope="col">Cidade</th><th scope="col">Status</th>' +
+    (canRe() ? '<th scope="col"></th>' : '') + '</tr></thead><tbody>' +
     rows.map(function(r){
       var d = r.d;
       return '<tr><td><b>' + escHtml(d.nome || '') + '</b></td><td>' + escHtml(d.perfil || '—') +
@@ -2614,7 +2767,7 @@ function ebSave(){
     atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
   };
   var btn = document.getElementById('ebSalvar');
-  btn.disabled = true;
+  btnBusy(btn, true);
   var op = EB.id
     ? db.collection('embaixadores').doc(EB.id).set(doc, { merge: true })
     : db.collection('embaixadores').add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp() }, doc));
@@ -2622,7 +2775,7 @@ function ebSave(){
     EB = null;
     document.getElementById('embForm').hidden = true;
   }).catch(function(){ flashMsg('ebMsg', 'Sem permissão para salvar.'); })
-    .finally(function(){ btn.disabled = false; });
+    .finally(function(){ btnBusy(btn, false); });
 }
 function ebDelete(){
   if(!EB || !EB.id) return;
@@ -2644,11 +2797,16 @@ function contaInit(){
   document.getElementById('mcSetor').value = ME.setor || (ME.role === 'admin' ? 'Diretoria' : '');
   db.collection('users').doc(ME.uid).get().then(function(s){
     var d = s.exists ? s.data() : {};
-    document.getElementById('mcNome').value = d.nome || '';
-    document.getElementById('mcSobrenome').value = d.sobrenome || '';
-    document.getElementById('mcApelido').value = d.apelido || '';
-    document.getElementById('mcNasc').value = d.nascimento || '';
-  }).catch(function(){});
+    // só preenche campo que o usuário ainda não tocou — a leitura leva centenas de ms
+    // em rede móvel e apagava o que já estava sendo digitado
+    [['mcNome', d.nome], ['mcSobrenome', d.sobrenome],
+     ['mcApelido', d.apelido], ['mcNasc', d.nascimento]].forEach(function(par){
+      var el = document.getElementById(par[0]);
+      if(el && el.value === '' && document.activeElement !== el) el.value = par[1] || '';
+    });
+  }).catch(function(){
+    flashMsg('mcMsg', 'Não foi possível carregar seus dados. Tente recarregar a página.');
+  });
 }
 function contaSave(){
   var upd = {
@@ -2659,22 +2817,43 @@ function contaSave(){
   };
   if(!upd.nome){ flashMsg('mcMsg', 'Informe pelo menos o seu nome.'); return; }
   var btn = document.getElementById('mcSalvar');
-  btn.disabled = true;
+  btnBusy(btn, true);
   db.collection('users').doc(ME.uid).update(upd).then(function(){
     ME.nome = upd.nome;
     flashMsg('mcMsg', 'Dados salvos ✓');
   }).catch(function(){
     flashMsg('mcMsg', 'Não foi possível salvar — a regra nova dos usuários foi publicada?');
-  }).finally(function(){ btn.disabled = false; });
+  }).finally(function(){ btnBusy(btn, false); });
 }
 
 /* =================== menu lateral =================== */
 (function(){
   var KEY = 'inspira-nav';
   function isDesktop(){ return window.innerWidth >= 1024; }
-  function navSet(open){
+  /* persistir=false para chamadas que não vieram do usuário (resize). Sem isso,
+     maximizar a janela depois de fechar o menu no mobile gravava "fechado" como
+     preferência de desktop — e no mobile o colapso da barra de URL dispara resize
+     no scroll, escrevendo em localStorage a cada frame. */
+  function navSet(open, persistir){
     document.body.classList.toggle('nav-open', open);
-    try{ localStorage.setItem(KEY, open ? '1' : '0'); }catch(e){}
+    var sn = document.getElementById('sidenav');
+    document.getElementById('navToggle').setAttribute('aria-expanded', open ? 'true' : 'false');
+    /* fechado, o sidenav só sai da tela por translateX — os 19 links continuavam
+       no tab order. inert tira da navegação por teclado e da árvore de acessibilidade. */
+    var temInert = ('inert' in HTMLElement.prototype);
+    if(isDesktop()){
+      if(temInert) sn.inert = false;
+      sn.classList.remove('nav-oculto');   // senão o menu some ao voltar de mobile p/ desktop
+      sn.removeAttribute('aria-hidden');
+    }else{
+      if(temInert) sn.inert = !open;
+      // sem inert, o aria-hidden esconderia do leitor de tela algo que o Tab ainda
+      // alcança. Aí a classe abaixo aplica visibility:hidden, que tira do tab order
+      // em qualquer navegador — e só então o aria-hidden fica coerente.
+      sn.classList.toggle('nav-oculto', !open);
+      sn.setAttribute('aria-hidden', open ? 'false' : 'true');
+    }
+    if(persistir !== false){ try{ localStorage.setItem(KEY, open ? '1' : '0'); }catch(e){} }
   }
   document.getElementById('navToggle').addEventListener('click', function(){
     navSet(!document.body.classList.contains('nav-open'));
@@ -2682,6 +2861,23 @@ function contaSave(){
   document.getElementById('navBackdrop').addEventListener('click', function(){ navSet(false); });
   document.getElementById('sidenav').addEventListener('click', function(ev){
     if(ev.target.closest('a') && !isDesktop()) navSet(false);
+  });
+  // Esc fecha o menu no mobile (o backdrop cobre a tela inteira) e devolve o foco ao botão
+  document.addEventListener('keydown', function(ev){
+    if(ev.key !== 'Escape') return;
+    var lb = document.getElementById('lightbox');
+    if(lb && !lb.hidden){ closeLightbox(); ev.preventDefault(); return; }
+    if(document.body.classList.contains('nav-open') && !isDesktop()){
+      navSet(false);
+      document.getElementById('navToggle').focus();
+      ev.preventDefault();
+      return;
+    }
+    tipHide();
+  });
+  // ao cruzar o breakpoint o estado de inert precisa ser recalculado
+  window.addEventListener('resize', function(){
+    navSet(document.body.classList.contains('nav-open'), false);
   });
   var saved = null;
   try{ saved = localStorage.getItem(KEY); }catch(e){}
