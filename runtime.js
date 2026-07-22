@@ -49,6 +49,10 @@ function detachAll(){
      de saída SEM reload (sessão expirada, signOut em outra aba, botão do pendente), a
      próxima conta a logar herdaria na tela o Balanço e as listas da conta anterior. */
   CONTENT = {};
+  // o cache de fotos guarda imagens lidas com as permissões da conta que saiu.
+  // a geração invalida também as leituras em voo, que senão repovoariam o cache novo.
+  midiaCache = {};
+  midiaGeracao++;
   var fin = document.getElementById('view-financeiro');
   if(fin) fin.innerHTML = '<div class="load-note">Carregando…</div>';
 }
@@ -1119,6 +1123,45 @@ function rpMsgShow(t){ flashMsg('rpMsg', t); }
 function bsMsgShow(t){ flashMsg('bsMsg', t); }
 
 /* ---- fotos: compressão no navegador, salvas como data URL no Firestore ---- */
+/* =================== mídia em subcoleção ===================
+   As fotos cheias vivem em {colecao}/{id}/midia/{campanha|relatorio|ideia}, um documento
+   por grupo. Consulta de coleção NÃO traz subcoleção, então a listagem continua leve.
+   Um documento por grupo (em vez de um só com tudo) mantém cada um em no máximo
+   3 × 130 KB — juntando campanha e relatório dava ~780 KB, perto do teto de 1 MiB. */
+var midiaCache = {};
+var midiaGeracao = 0;   // muda no logout: resposta em voo da conta antiga não popula o cache
+function midiaRef(colecao, id, grupo){
+  return db.collection(colecao).doc(id).collection('midia').doc(grupo);
+}
+function midiaChave(colecao, id, grupo){ return colecao + '/' + id + '/' + grupo; }
+/* Resolve com {fotos: [...] , erro: bool}.
+   Distinguir "não existe" de "falhou ao ler" é essencial: sem isso, uma leitura negada
+   deixava as fotos marcadas como incompletas e TODO save seguinte era bloqueado. */
+function midiaGet(colecao, id, grupo){
+  var k = midiaChave(colecao, id, grupo);
+  if(midiaCache[k]) return Promise.resolve(midiaCache[k]);
+  var ger = midiaGeracao;
+  return midiaRef(colecao, id, grupo).get()
+    .then(function(s){
+      var r = { fotos: (s.exists && Array.isArray(s.data().fotos)) ? s.data().fotos : [], erro: false };
+      if(ger === midiaGeracao) midiaCache[k] = r;
+      return r;
+    })
+    .catch(function(){ return { fotos: [], erro: true }; });
+}
+function midiaInvalida(colecao, id, grupo){ delete midiaCache[midiaChave(colecao, id, grupo)]; }
+/* grava as fotos cheias no mesmo lote do pai, para não existir estado em que o
+   documento tem miniatura e a foto cheia sumiu (ou o contrário) */
+function midiaSet(lote, colecao, id, grupo, fulls){
+  lote.set(midiaRef(colecao, id, grupo), { fotos: fulls }, { merge: true });
+  midiaInvalida(colecao, id, grupo);
+}
+function midiaDelete(lote, colecao, id, grupos){
+  grupos.forEach(function(g){
+    lote.delete(midiaRef(colecao, id, g));
+    midiaInvalida(colecao, id, g);
+  });
+}
 function fotoPick(max, done){
   var input = document.createElement('input');
   input.type = 'file';
@@ -1135,27 +1178,115 @@ function fotoPick(max, done){
   });
   input.click();
 }
+/* Gera duas versões de cada foto:
+   - thumb (~260px): fica no documento pai, é o que a listagem e o feed mostram.
+   - full (~900px): vai para a subcoleção midia/fotos, buscada só ao ampliar ou editar.
+   Sem essa separação o documento de campanha chega perto do teto de 1 MiB do Firestore
+   e a Home baixa todas as fotos de todas as campanhas para mostrar quatro campos de texto. */
+function fotoRedim(img, maxLado, alvoBytes, tetoBytes){
+  var scale = Math.min(1, maxLado / Math.max(img.width, img.height));
+  var c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(img.width * scale));
+  c.height = Math.max(1, Math.round(img.height * scale));
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  var q = 0.72, data = c.toDataURL('image/jpeg', q);
+  while(data.length > alvoBytes && q > 0.3){ q -= 0.08; data = c.toDataURL('image/jpeg', q); }
+  return data.length <= tetoBytes ? data : null;
+}
+/* insiste em encolher: uma foto muito ruidosa não cabe em 14 KB a 260px, mas cabe
+   a 180 ou 120. Sem isso a "miniatura" virava a imagem de 110 KB e a refatoração
+   falhava justamente nas fotos mais pesadas. */
+function fotoThumbDe(img){
+  var lados = [260, 180, 120];
+  for(var i = 0; i < lados.length; i++){
+    var t = fotoRedim(img, lados[i], 9000, 14000);
+    if(t) return t;
+  }
+  return null;
+}
 function fotoCompress(file){
   return new Promise(function(resolve){
     var url = URL.createObjectURL(file);
     var img = new Image();
     img.onload = function(){
-      var MAXW = 900;
-      var scale = Math.min(1, MAXW / Math.max(img.width, img.height));
-      var c = document.createElement('canvas');
-      c.width = Math.max(1, Math.round(img.width * scale));
-      c.height = Math.max(1, Math.round(img.height * scale));
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-      var q = 0.72, data = c.toDataURL('image/jpeg', q);
-      while(data.length > 110000 && q > 0.3){ q -= 0.08; data = c.toDataURL('image/jpeg', q); }
+      var full = fotoRedim(img, 900, 110000, 130000);
+      var thumb = fotoThumbDe(img);
       URL.revokeObjectURL(url);
-      resolve(data.length <= 130000 ? data : null);
+      resolve(full ? { full: full, thumb: thumb || full, completo: true } : null);
     };
     img.onerror = function(){ URL.revokeObjectURL(url); resolve(null); };
     img.src = url;
   });
 }
-var lbPrevFocus = null;
+/* regera a miniatura a partir de um data URL já existente (documento legado, onde
+   só existe a foto cheia gravada no pai) */
+function fotoThumbDeDataUrl(dataUrl){
+  return new Promise(function(resolve){
+    var img = new Image();
+    img.onload = function(){ resolve(fotoThumbDe(img) || dataUrl); };
+    img.onerror = function(){ resolve(dataUrl); };
+    img.src = dataUrl;
+  });
+}
+
+/* ---- formato em memória: {full, thumb, completo} ----
+   `completo` diz se `full` é MESMO a foto cheia. Documento novo carrega só as
+   miniaturas no pai, então full começa vazio e completo=false até a subcoleção chegar.
+   Salvar com completo=false gravaria a miniatura por cima da foto cheia — perda
+   irreversível. fotoParaSalvar() barra isso. */
+/* `idx` guarda a posição ORIGINAL no documento. A lista em memória é editável enquanto
+   a subcoleção não respondeu (dá pra remover e adicionar foto), então casar por posição
+   corrente trocaria as fotos de lugar — a miniatura de uma com a imagem cheia de outra. */
+function fotoDeLegado(arr){        // d.fotos: são as cheias, sem miniatura gerada ainda
+  return (Array.isArray(arr) ? arr : [])
+    .map(function(s, i){ return { full: (typeof s === 'string' ? s : ''), thumb: '', completo: true, idx: i }; })
+    .filter(function(f){ return !!f.full; });
+}
+function fotoDeThumbs(arr){        // d.fotosThumb: só miniatura; a cheia vem da subcoleção
+  return (Array.isArray(arr) ? arr : [])
+    .map(function(s, i){ return { full: '', thumb: (typeof s === 'string' ? s : ''), completo: false, idx: i }; })
+    .filter(function(f){ return !!f.thumb; });
+}
+function fotoCarregar(d, campoThumb, campoLegado){
+  var t = d && d[campoThumb];
+  if(Array.isArray(t) && t.length) return fotoDeThumbs(t);
+  return fotoDeLegado(d && d[campoLegado]);
+}
+function fotoExibir(f){ return (f && (f.thumb || f.full)) || ''; }
+/* Aplica as cheias vindas da subcoleção. `m` é o retorno de midiaGet: {fotos, erro}.
+   Se a leitura FALHOU, deixa como está (o save segue bloqueado, é o certo).
+   Se o documento simplesmente não existe, promove a miniatura a cheia — não há nada
+   melhor a recuperar, e travar o save para sempre seria pior. */
+function fotoAplicarCheias(lista, m){
+  if(!m || m.erro) return false;
+  var cheias = m.fotos || [];
+  var mudou = false;
+  lista.forEach(function(f){
+    if(f.completo) return;
+    var c = (f.idx != null) ? cheias[f.idx] : null;
+    if(c){ f.full = c; }
+    else { f.full = f.thumb; }   // sem cheia gravada: a miniatura é tudo que existe
+    f.completo = true;
+    mudou = true;
+  });
+  return mudou;
+}
+/* Prepara para gravação. Rejeita se alguma foto ainda não tem a versão cheia —
+   melhor recusar o save do que destruir a imagem. Gera miniatura faltante (legado). */
+function fotoParaSalvar(lista){
+  var arr = (lista || []).filter(function(f){ return f && (f.full || f.thumb); });
+  var incompleta = arr.some(function(f){ return !f.completo || !f.full; });
+  if(incompleta){
+    return Promise.reject(new Error('fotos-carregando'));
+  }
+  return Promise.all(arr.map(function(f){
+    if(f.thumb) return f.thumb;
+    return fotoThumbDeDataUrl(f.full).then(function(t){ f.thumb = t; return t; });
+  })).then(function(thumbs){
+    return { thumbs: thumbs, fulls: arr.map(function(f){ return f.full; }) };
+  });
+}
+var lbPrevFocus = null, lbToken = null;
 function lightbox(src){
   var lb = document.getElementById('lightbox');
   lbPrevFocus = document.activeElement;
@@ -1167,28 +1298,55 @@ function closeLightbox(){
   var lb = document.getElementById('lightbox');
   if(lb.hidden) return;
   lb.classList.remove('on'); lb.hidden = true;
+  lbToken = null;
   if(lbPrevFocus && lbPrevFocus.focus) lbPrevFocus.focus();
   lbPrevFocus = null;
 }
 document.getElementById('lightbox').addEventListener('click', function(ev){
   if(ev.target === this || ev.target.closest('.lb-close')) closeLightbox();
 });
+/* Miniaturas renderizadas direto do Firestore (cards de campanha, feed do Brainstorm).
+   Abre na hora com a miniatura e troca pela foto cheia quando a subcoleção responde —
+   assim o clique nunca fica esperando a rede. Em documento antigo, sem subcoleção,
+   a miniatura já É a foto cheia e nada é trocado. */
+document.addEventListener('click', function(ev){
+  var img = ev.target.closest('img[data-mid]');
+  if(!img) return;
+  var col = img.getAttribute('data-mid');
+  var id = img.getAttribute('data-mid-id');
+  var grupo = img.getAttribute('data-mid-campo');
+  var i = +img.getAttribute('data-i');
+  lightbox(img.getAttribute('src'));
+  // token DEPOIS do lightbox(): abrir zera o token, então tem que marcar em seguida.
+  // Sem ele, a resposta lenta de uma foto já fechada trocava a imagem de OUTRA aberta depois.
+  var token = col + '/' + id + '/' + grupo + '/' + i;
+  lbToken = token;
+  midiaGet(col, id, grupo).then(function(m){
+    var arr = (m && m.fotos) || [];
+    if(!arr[i]) return;
+    var lb = document.getElementById('lightbox');
+    if(lb.hidden || lbToken !== token) return;
+    lb.querySelector('img').src = safeFotoSrc(arr[i]);
+  });
+});
+/* arr é sempre array de {full, thumb} no editor — a grade mostra a miniatura e o
+   lightbox abre a cheia pelo índice, em vez de reaproveitar o src do <img> */
 function fotoGridRender(host, arr, editable, max){
   host.innerHTML = arr.map(function(f, i){
-    var src = safeFotoSrc(f);
+    var src = safeFotoSrc(fotoExibir(f));
     if(!src) return '';   // src="" faz o browser re-baixar a propria pagina como imagem
-    return '<div class="foto-th"><img src="' + escHtml(src) + '" alt="Foto ' + (i + 1) + '" data-full="1">' +
+    return '<div class="foto-th"><img src="' + escHtml(src) + '" alt="Foto ' + (i + 1) + '" data-i="' + i + '">' +
       (editable ? '<button type="button" class="f-del" data-i="' + i + '" title="Remover foto" aria-label="Remover foto ' + (i + 1) + '">×</button>' : '') + '</div>';
   }).join('') +
   (editable ? (arr.length < max
     ? '<button type="button" class="mini" data-addfoto="1">' + ic('camera') + ' Adicionar foto</button>'
     : '<span class="chart-note" style="margin:0">máximo de ' + max + ' fotos</span>') : '');
   host.onclick = function(ev){
-    var img = ev.target.closest('img[data-full]');
-    if(img){ lightbox(img.src); return; }
-    if(!editable) return;
-    var del = ev.target.closest('.f-del');
+    var del = editable && ev.target.closest('.f-del');
     if(del){ arr.splice(+del.dataset.i, 1); fotoGridRender(host, arr, editable, max); return; }
+    var img = ev.target.closest('img[data-i]');
+    if(img){ var f = arr[+img.dataset.i]; if(f) lightbox(fotoExibir(f) && (f.full || f.thumb)); return; }
+    if(!editable) return;
     if(ev.target.closest('[data-addfoto]')){
       fotoPick(max - arr.length, function(list){
         list.forEach(function(f){ arr.push(f); });
@@ -1285,10 +1443,7 @@ function renderCampAtivas(){
     '<div class="proc-pend">' + ic('megafone') + ' <b>Nenhuma campanha ativa no momento.</b> ' +
     (canRe() ? 'Crie e ative uma campanha na aba “Criar campanha”.' : 'A diretoria ainda não ativou nenhuma campanha.') + '</div>';
   host.innerHTML = ativas.map(campCard).join('');
-  host.onclick = function(ev){
-    var img = ev.target.closest('img[data-full]');
-    if(img) lightbox(img.src);
-  };
+  // ampliar foto é do handler global de img[data-mid], que busca a versão cheia
 }
 function campCard(r){
   var d = r.d;
@@ -1297,9 +1452,11 @@ function campCard(r){
   var env = (d.envolvimento || []).map(function(e){
     return '<li><b>' + escHtml(e.setor) + '</b><span>' + escHtml(e.tarefa) + '</span></li>';
   }).join('');
-  var fotos = (d.fotos || []).map(function(f, i){
-    var src = safeFotoSrc(f);
-    return src ? '<div class="foto-th"><img src="' + escHtml(src) + '" alt="Foto ' + (i + 1) + ' da campanha" data-full="1"></div>' : '';
+  // miniatura no card; data-mid diz de onde buscar a cheia ao ampliar
+  var fotos = fotoCarregar(d, "fotosThumb", "fotos").map(fotoExibir).map(function(t, i){
+    var src = safeFotoSrc(t);
+    return src ? '<div class="foto-th"><img src="' + escHtml(src) + '" alt="Foto ' + (i + 1) + ' da campanha"' +
+      ' data-mid="campanhas" data-mid-id="' + escHtml(r.id) + '" data-mid-campo="campanha" data-i="' + i + '"></div>' : '';
   }).join('');
   return '<div class="camp-card"><header><h4>' + escHtml(d.nome || '(sem nome)') + '</h4>' +
     '<small>' + escHtml(fmtPeriodo(d)) + (d.setorLider ? ' · liderada por ' + escHtml(d.setorLider) : '') + '</small></header>' +
@@ -1488,7 +1645,19 @@ function campOpen(id, data){
   cpRenderCustos();
   cpRenderParceiros();
   cpRenderEnv();
+  /* miniaturas primeiro (já vieram no documento), depois troca pelas cheias quando a
+     subcoleção chegar — assim o editor abre na hora em vez de esperar a rede */
+  CP.data.fotos = fotoCarregar(CP.data, 'fotosThumb', 'fotos');
   fotoGridRender(document.getElementById('cpFotos'), CP.data.fotos, true, 3);
+  if(id && CP.data.fotos.some(function(f){ return !f.completo; })){
+    var idAberto = id;
+    midiaGet('campanhas', id, 'campanha').then(function(m){
+      if(!CP || CP.id !== idAberto) return;   // trocou de campanha enquanto carregava
+      if(fotoAplicarCheias(CP.data.fotos, m)){
+        fotoGridRender(document.getElementById('cpFotos'), CP.data.fotos, true, 3);
+      }
+    });
+  }
   cpRecalc();
   cpStatusUI();
   window.scrollTo(0,0);
@@ -1596,6 +1765,13 @@ function nomeFocoOk(){
 }
 function campToggleStatus(){
   if(!CP) return;
+  /* checa ANTES de mexer no status: campSave rejeita enquanto as fotos cheias não
+     chegaram, e o status já teria sido trocado na tela — ficaria "ATIVA" no editor
+     e rascunho no banco, com uma mensagem falando de foto */
+  if((CP.data.fotos || []).some(function(f){ return !f.completo; })){
+    cpMsgShow('As fotos ainda estão carregando. Aguarde um instante e tente de novo.');
+    return;
+  }
   var st = CP.data.status || 'rascunho';
   if(st === 'ativa'){
     if(!confirm('Encerrar a campanha "' + CP.data.nome + '"?\nDepois preencha o relatório na aba Relatórios para medir o resultado.')) return;
@@ -1629,27 +1805,60 @@ function campSave(auto){
     metaTxt: d.metaTxt || '', medicao: d.medicao || '', retorno: +d.retorno || 0,
     planoB: d.planoB || '', riscos: d.riscos || '', timing: d.timing || '',
     envolvimento: d.envolvimento.filter(function(e){ return (e.tarefa || '').trim(); }),
-    fotos: d.fotos || [],
     comPrazo: d.comPrazo || '', comMeta: +d.comMeta || 0, comVendido: +d.comVendido || 0, comObs: d.comObs || '',
     autor: d.autor || (ME.nome || ME.email), autorEmail: d.autorEmail || ME.email,
     atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
   };
   var btn = document.getElementById('cpSalvar');
   btnBusy(btn, true);
-  var op = CP.id
-    ? db.collection('campanhas').doc(CP.id).set(doc, { merge: true })
-    : db.collection('campanhas').add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp(), relatorio: null }, doc));
-  op.then(function(ref){
-    if(!CP.id && ref) CP.id = ref.id;
+  var idAntes = CP.id;
+  /* fotoParaSalvar rejeita se alguma foto ainda está só como miniatura: gravar nesse
+     estado sobrescreveria a foto cheia da subcoleção pela versão de 260px */
+  fotoParaSalvar(d.fotos).then(function(f){
+    // só as miniaturas ficam no pai; `fotos` (formato antigo) sai, senão o documento
+    // continuaria pesado e a Home lenta mesmo depois da migração
+    doc.fotosThumb = f.thumbs;
+    if(idAntes){
+      var lote = db.batch();
+      doc.fotos = firebase.firestore.FieldValue.delete();
+      lote.set(db.collection('campanhas').doc(idAntes), doc, { merge: true });
+      midiaSet(lote, 'campanhas', idAntes, 'campanha', f.fulls);
+      return lote.commit().then(function(){ return null; });
+    }
+    // documento novo: delete() de campo é inválido num add(), e só há id depois de criar
+    delete doc.fotos;
+    return db.collection('campanhas')
+      .add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp(), relatorio: null }, doc))
+      .then(function(ref){
+        // id antes da mídia: se o commit abaixo falhar e o id ficasse null, o próximo
+        // clique em Salvar criaria uma campanha duplicada
+        if(CP && !CP.id) CP.id = ref.id;
+        var l2 = db.batch();
+        midiaSet(l2, 'campanhas', ref.id, 'campanha', f.fulls);
+        return l2.commit().then(function(){ return ref; }).catch(function(){
+          cpMsgShow('Campanha criada, mas as fotos em tamanho cheio não foram salvas. Abra e salve de novo.');
+          return ref;
+        });
+      });
+  }).then(function(){
+    if(!CP) return;   // voltou pro hub enquanto salvava
     cpStatusUI();
     cpMsgShow(auto ? 'Status atualizado ✓' : 'Campanha salva ✓');
-  }).catch(function(){ cpMsgShow('Sem permissão para salvar.'); })
-    .finally(function(){ btnBusy(btn, false); });
+  }).catch(function(err){
+    cpMsgShow(err && err.message === 'fotos-carregando'
+      ? 'As fotos ainda estão carregando. Aguarde um instante e salve de novo.'
+      : 'Sem permissão para salvar.');
+  }).finally(function(){ btnBusy(btn, false); });
 }
 function campDelete(){
   if(!CP || !CP.id) return;
   if(!confirm('Excluir a campanha "' + CP.data.nome + '" para todos? Essa ação não pode ser desfeita.')) return;
-  db.collection('campanhas').doc(CP.id).delete().then(campShowHub)
+  // o Firestore NÃO apaga subcoleção em cascata: sem isso as fotos em tamanho cheio
+  // ficariam no banco para sempre, sem nenhum documento apontando para elas
+  var lote = db.batch();
+  midiaDelete(lote, 'campanhas', CP.id, ['campanha', 'relatorio']);
+  lote.delete(db.collection('campanhas').doc(CP.id));
+  lote.commit().then(campShowHub)
     .catch(function(){ cpMsgShow('Sem permissão para excluir.'); });
 }
 
@@ -1682,7 +1891,16 @@ function repOpen(id){
   if(!row) return;
   RP = { id: id, camp: row.d, fotos: [] };
   var d = row.d, rel = d.relatorio || {};
-  RP.fotos = (rel.fotos || []).slice();
+  RP.fotos = fotoCarregar(rel, 'fotosThumb', 'fotos');
+  // as cheias chegam da subcoleção; até lá a grade mostra as miniaturas
+  if(RP.fotos.some(function(f){ return !f.completo; })){
+    midiaGet('campanhas', id, 'relatorio').then(function(m){
+      if(!RP || RP.id !== id) return;
+      if(fotoAplicarCheias(RP.fotos, m)){
+        fotoGridRender(document.getElementById('rpFotos'), RP.fotos, true, 3);
+      }
+    });
+  }
   document.getElementById('repHub').hidden = true;
   document.getElementById('repEditor').hidden = false;
   document.getElementById('repTitle').textContent = 'Relatório — ' + (d.nome || '');
@@ -1727,19 +1945,31 @@ function repSave(){
     funcionou: document.getElementById('rpFuncionou').value.trim(),
     melhorar: document.getElementById('rpMelhorar').value.trim(),
     impactos: impactos,
-    fotos: RP.fotos,
+    // o campo antigo precisa ser apagado explicitamente: merge em mapa aninhado FUNDE,
+    // então sem isso relatorio.fotos ficaria no documento e ele cresceria em vez de encolher
+    fotos: firebase.firestore.FieldValue.delete(),
     preenchidoPor: ME.nome || ME.email,
     preenchidoEm: firebase.firestore.FieldValue.serverTimestamp()
   };
   var btn = document.getElementById('rpSalvar');
   btnBusy(btn, true);
-  db.collection('campanhas').doc(RP.id).set({
-    relatorio: rel, status: 'encerrada',
-    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
-  }, { merge: true }).then(function(){
+  var idRel = RP.id;
+  fotoParaSalvar(RP.fotos).then(function(f){
+    rel.fotosThumb = f.thumbs;   // as cheias vão pra subcoleção
+    var lote = db.batch();
+    lote.set(db.collection('campanhas').doc(idRel), {
+      relatorio: rel, status: 'encerrada',
+      atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    midiaSet(lote, 'campanhas', idRel, 'relatorio', f.fulls);
+    return lote.commit();
+  }).then(function(){
     rpMsgShow('Relatório salvo ✓ — campanha encerrada.');
-  }).catch(function(){ rpMsgShow('Sem permissão para salvar.'); })
-    .finally(function(){ btnBusy(btn, false); });
+  }).catch(function(err){
+    rpMsgShow(err && err.message === 'fotos-carregando'
+      ? 'As fotos ainda estão carregando. Aguarde um instante e salve de novo.'
+      : 'Sem permissão para salvar.');
+  }).finally(function(){ btnBusy(btn, false); });
 }
 
 /* ---- aba Brainstorm ---- */
@@ -1775,19 +2005,32 @@ function bsPublicar(){
   if(tx.length >= 5000){ bsMsgShow('A ideia passou de 5.000 caracteres. Resuma um pouco.'); return; }
   var btn = document.getElementById('bsEnviar');
   btnBusy(btn, true);
-  db.collection('brainstorm').add({
-    titulo: ti, texto: tx, fotos: BS_FOTOS.slice(),
-    autor: ME.nome || ME.email, autorEmail: ME.email, setor: ME.setor || '',
-    apoios: [],
-    criadoEm: firebase.firestore.FieldValue.serverTimestamp()
-  }).then(function(){
+  fotoParaSalvar(BS_FOTOS).then(function(f){
+    return db.collection('brainstorm').add({
+      titulo: ti, texto: tx, fotosThumb: f.thumbs,   // as cheias vão pra subcoleção
+      autor: ME.nome || ME.email, autorEmail: ME.email, setor: ME.setor || '',
+      apoios: [],
+      criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(function(ref){
+      if(!f.fulls.length) return true;
+      var lote = db.batch();
+      midiaSet(lote, 'brainstorm', ref.id, 'ideia', f.fulls);
+      // a ideia já foi publicada; se a mídia falhar, avisa em vez de dizer "publicada ✓",
+      // porque as fotos cheias só existiam na memória e são descartadas logo abaixo
+      return lote.commit().then(function(){ return true; }).catch(function(){ return false; });
+    });
+  }).then(function(midiaOk){
     document.getElementById('bsTitulo').value = '';
     document.getElementById('bsTexto').value = '';
     BS_FOTOS.length = 0;
     fotoGridRender(document.getElementById('bsFotos'), BS_FOTOS, true, 3);
-    bsMsgShow('Ideia publicada ✓');
-  }).catch(function(){ bsMsgShow('Sem permissão para publicar.'); })
-    .finally(function(){ btnBusy(btn, false); });
+    bsMsgShow(midiaOk ? 'Ideia publicada ✓'
+      : 'Ideia publicada, mas as fotos ficaram só em miniatura (falha ao salvar as imagens).');
+  }).catch(function(err){
+    bsMsgShow(err && err.message === 'fotos-carregando'
+      ? 'As fotos ainda estão processando. Aguarde um instante.'
+      : 'Sem permissão para publicar.');
+  }).finally(function(){ btnBusy(btn, false); });
 }
 function bsRender(rows){
   var host = document.getElementById('bsFeed');
@@ -1801,9 +2044,11 @@ function bsRender(rows){
     var apoios = d.apoios || [];
     var eu = ME && apoios.indexOf(ME.uid) > -1;
     var dono = ME && (d.autorEmail === ME.email || isAdmin());
-    var fotos = (d.fotos || []).map(function(f){
-      var src = safeFotoSrc(f);
-      return src ? '<div class="foto-th"><img src="' + escHtml(src) + '" alt="Foto da ideia" data-full="1"></div>' : '';
+    // miniatura no card; data-mid diz de onde buscar a cheia ao ampliar
+    var fotos = fotoCarregar(d, "fotosThumb", "fotos").map(fotoExibir).map(function(t, i){
+      var src = safeFotoSrc(t);
+      return src ? '<div class="foto-th"><img src="' + escHtml(src) + '" alt="Foto da ideia"' +
+        ' data-mid="brainstorm" data-mid-id="' + escHtml(r.id) + '" data-mid-campo="ideia" data-i="' + i + '"></div>' : '';
     }).join('');
     return '<div class="bs-card" data-id="' + r.id + '">' +
       '<div class="bs-head"><h4>' + escHtml(d.titulo || '') + '</h4>' +
@@ -1816,8 +2061,7 @@ function bsRender(rows){
       '</div></div>';
   }).join('');
   host.onclick = function(ev){
-    var img = ev.target.closest('img[data-full]');
-    if(img){ lightbox(img.src); return; }
+    // ampliar foto é do handler global de img[data-mid]
     var card = ev.target.closest('.bs-card'); if(!card) return;
     var id = card.dataset.id;
     var apoiar = ev.target.closest('[data-apoiar]');
@@ -1829,7 +2073,12 @@ function bsRender(rows){
         .catch(function(){ bsMsgShow('Não foi possível registrar seu apoio.'); });
     }else if(ev.target.closest('[data-delidea]')){
       if(confirm('Excluir esta ideia para todos?')){
-        db.collection('brainstorm').doc(id).delete()
+        // a mídia vai no mesmo lote: apagar só o pai deixaria as fotos órfãs, e depois
+        // nem o autor conseguiria removê-las (a regra da mídia lê o autor no documento pai)
+        var loteBs = db.batch();
+        midiaDelete(loteBs, 'brainstorm', id, ['ideia']);
+        loteBs.delete(db.collection('brainstorm').doc(id));
+        loteBs.commit()
           .catch(function(){ bsMsgShow('Sem permissão para excluir esta ideia.'); });
       }
     }

@@ -142,6 +142,20 @@ service cloud.firestore {
     match /campanhas/{id} {
       allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
       allow create, update, delete: if signedIn() && myRole() in ['diretor', 'admin'];
+      // Fotos em tamanho cheio. Ficam fora do documento pai porque consulta de coleção
+      // não traz subcoleção — assim a Home não baixa megabytes de imagem para mostrar
+      // quatro campos de texto, e o pai não encosta no teto de 1 MiB do Firestore.
+      // O id é fixo ('campanha' ou 'relatorio') e o conteúdo é validado: com curinga
+      // livre, qualquer diretor criaria N documentos de 1 MiB que ninguém apagaria.
+      match /midia/{grupo} {
+        allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+        allow delete: if signedIn() && myRole() in ['diretor', 'admin'];
+        allow create, update: if signedIn() && myRole() in ['diretor', 'admin']
+          && grupo in ['campanha', 'relatorio']
+          && request.resource.data.keys().hasOnly(['fotos'])
+          && request.resource.data.fotos is list
+          && request.resource.data.fotos.size() <= 3;
+      }
     }
 
     // Brainstorm — todos os aprovados publicam ideias e apoiam
@@ -151,10 +165,13 @@ service cloud.firestore {
         && myRole() in ['colaborador', 'diretor', 'admin']
         && request.resource.data.autorEmail == request.auth.token.email
         && request.resource.data.keys().hasOnly(
-             ['titulo', 'texto', 'autor', 'autorEmail', 'setor', 'fotos', 'apoios', 'criadoEm'])
+             ['titulo', 'texto', 'autor', 'autorEmail', 'setor', 'fotos', 'fotosThumb', 'apoios', 'criadoEm'])
         && request.resource.data.titulo is string && request.resource.data.titulo.size() < 200
         && request.resource.data.texto is string && request.resource.data.texto.size() < 5000
-        && (!('fotos' in request.resource.data) || request.resource.data.fotos.size() <= 3);
+        // os dois campos: o código grava fotosThumb, mas 'fotos' segue aceito por
+        // compatibilidade — sem checar os dois, o teto de 3 fotos não valia na prática
+        && (!('fotos' in request.resource.data) || request.resource.data.fotos.size() <= 3)
+        && (!('fotosThumb' in request.resource.data) || request.resource.data.fotosThumb.size() <= 3);
       // dono edita a própria ideia; os demais só apoiam/desapoiam — e só com o PRÓPRIO uid.
       // sem a checagem de diferença abaixo, qualquer um zerava ou inflava os apoios alheios.
       allow update: if isAdmin() || (
@@ -170,6 +187,23 @@ service cloud.firestore {
         )
       );
       allow delete: if isAdmin() || (signedIn() && resource.data.autorEmail == request.auth.token.email);
+      // Fotos em tamanho cheio da ideia. Escrita só de quem é dono da ideia (ou admin) —
+      // a checagem lê o documento pai, já que a subcoleção não conhece o autor.
+      // Id fixo e conteúdo validado, pelo mesmo motivo da subcoleção de campanhas.
+      function souDono() {
+        return signedIn()
+          && exists(/databases/$(db)/documents/brainstorm/$(id))
+          && get(/databases/$(db)/documents/brainstorm/$(id)).data.autorEmail == request.auth.token.email;
+      }
+      match /midia/{grupo} {
+        allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+        allow delete: if isAdmin() || souDono();
+        allow create, update: if (isAdmin() || souDono())
+          && grupo == 'ideia'
+          && request.resource.data.keys().hasOnly(['fotos'])
+          && request.resource.data.fotos is list
+          && request.resource.data.fotos.size() <= 3;
+      }
     }
   }
 }

@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inspira FM · Migrar fotos para subcoleção</title>
+<style>
+  :root{--teal:#005650;--lime:#82DD47;--ink:#14231F;--muted:#3E5049;--line:#DCE5DC;--paper:#FBFCF9}
+  *{box-sizing:border-box}
+  body{margin:0;padding:2rem 1.2rem;background:var(--paper);color:var(--ink);
+       font:16px/1.6 "Segoe UI",system-ui,sans-serif;max-width:46rem;margin-inline:auto}
+  h1{font-size:1.5rem;margin:0 0 .3rem}
+  p{color:var(--muted);text-align:justify;hyphens:auto}
+  button{border:0;border-radius:.7rem;padding:.75rem 1.2rem;font:inherit;font-weight:700;
+         cursor:pointer;background:var(--teal);color:#fff;margin:.3rem .3rem .3rem 0}
+  button[disabled]{opacity:.55;cursor:wait}
+  button.sec{background:var(--lime);color:var(--teal)}
+  .aviso{border:2px solid #E0B470;background:#FDF6E7;color:#7A5A10;
+         border-radius:.7rem;padding:.9rem 1.1rem;font-weight:600}
+  #log{background:#fff;border:1px solid var(--line);border-radius:.7rem;padding:1rem;
+       margin-top:1.2rem;font-family:ui-monospace,Consolas,monospace;font-size:.85rem;
+       white-space:pre-wrap;min-height:8rem;max-height:26rem;overflow:auto}
+  .ok{color:#2A6B2E}.err{color:#A8231C}.info{color:#33517E}
+</style>
+</head>
+<body>
+
+<h1>Migrar fotos para subcoleção</h1>
+<p>Move as fotos que hoje estão dentro dos documentos de <strong>campanha</strong> e
+<strong>brainstorm</strong> para <code>midia/fotos</code>, e deixa no documento uma
+miniatura de ~260&nbsp;px. Sem isso a tela de Início baixa todas as fotos de todas as
+campanhas só para mostrar quatro campos de texto — e o documento fica perto do teto de
+1&nbsp;MiB do Firestore.</p>
+
+<div class="aviso">
+  Rode uma vez, logado como admin. É seguro repetir: documento já migrado é pulado.
+  As fotos são gravadas na subcoleção <strong>antes</strong> de o campo antigo ser apagado —
+  se a segunda etapa falhar, o documento continua no formato velho e o site segue funcionando.
+  <br><br>
+  Nota: o <code>export-conteudo.html</code> <strong>não</strong> cobre campanhas nem brainstorm
+  (ele exporta o conteúdo das três views que só existem no Firestore). Comece pela simulação.
+</div>
+
+<p>Precisa rodar em <code>http://localhost</code> — <code>file://</code> não é domínio
+autorizado no Firebase Auth.</p>
+
+<button id="btnLogin">Entrar com Google</button>
+<button id="btnSimular" class="sec" disabled>Simular (não grava nada)</button>
+<button id="btnMigrar" disabled>Migrar de verdade</button>
+
+<div id="log">Aguardando login…</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyArw45z7IbzziWHhWpd25N3R8NA84pu890",
+  authDomain: "inspira-fm-c2a06.firebaseapp.com",
+  projectId: "inspira-fm-c2a06",
+  storageBucket: "inspira-fm-c2a06.firebasestorage.app",
+  messagingSenderId: "946317890768",
+  appId: "1:946317890768:web:c03e8e317748da79e43ad5"
+});
+var auth = firebase.auth(), db = firebase.firestore();
+var logEl = document.getElementById('log');
+
+function log(txt, cls){
+  var l = document.createElement('div');
+  if(cls) l.className = cls;
+  l.textContent = txt;
+  logEl.appendChild(l);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+/* Regera a miniatura a partir do data URL que já está no banco. Mesmos parâmetros do
+   fotoRedim() do runtime.js — se um mudar, mudar o outro. */
+function redim(img, lado){
+  var scale = Math.min(1, lado / Math.max(img.width, img.height));
+  var c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(img.width * scale));
+  c.height = Math.max(1, Math.round(img.height * scale));
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  var q = 0.72, d = c.toDataURL('image/jpeg', q);
+  while(d.length > 9000 && q > 0.3){ q -= 0.08; d = c.toDataURL('image/jpeg', q); }
+  return d.length <= 14000 ? d : null;
+}
+/* Mesma escada do fotoThumbDe() do runtime.js — se um mudar, mudar o outro.
+   Devolve {thumb, encolheu}: `encolheu:false` significa que a "miniatura" é a imagem
+   original, ou seja, aquele documento NÃO vai ficar leve e precisa ser reportado. */
+function miniatura(dataUrl){
+  return new Promise(function(resolve){
+    var img = new Image();
+    img.onload = function(){
+      var lados = [260, 180, 120];
+      for(var i = 0; i < lados.length; i++){
+        var t = redim(img, lados[i]);
+        if(t) return resolve({ thumb: t, encolheu: true });
+      }
+      resolve({ thumb: dataUrl, encolheu: false });
+    };
+    img.onerror = function(){ resolve({ thumb: dataUrl, encolheu: false }); };
+    img.src = dataUrl;
+  });
+}
+function ehDataUrl(s){ return typeof s === 'string' && s.indexOf('data:image/') === 0; }
+function kb(n){ return Math.round(n / 1024) + ' KB'; }
+
+auth.onAuthStateChanged(function(u){
+  if(!u) return;
+  logEl.textContent = '';
+  log('Logado como ' + u.email, 'ok');
+  log('Comece pela simulação.');
+  document.getElementById('btnSimular').disabled = false;
+  document.getElementById('btnMigrar').disabled = false;
+});
+
+document.getElementById('btnLogin').addEventListener('click', function(){
+  auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
+    .catch(function(e){ log('Falha no login: ' + e.message, 'err'); });
+});
+
+function migrarColecao(colecao, campos, gravar){
+  return db.collection(colecao).get().then(function(qs){
+    log('');
+    log('— ' + colecao + ': ' + qs.size + ' documento(s)', 'info');
+    var fila = Promise.resolve(), total = 0, pulados = 0, bytes = 0, falhas = 0, teimosas = 0;
+
+    qs.forEach(function(snap){
+      fila = fila.then(function(){
+        var d = snap.data();
+        var achou = false, patchPai = {}, midia = {};
+
+        var etapas = campos.map(function(cfg){
+          // cfg = { origem: caminho do array antigo, destino: campo na subcoleção }
+          var antigas = cfg.origem === 'relatorio.fotos'
+            ? ((d.relatorio || {}).fotos || [])
+            : (d[cfg.origem] || []);
+          var fulls = (Array.isArray(antigas) ? antigas : []).filter(ehDataUrl);
+          if(!fulls.length) return Promise.resolve();
+          achou = true;
+          fulls.forEach(function(f){ bytes += f.length; });
+          return Promise.all(fulls.map(miniatura)).then(function(res){
+            res.forEach(function(r){ if(!r.encolheu) teimosas++; });
+            midia[cfg.destino] = fulls;   // um documento por grupo: midia/{destino}.fotos
+            /* caminho pontilhado, não Object.assign: reescrever o mapa `relatorio`
+               inteiro sobrescreveria de volta qualquer edição feita pela diretoria
+               enquanto o script roda (ele demora, reencoda imagem por imagem) */
+            if(cfg.origem === 'relatorio.fotos'){
+              patchPai['relatorio.fotosThumb'] = res.map(function(r){ return r.thumb; });
+              patchPai['relatorio.fotos'] = firebase.firestore.FieldValue.delete();
+            }else{
+              patchPai.fotosThumb = res.map(function(r){ return r.thumb; });
+              patchPai.fotos = firebase.firestore.FieldValue.delete();
+            }
+          });
+        });
+
+        return Promise.all(etapas).then(function(){
+          if(!achou){ pulados++; return; }
+          total++;
+          if(!gravar){
+            log('  [simulação] ' + snap.id + ' — ' + Object.keys(midia).join(', '));
+            return;
+          }
+          // grava a mídia ANTES de apagar o campo legado: se a segunda operação falhar,
+          // o documento continua no formato antigo e o app segue lendo normalmente.
+          // Um documento por grupo — juntar campanha e relatório passaria de 780 KB.
+          var gravaMidia = Object.keys(midia).map(function(g){
+            return snap.ref.collection('midia').doc(g).set({ fotos: midia[g] }, { merge: true });
+          });
+          return Promise.all(gravaMidia)
+            // update() aceita caminho pontilhado e só toca nos campos listados
+            .then(function(){ return snap.ref.update(patchPai); })
+            .then(function(){ log('  ✓ ' + snap.id, 'ok'); })
+            .catch(function(e){ falhas++; log('  ✗ ' + snap.id + ' — ' + (e.code || e.message), 'err'); });
+        });
+      });
+    });
+
+    return fila.then(function(){
+      log('  ' + total + ' a migrar, ' + pulados + ' já ok/sem foto · ~' + kb(bytes) + ' saem do documento');
+      if(teimosas) log('  ⚠ ' + teimosas + ' foto(s) não encolheram: o documento vai continuar pesado', 'err');
+      if(falhas) log('  ⚠ ' + falhas + ' documento(s) falharam', 'err');
+      return falhas === 0;
+    });
+  }).catch(function(e){
+    log('✗ ' + colecao + ' — ' + (e.code || e.message), 'err');
+    return false;   // propaga: sem isso o resumo final dizia "concluído" com tudo falhando
+  });
+}
+
+function rodar(gravar){
+  document.getElementById('btnSimular').disabled = true;
+  document.getElementById('btnMigrar').disabled = true;
+  logEl.textContent = '';
+  log(gravar ? 'MIGRANDO…' : 'SIMULAÇÃO — nada é gravado', 'info');
+
+  var tudoOk = true;
+  migrarColecao('campanhas', [
+    { origem: 'fotos', destino: 'campanha' },
+    { origem: 'relatorio.fotos', destino: 'relatorio' }
+  ], gravar)
+  .then(function(ok){
+    tudoOk = tudoOk && ok !== false;
+    return migrarColecao('brainstorm', [{ origem: 'fotos', destino: 'ideia' }], gravar);
+  })
+  .then(function(ok){
+    tudoOk = tudoOk && ok !== false;
+    log('');
+    if(!gravar) log('Fim da simulação.', 'ok');
+    else if(tudoOk) log('Concluído. Recarregue a plataforma e confira as fotos.', 'ok');
+    else log('Terminou COM FALHAS — veja os ✗ acima. Pode rodar de novo: o que já migrou é pulado.', 'err');
+    document.getElementById('btnSimular').disabled = false;
+    document.getElementById('btnMigrar').disabled = false;
+  });
+}
+
+document.getElementById('btnSimular').addEventListener('click', function(){ rodar(false); });
+document.getElementById('btnMigrar').addEventListener('click', function(){
+  if(!confirm('Migrar de verdade? Vai reescrever os documentos de campanha e brainstorm.')) return;
+  rodar(true);
+});
+</script>
+</body>
+</html>
