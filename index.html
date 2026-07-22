@@ -477,11 +477,11 @@ tr.hl-inspira td{background:var(--lime-soft);font-weight:700}
    faixas iguais, com o mesmo fundo (Grid Bloom sobre o gradiente teal) */
 footer{
   position:relative;overflow:hidden;margin-top:0;height:var(--navh);
-  color:var(--muted-inverse);
-  background:radial-gradient(120% 320% at 16% 100%,var(--teal-800) 0%,var(--teal-950) 68%);
-  border-top:1px solid rgba(255,255,255,.08);
+  color:var(--muted-inverse);background:var(--teal-950);
 }
 footer .wrap{position:relative;height:100%;padding-block:0;display:flex;align-items:center;gap:1rem;flex-wrap:nowrap}
+/* espelha o topo: logo centrada numa coluna da largura do menu, textos à esquerda */
+footer .f-logo{flex:none;width:var(--snw);display:flex;justify-content:center;align-items:center}
 footer img{height:2rem;width:auto;flex:none}
 footer .fslogan{font-family:var(--display);font-weight:700;color:var(--lime-bright);white-space:nowrap;font-size:.95rem}
 footer small{
@@ -590,20 +590,24 @@ main p,main li,main dd,.hero .hero-sub,.page-hero .sub{hyphenate-limit-chars:6 3
 /* A .topbar é o cabeçalho único do app: substitui a antiga topnav E as faixas
    .page-hero de todas as views. Três colunas — menu (logo, na largura do
    #sidenav) · título da página · conta. */
+/* barra, menu e rodapé usam a MESMA tinta chapada e não têm borda entre si:
+   qualquer gradiente ancorado em cada painel, ou linha divisória, marcava a
+   emenda no canto superior esquerdo. A textura fica por conta do bloom, que
+   atravessa os três (data-link). */
 .topbar{
   position:fixed;top:0;left:0;right:0;height:var(--navh);z-index:var(--z-topnav);
-  display:flex;align-items:stretch;overflow:hidden;
-  background:radial-gradient(120% 320% at 16% 0%,var(--teal-800) 0%,var(--teal-950) 68%);
-  border-bottom:1px solid rgba(255,255,255,.08);
+  display:flex;align-items:stretch;overflow:hidden;background:var(--teal-950);
 }
 .tb-left,.tb-title,.tb-user{position:relative}  /* acima do canvas do bloom */
+/* logo centrada na coluna do menu; o burger sai do fluxo pra não puxá-la */
 .tb-left{
-  flex:none;width:var(--snw);display:flex;align-items:center;gap:.4rem;
-  padding:0 .7rem;border-right:1px solid rgba(255,255,255,.08);
+  flex:none;width:var(--snw);display:flex;align-items:center;justify-content:center;
+  padding:0 .7rem;
 }
+.tb-left .nav-burger{position:absolute;left:.35rem;top:50%;transform:translateY(-50%)}
 .tb-left .brand{display:flex;align-items:center;min-width:0;text-decoration:none}
 .tb-left .brand img{height:2.5rem;width:auto;display:block}
-.tb-title{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;padding:0 1.2rem}
+.tb-title{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;padding:0 .1rem 0 .9rem}
 .tb-crumb{
   margin:0;font-size:.72rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;
   color:var(--orange);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
@@ -648,11 +652,18 @@ body.nav-open .nav-burger span:nth-child(3){transform:translateY(-.34rem) rotate
    ao painel (inset:0) em vez de rolar junto com a lista de links */
 #sidenav{
   position:fixed;top:var(--navh);bottom:0;left:0;width:var(--snw);z-index:45;
-  background:radial-gradient(120% 60% at 50% 0%,var(--teal-800) 0%,var(--teal-950) 62%);
-  overflow:hidden;
+  background:var(--teal-950);overflow:hidden;
   transform:translateX(-103%);transition:transform .22s cubic-bezier(.25,1,.5,1);
 }
-#sidenav nav{position:relative;height:100%;overflow-y:auto;padding:.6rem .7rem 2rem}
+/* a barra de rolagem clara do sistema abria uma faixa branca colada na emenda */
+#sidenav nav{
+  position:relative;height:100%;overflow-y:auto;padding:.6rem .7rem 2rem;
+  scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent;
+}
+#sidenav nav::-webkit-scrollbar{width:6px}
+#sidenav nav::-webkit-scrollbar-track{background:transparent}
+#sidenav nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:3px}
+#sidenav nav::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.35)}
 body.nav-open #sidenav{transform:none}
 #sidenav .sn-cap{margin:1.1rem .6rem .3rem;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--lime)}
 #sidenav a{display:flex;align-items:center;gap:.7rem;color:#DCEFE2;text-decoration:none;font-weight:600;font-size:.95rem;padding:.6rem .7rem;border-radius:.6rem;margin-bottom:.1rem}
@@ -1034,9 +1045,9 @@ main:focus{outline:none}
 <!-- ======================= LOGIN ======================= -->
 <div id="gate">
   <canvas class="bloom" aria-hidden="true" style="--bloom-o:.55"
-          data-color="#82DD47" data-grid="11" data-speed=".75" data-rotation=".12"
-          data-fade="1.15" data-distortion=".06" data-flow-x="-.12" data-flow-y="-.24"
-          data-hover-light=".45" data-hover-radius=".9" data-hover-strength=".5"></canvas>
+          data-cell="44" data-color="#82DD47" data-speed=".7" data-rotation=".1"
+          data-fade="13" data-distortion=".6" data-flow-x="-.12" data-flow-y="-.24"
+          data-hover-light="5" data-hover-radius="10" data-hover-strength=".5"></canvas>
   <div class="gate-card">
     <img src="img/logo-clara.png" alt="Inspira FM 97.7" width="320" height="135" style="width:min(300px,72%);height:auto">
     <p class="tagline">Faz bem ouvir</p>
@@ -1093,12 +1104,13 @@ main:focus{outline:none}
 <button type="button" class="skip" id="skipLink">Pular para o conteúdo</button>
 
 <header class="topbar">
-  <!-- a grade é normalizada pela altura: numa faixa de ~69px, densidade baixa
-       (3,4) dá célula de ~20px; a vinheta fica larga pra cobrir a faixa toda -->
-  <canvas class="bloom" aria-hidden="true" style="--bloom-o:.5"
-          data-color="#82DD47" data-grid="3.4" data-speed=".5" data-rotation=".05"
-          data-fade="9" data-distortion=".05" data-flow-x="-.09" data-flow-y="-.16"
-          data-hover-light=".35" data-hover-radius=".7" data-hover-strength=".3"></canvas>
+  <!-- data-link: barra, menu e rodapé desenham a MESMA malha, ancorada no centro
+       da janela. Os três precisam dos mesmos parâmetros de movimento, senão a
+       malha descola na emenda com o tempo. Só a opacidade muda entre eles. -->
+  <canvas class="bloom" aria-hidden="true" data-link style="--bloom-o:.5"
+          data-cell="44" data-color="#82DD47" data-speed=".5" data-rotation=".04"
+          data-fade="40" data-distortion=".6" data-flow-x="-.09" data-flow-y="-.16"
+          data-hover-light="5" data-hover-radius="10" data-hover-strength=".3"></canvas>
   <div class="tb-left">
     <button type="button" class="nav-burger" id="navToggle" aria-label="Abrir ou fechar o menu" aria-controls="sidenav" aria-expanded="false"><span></span><span></span><span></span></button>
     <a class="brand" href="#inicio"><img src="img/logo-clara.png" alt="Inspira FM 97.7 — Início"></a>
@@ -1115,11 +1127,10 @@ main:focus{outline:none}
 </header>
 
 <aside id="sidenav" aria-label="Menu principal">
-  <!-- coluna alta e estreita: densidade maior, senão a célula fica do tamanho do menu -->
-  <canvas class="bloom" aria-hidden="true" style="--bloom-o:.3"
-          data-color="#82DD47" data-grid="11" data-speed=".4" data-rotation=".06"
-          data-fade="1.7" data-distortion=".06" data-flow-x="-.05" data-flow-y="-.12"
-          data-hover-light=".35" data-hover-radius=".6" data-hover-strength=".25"></canvas>
+  <canvas class="bloom" aria-hidden="true" data-link style="--bloom-o:.34"
+          data-cell="44" data-color="#82DD47" data-speed=".5" data-rotation=".04"
+          data-fade="40" data-distortion=".6" data-flow-x="-.09" data-flow-y="-.16"
+          data-hover-light="5" data-hover-radius="10" data-hover-strength=".3"></canvas>
   <nav>
     <a href="#inicio" data-nav="inicio"><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22v-9h6v9"/></svg></span><span>Início</span></a>
     <a href="#conta" data-nav="conta"><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span>Minha conta</span></a>
@@ -1987,13 +1998,13 @@ main:focus{outline:none}
 </main>
 
 <footer>
-  <canvas class="bloom" aria-hidden="true" style="--bloom-o:.42"
-          data-color="#82DD47" data-grid="3.4" data-speed=".45" data-rotation=".05"
-          data-fade="9" data-distortion=".05" data-flow-x=".08" data-flow-y=".14"
-          data-hover-light=".35" data-hover-radius=".7" data-hover-strength=".3"></canvas>
+  <canvas class="bloom" aria-hidden="true" data-link style="--bloom-o:.45"
+          data-cell="44" data-color="#82DD47" data-speed=".5" data-rotation=".04"
+          data-fade="40" data-distortion=".6" data-flow-x="-.09" data-flow-y="-.16"
+          data-hover-light="5" data-hover-radius="10" data-hover-strength=".3"></canvas>
   <div class="wrap">
     <!-- a horizontal é a versão de tinta escura; com o rodapé escuro, vai a clara -->
-    <img src="img/logo-clara.png" alt="Inspira FM 97.7">
+    <span class="f-logo"><img src="img/logo-clara.png" alt="Inspira FM 97.7"></span>
     <span class="fslogan">Faz bem ouvir</span>
     <small>A primeira rádio wellness do Brasil · inspirafm.com.br · @inspirafm · Relatórios internos</small>
   </div>
@@ -2011,7 +2022,7 @@ main:focus{outline:none}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="bloom.js?v=2" defer></script>
+<script src="bloom.js?v=3" defer></script>
 <script src="runtime.js?v=0b576338"></script>
 </body>
 </html>

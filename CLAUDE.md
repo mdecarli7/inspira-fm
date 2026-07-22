@@ -83,9 +83,14 @@
   **`runtime.js`** (o app inteiro, ~172 KB). Fontes em `fonts/*.woff2` — externas,
   com `@font-face` inline no `<style>` do index (não são embutidas em base64).
 - **`bloom.js`** — fundo animado "Grid Bloom" (shader WebGL puro, sem three.js/React).
-  Adota qualquer `<canvas class="bloom">` da página; hoje há dois: o login (`#gate`) e o
-  cabeçalho do Início. Tudo se ajusta por `data-*` no próprio canvas (cor, densidade,
-  velocidade, vinheta, mouse) — ver cabeçalho do arquivo. Pausa via IntersectionObserver
+  Adota qualquer `<canvas class="bloom">` da página; hoje há quatro: login (`#gate`),
+  barra do topo, menu lateral e rodapé. Tudo se ajusta por `data-*` no próprio canvas —
+  ver cabeçalho do arquivo. Dois detalhes que não são óbvios:
+  **`data-cell`** é o tamanho da célula em pixels (a malha não é "células por altura",
+  senão painéis de alturas diferentes rendem texturas diferentes); e **`data-link`**
+  faz o painel desenhar a malha a partir do centro da *janela*, não do próprio canvas —
+  é o que costura barra + menu + rodapé sem degrau na emenda. Painéis com `data-link`
+  precisam dos **mesmos** parâmetros de movimento entre si, ou descolam com o tempo. Pausa via IntersectionObserver
   quando a view está escondida e desenha um quadro estático em `prefers-reduced-motion`.
   Sem WebGL, o canvas fica invisível e sobra o gradiente do container.
 - **Firebase Auth** (login Google + e-mail/senha) + **Firestore**. Coleções reais:
