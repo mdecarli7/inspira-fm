@@ -5,6 +5,8 @@ fonts-inline.css
 
 # conteúdo sensível (folha salarial, nomes) — NUNCA commitar:
 seed.html
+*-backup.json
+inspira-conteudo-backup*.json
 
 # pipeline de migração aposentado (não roda: o HTML-fonte não existe mais)
 site-src/

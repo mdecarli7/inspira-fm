@@ -16,8 +16,10 @@
   Paleta do site conciliada com a oficial em 22/07/2026 — desvios conscientes
   documentados lá (`--muted` e `--paper` ficam fora do padrão por contraste).
 - **⚠️ Dívida aberta:** o HTML de `content/base` e `content/financeiro` no Firestore
-  não tem backup versionado (só o `seed.html` local, gitignored). Exportar esses docs
-  antes de qualquer faxina em `site-src/`.
+  não tem backup versionado (só o `seed.html` local, gitignored). Use
+  `scripts/export-conteudo.html` pra baixar o backup — servir em `localhost`
+  (`npx serve scripts`), entrar com Google e exportar. **O JSON gerado tem a folha
+  salarial: guardar fora do repositório** (já coberto pelo `.gitignore`).
 - **⚠️ Pendências que dependem do Console do Firebase** (não dá pra resolver em código):
   publicar o `firestore.rules`, ligar *email enumeration protection*, bloquear
   auto-cadastro (hoje qualquer pessoa da internet vira `request.auth != null`),

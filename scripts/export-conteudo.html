@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inspira FM · Backup do conteúdo do Firestore</title>
+<style>
+  :root{--teal:#005650;--lime:#82DD47;--ink:#14231F;--muted:#3E5049;--line:#DCE5DC;--paper:#FBFCF9}
+  *{box-sizing:border-box}
+  body{margin:0;padding:2rem 1.2rem;background:var(--paper);color:var(--ink);
+       font:16px/1.6 "Segoe UI",system-ui,sans-serif;max-width:44rem;margin-inline:auto}
+  h1{font-size:1.5rem;margin:0 0 .3rem}
+  p{color:var(--muted);text-align:justify;hyphens:auto}
+  button{border:0;border-radius:.7rem;padding:.75rem 1.2rem;font:inherit;font-weight:700;
+         cursor:pointer;background:var(--teal);color:#fff;margin:.3rem .3rem .3rem 0}
+  button[disabled]{opacity:.55;cursor:wait}
+  button.sec{background:var(--lime);color:var(--teal)}
+  .aviso{border:2px solid #E0B470;background:#FDF6E7;color:#7A5A10;
+         border-radius:.7rem;padding:.9rem 1.1rem;font-weight:600}
+  #log{background:#fff;border:1px solid var(--line);border-radius:.7rem;padding:1rem;
+       margin-top:1.2rem;font-family:ui-monospace,Consolas,monospace;font-size:.85rem;
+       white-space:pre-wrap;min-height:6rem}
+  .ok{color:#2A6B2E}.err{color:#A8231C}
+</style>
+</head>
+<body>
+
+<h1>Backup do conteúdo do Firestore</h1>
+<p>Exporta os documentos cujo conteúdo <strong>só existe no Firestore</strong> — o HTML das
+views Análise Redes Sociais, Organograma e Equipe não está em nenhum arquivo do repositório.
+Este é o backup que falta.</p>
+
+<div class="aviso">
+  O arquivo gerado contém a folha salarial e o balanço financeiro.
+  <strong>Nunca commite o JSON.</strong> Guarde fora do repositório (ou numa pasta ignorada).
+</div>
+
+<p>Precisa rodar em <code>http://localhost</code> — <code>file://</code> não funciona porque o
+domínio não é autorizado no Firebase Auth. Na pasta <code>scripts/</code>:
+<code>npx serve .</code> e abra o endereço que ele mostrar.</p>
+
+<button id="btnLogin">Entrar com Google</button>
+<button id="btnExport" class="sec" disabled>Exportar backup</button>
+
+<div id="log">Aguardando login…</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyArw45z7IbzziWHhWpd25N3R8NA84pu890",
+  authDomain: "inspira-fm-c2a06.firebaseapp.com",
+  projectId: "inspira-fm-c2a06",
+  storageBucket: "inspira-fm-c2a06.firebasestorage.app",
+  messagingSenderId: "946317890768",
+  appId: "1:946317890768:web:c03e8e317748da79e43ad5"
+});
+var auth = firebase.auth(), db = firebase.firestore();
+var logEl = document.getElementById('log');
+
+function log(txt, cls){
+  var l = document.createElement('div');
+  if(cls) l.className = cls;
+  l.textContent = txt;
+  logEl.appendChild(l);
+}
+function limpar(){ logEl.textContent = ''; }
+
+/* Só documentos: os dados operacionais (campanhas, quadros, radar, jurídico…) são
+   editados no próprio app e não precisam deste backup — o conteúdo abaixo, sim,
+   porque não tem origem em arquivo nenhum. */
+var ALVOS = [
+  ['content', 'base',           'HTML das views Análise Redes Sociais e Organograma'],
+  ['content', 'financeiro',     'HTML da view Equipe + defaults da folha'],
+  ['content', 'reestruturacao', 'legado — pode não existir'],
+  ['fin',     'folha',          'folha salarial completa (com nascimento)'],
+  ['fin',     'equipe',         'espelho sem nascimento, lido pela Estruturação']
+];
+
+auth.onAuthStateChanged(function(u){
+  if(!u) return;
+  limpar();
+  log('Logado como ' + u.email, 'ok');
+  log('Pronto para exportar.');
+  document.getElementById('btnExport').disabled = false;
+});
+
+document.getElementById('btnLogin').addEventListener('click', function(){
+  auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
+    .catch(function(e){ log('Falha no login: ' + e.message, 'err'); });
+});
+
+document.getElementById('btnExport').addEventListener('click', function(){
+  var btn = this;
+  btn.disabled = true;
+  limpar();
+  log('Exportando…');
+
+  var saida = { exportadoEm: new Date().toISOString(), docs: {} };
+
+  var fila = ALVOS.map(function(a){
+    var caminho = a[0] + '/' + a[1];
+    return db.collection(a[0]).doc(a[1]).get()
+      .then(function(snap){
+        if(!snap.exists){ log('— ' + caminho + ' não existe (ok se for legado)'); return; }
+        saida.docs[caminho] = snap.data();
+        log('✓ ' + caminho + ' — ' + a[2], 'ok');
+      })
+      .catch(function(e){
+        // não aborta o lote: um doc sem permissão não pode impedir o backup do resto
+        log('✗ ' + caminho + ' — ' + e.code, 'err');
+      });
+  });
+
+  Promise.all(fila).then(function(){
+    var n = Object.keys(saida.docs).length;
+    if(!n){ log('Nada exportado — sem permissão em nenhum documento.', 'err'); btn.disabled = false; return; }
+
+    var blob = new Blob([JSON.stringify(saida, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'inspira-conteudo-backup.json';
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
+
+    log('');
+    log(n + ' documento(s) baixado(s) em inspira-conteudo-backup.json', 'ok');
+    log('Guarde FORA do repositório — contém a folha salarial.', 'err');
+    btn.disabled = false;
+  });
+});
+</script>
+</body>
+</html>
