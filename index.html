@@ -164,21 +164,7 @@ a{color:var(--teal-700)}
 @keyframes arcPulse{0%,100%{opacity:.55}35%{opacity:1}}
 
 /* ============ Navegação ============ */
-.topnav{
-  position:sticky;top:0;z-index:var(--z-nav);
-  background:var(--teal-950);color:var(--ink-inverse);
-  border-bottom:1px solid rgba(255,255,255,.08);
-}
-.topnav .bar{display:flex;align-items:center;gap:1rem;padding-block:.55rem;flex-wrap:wrap}
-.topnav .brand{display:flex;align-items:center;gap:.6rem;margin-right:auto;text-decoration:none}
-.topnav .brand img{height:2.1rem;width:auto;display:block}
-.topnav nav{display:flex;gap:.25rem;flex-wrap:wrap}
-.topnav nav a{
-  color:var(--muted-inverse);text-decoration:none;font-weight:700;font-size:.95rem;
-  padding:.45rem .8rem;border-radius:.6rem;transition:color .15s,background .15s;
-}
-.topnav nav a:hover{color:var(--on-dark);background:rgba(255,255,255,.08)}
-.topnav nav a[aria-current="page"]{color:var(--teal-950);background:var(--lime)}
+/* A barra fixa do topo vive no bloco "Header fixo + menu lateral", mais abaixo. */
 
 /* ============ Views ============ */
 .view{display:none}
@@ -247,7 +233,13 @@ a{color:var(--teal-700)}
 .report-row:hover .idx{color:var(--dv-green)}
 .report-row:hover .go{transform:translateX(.4rem)}
 
-/* ============ Cabeçalho das páginas de relatório ============ */
+/* ============ Cabeçalho das páginas de relatório ============
+   Na tela a faixa não aparece mais: o crumb e o título de cada view sobem pra
+   barra fixa do topo (runtime.js → syncTopbar). O markup fica no lugar porque
+   é a fonte desses dois textos — inclusive nas três views cujo HTML vem do
+   Firestore, que trazem a própria .page-hero. Na impressão ela volta. */
+.page-hero{display:none}
+@media print{ .page-hero{display:block} }
 .page-hero{
   position:relative;background:var(--teal-900);color:var(--ink-inverse);overflow:hidden;
   padding-block:clamp(2.8rem,6vh,4.2rem);
@@ -547,7 +539,7 @@ td.sal-nd{color:var(--muted);font-style:italic}
 /* ============ Motion / a11y ============ */
 :focus-visible{outline:3px solid var(--dv-orange);outline-offset:2px;border-radius:.3rem}
 /* sobre o chrome escuro o laranja cai pra 3,6:1; o lima claro dá 12,3:1 */
-.topnav :focus-visible,#sidenav :focus-visible,#gate :focus-visible{outline-color:var(--lime-bright)}
+.topbar :focus-visible,#sidenav :focus-visible,#gate :focus-visible{outline-color:var(--lime-bright)}
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.001s!important}
   html{scroll-behavior:auto}
@@ -556,23 +548,13 @@ td.sal-nd{color:var(--muted);font-style:italic}
   .bar-row,.cost-chart .bar-row{grid-template-columns:minmax(6rem,7.6rem) 1fr}
   .alert-list .who{min-width:100%}
   .warn-list .who{min-width:100%}
-  /* nav em 1 linha rolável, sem quebrar em 2 linhas */
-  .topnav nav{
-    width:100%;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
-    scrollbar-width:none;margin:0 calc(-1 * clamp(1.1rem,4vw,2.5rem));
-    padding:0 clamp(1.1rem,4vw,2.5rem) .4rem;
-  }
-  .topnav nav::-webkit-scrollbar{display:none}
-  .topnav nav a{padding:.55rem .8rem;font-size:.9rem;white-space:nowrap;flex:none}
-  .topnav .brand img{height:1.9rem}
 }
 /* alvos de toque maiores em telas de toque */
 @media(pointer:coarse){
-  .topnav nav a{padding:.65rem .9rem}
   .mini{padding:.45rem .85rem;font-size:.82rem;min-height:2.75rem}
   .backrow a{padding:.7rem 1.1rem}
   /* WCAG 2.5.8: alvo mínimo 44×44px. Os botões de excluir chegavam a 24px. */
-  .bs-apoiar,.userchip button,.nav-burger,.camp-tabs button{min-width:2.75rem;min-height:2.75rem}
+  .bs-apoiar,.tb-user button,.nav-burger,.camp-tabs button{min-width:2.75rem;min-height:2.75rem}
   /* área de toque virtual: cresce o alvo sem mexer no grid que segura o ícone */
   .foto-th .f-del,.pp-item .i-del{position:relative}
   .foto-th .f-del::after,.pp-item .i-del::after{
@@ -592,10 +574,52 @@ main p,main li,main dd,.hero .hero-sub,.page-hero .sub{hyphenate-limit-chars:6 3
    dando alinhamento misto na coluna do Brainstorm */
 .bs-card p.tx{text-align:left;hyphens:none}
 /* ============ Header fixo + menu lateral ============ */
-.topnav{position:fixed;top:0;left:0;right:0;height:var(--navh);z-index:var(--z-topnav);background:var(--teal-950);border-bottom:1px solid rgba(255,255,255,.08)}
-.topnav .bar{display:flex;align-items:center;gap:.9rem;height:100%;padding-top:0;padding-bottom:0}
-.topnav .brand img{height:2.4rem;width:auto;display:block}
-.topnav .userchip{margin-left:auto}
+/* A .topbar é o cabeçalho único do app: substitui a antiga topnav E as faixas
+   .page-hero de todas as views. Três colunas — menu (logo, na largura do
+   #sidenav) · título da página · conta. */
+.topbar{
+  position:fixed;top:0;left:0;right:0;height:var(--navh);z-index:var(--z-topnav);
+  display:flex;align-items:stretch;overflow:hidden;
+  background:radial-gradient(120% 320% at 16% 0%,var(--teal-800) 0%,var(--teal-950) 68%);
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.tb-left,.tb-title,.tb-user{position:relative}  /* acima do canvas do bloom */
+.tb-left{
+  flex:none;width:var(--snw);display:flex;align-items:center;gap:.4rem;
+  padding:0 .7rem;border-right:1px solid rgba(255,255,255,.08);
+}
+.tb-left .brand{display:flex;align-items:center;min-width:0;text-decoration:none}
+.tb-left .brand img{height:2.5rem;width:auto;display:block}
+.tb-title{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;padding:0 1.2rem}
+.tb-crumb{
+  margin:0;font-size:.72rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--orange);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.tb-h1{
+  margin:.1rem 0 0;font-size:clamp(1.05rem,2.1vw,1.45rem);font-weight:800;color:var(--on-dark);
+  line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.tb-crumb:empty{display:none}
+.tb-user{flex:none;display:flex;align-items:center;gap:.6rem;padding:0 1rem}
+.tb-chip{
+  display:flex;align-items:center;justify-content:center;flex:none;
+  width:2.3rem;height:2.3rem;border-radius:50%;background:var(--lime);color:var(--teal-950);
+  font-family:var(--display);font-weight:800;font-size:.88rem;text-decoration:none;
+  transition:background .15s,transform .15s;
+}
+.tb-chip:hover{background:var(--lime-bright);transform:scale(1.06)}
+.tb-chip[aria-current="page"]{box-shadow:0 0 0 2px var(--teal-950),0 0 0 4px var(--lime-bright)}
+@media(max-width:1023px){
+  /* sem menu fixo na tela, a coluna da logo não precisa da largura do #sidenav */
+  .tb-left{width:auto;border-right:0;padding-right:.2rem}
+  .tb-left .brand img{height:2.1rem}
+  .tb-title{padding:0 .8rem}
+}
+@media(max-width:560px){
+  .tb-left .brand img{height:1.8rem}
+  .tb-user{padding:0 .6rem;gap:.4rem}
+  .tb-h1{font-size:1rem}
+}
 #app{padding-top:var(--navh)}
 .nav-burger{display:flex;flex-direction:column;gap:.32rem;justify-content:center;border:0;background:transparent;cursor:pointer;padding:.6rem .45rem;border-radius:.5rem}
 .nav-burger:hover{background:rgba(255,255,255,.08)}
@@ -651,7 +675,6 @@ ol.hc-list li::before{
 .btn .ic,.mini .ic,.bs-apoiar .ic{vertical-align:-0.22em;margin-right:.15rem}
 .proc-pend .ic{color:#B07B10;margin-right:.2rem}
 /* logos oficiais em alta resolução */
-.topnav .brand img{height:3rem}
 .gate-card img{image-rendering:auto}
 footer{background:var(--paper-2);border-top:1px solid var(--line)}
 footer img{height:2.7rem;width:auto}
@@ -732,7 +755,11 @@ footer small{color:var(--muted)}
 .tipo-pill{background:var(--tag-blue-bg);color:var(--tag-blue-ink)}
 @media(max-width:720px){.jr-paper{padding:1.6rem 1.2rem}}
 @media print{
-  .topnav,#sidenav,#navBackdrop,footer,.no-print,.page-hero{display:none !important}
+  /* no papel a barra fixa sai e a faixa da página volta — o relatório impresso
+     continua saindo com crumb, título e subtítulo, como sempre saiu */
+  .topbar,#sidenav,#navBackdrop,footer,.no-print{display:none !important}
+  .page-hero{display:block !important}
+  .page-hero .bloom{display:none !important}
   #app{padding-top:0}
   main{margin-left:0 !important}
   .section{padding:0}
@@ -801,15 +828,12 @@ ol.hc-list li.hc-empty::before{display:none}
   border-radius:.7rem;padding:.5rem 1.2rem;cursor:pointer;font-family:var(--display);font-weight:700;
 }
 .btn-sair:hover{border-color:var(--lime)}
-/* chip do usuário na nav */
-.userchip{display:flex;align-items:center;gap:.6rem;font-size:.82rem;color:var(--muted-inverse)}
-.userchip .mail{max-width:14rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.userchip button{
+/* botão Sair, no canto direito da barra (o e-mail agora vive na Minha conta) */
+.tb-user button{
   border:1px solid rgba(255,255,255,.25);background:transparent;color:var(--muted-inverse);
   border-radius:.55rem;padding:.3rem .7rem;cursor:pointer;font:inherit;font-weight:700;font-size:.8rem;
 }
-.userchip button:hover{color:var(--on-dark);border-color:var(--on-dark)}
-@media(max-width:720px){.userchip .mail{display:none}}
+.tb-user button:hover{color:var(--on-dark);border-color:var(--on-dark)}
 /* página Usuários (admin) */
 .users-wrap .fin-input{max-width:100%}
 .users-table td{vertical-align:middle}
@@ -1051,11 +1075,25 @@ main:focus{outline:none}
      coagiria a rota desconhecida de volta pro Início -->
 <button type="button" class="skip" id="skipLink">Pular para o conteúdo</button>
 
-<header class="topnav">
-  <div class="wrap bar">
+<header class="topbar">
+  <!-- a grade é normalizada pela altura: numa faixa de ~69px, densidade baixa
+       (3,4) dá célula de ~20px; a vinheta fica larga pra cobrir a faixa toda -->
+  <canvas class="bloom" aria-hidden="true" style="--bloom-o:.5"
+          data-color="#82DD47" data-grid="3.4" data-speed=".5" data-rotation=".05"
+          data-fade="9" data-distortion=".05" data-flow-x="-.09" data-flow-y="-.16"
+          data-hover-light=".35" data-hover-radius=".7" data-hover-strength=".3"></canvas>
+  <div class="tb-left">
     <button type="button" class="nav-burger" id="navToggle" aria-label="Abrir ou fechar o menu" aria-controls="sidenav" aria-expanded="false"><span></span><span></span><span></span></button>
     <a class="brand" href="#inicio"><img src="img/logo-clara.png" alt="Inspira FM 97.7 — Início"></a>
-    <div class="userchip"><span class="mail" id="chipEmail"></span><button type="button" id="btnSair">Sair</button></div>
+  </div>
+  <!-- crumb e título são copiados da .page-hero da view ativa (syncTopbar) -->
+  <div class="tb-title">
+    <p class="tb-crumb" id="tbCrumb"></p>
+    <h1 class="tb-h1" id="tbTitle">Inspira FM 97.7</h1>
+  </div>
+  <div class="tb-user">
+    <a class="tb-chip" href="#conta" id="tbChip" data-nav="conta" title="Minha conta"><span aria-hidden="true">··</span><span class="sr-only">Minha conta</span></a>
+    <button type="button" id="btnSair">Sair</button>
   </div>
 </header>
 
@@ -1088,10 +1126,6 @@ main:focus{outline:none}
 <main id="mainContent" tabindex="-1" aria-label="Conteúdo">
   <section id="view-inicio" class="view" aria-labelledby="hm-title">
     <div class="page-hero">
-      <canvas class="bloom" aria-hidden="true" style="--bloom-o:.45"
-              data-color="#82DD47" data-grid="17" data-speed=".55" data-rotation=".08"
-              data-fade="2.4" data-distortion=".05" data-flow-x="-.1" data-flow-y="-.18"
-              data-hover-light=".4" data-hover-radius=".8" data-hover-strength=".35"></canvas>
       <div class="wrap">
         <p class="crumb" id="hojeData"></p>
         <h1 id="hm-title"><span id="saudacao">Bom dia</span>!</h1>
@@ -1953,7 +1987,7 @@ main:focus{outline:none}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="bloom.js?v=1" defer></script>
-<script src="runtime.js?v=762f878d"></script>
+<script src="bloom.js?v=2" defer></script>
+<script src="runtime.js?v=0b576338"></script>
 </body>
 </html>

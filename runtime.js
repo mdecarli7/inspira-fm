@@ -235,7 +235,7 @@ function enterApp(){
   document.querySelectorAll('[data-need="admin"]').forEach(function(a){ a.hidden = !isAdmin(); });
   // esconde da Home os cartões de relatório sem permissão
   if(!canRe()) document.querySelectorAll('#view-inicio a[href="#reestruturacao"]').forEach(function(a){ a.remove(); });
-  document.getElementById('chipEmail').textContent = ME.email;
+  setChip();
   gate.style.display = 'none';
   app.hidden = false;
   initApp();
@@ -259,6 +259,42 @@ function liveAnnounce(txt){
   el.textContent = '';
   setTimeout(function(){ el.textContent = txt; }, 60);
 }
+/* Iniciais no chip da barra: o e-mail saiu do topo e agora só aparece na
+   Minha conta (campo mcEmail). O title do link mantém quem está logado a um
+   hover de distância. */
+function setChip(){
+  var chip = document.getElementById('tbChip');
+  if(!chip || !ME) return;
+  var base = (ME.nome || '').trim();
+  var ini;
+  if(base){
+    var p = base.split(/\s+/);
+    ini = (p[0][0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase();
+  } else {
+    ini = (ME.email || '?').slice(0,2).toUpperCase();
+  }
+  chip.querySelector('span[aria-hidden]').textContent = ini;
+  chip.title = 'Minha conta — ' + (ME.email || '');
+}
+
+/* A barra fixa é o cabeçalho de todas as views: copia o crumb e o título da
+   .page-hero da view ativa, que fica escondida na tela (volta na impressão).
+   Vale também para as três views cujo HTML vem do Firestore, que trazem a
+   própria .page-hero — por isso ler do DOM em vez de manter uma tabela aqui. */
+function syncTopbar(id){
+  var hero = document.querySelector('#view-' + id + ' .page-hero');
+  var crumb = hero && hero.querySelector('.crumb');
+  var tit = hero && hero.querySelector('h1, h2');
+  var elC = document.getElementById('tbCrumb');
+  var elT = document.getElementById('tbTitle');
+  /* sem faixa (view do Firestore que não trouxe uma), cai no rótulo do menu */
+  var alvo = document.querySelector('#sidenav [data-nav="' + id + '"]');
+  var nome = tit ? tit.textContent.trim() : (alvo ? alvo.textContent.trim() : 'Inspira FM 97.7');
+  if(elC) elC.textContent = crumb ? crumb.textContent.trim() : '';
+  if(elT) elT.textContent = nome;
+  document.title = nome + ' · Inspira FM 97.7';
+}
+
 function route(){
   if(app.hidden) return;
   var id = (location.hash || '#inicio').slice(1);
@@ -295,6 +331,7 @@ function route(){
   if(id === 'quadros') qdInit();
   if(id === 'embaixadores') embInit();
   if(id === 'conta') contaInit();
+  syncTopbar(id);   // depois dos inits: no Início, a data e a saudação acabaram de ser escritas
   requestAnimationFrame(armCharts);
 }
 window.addEventListener('hashchange', route);
