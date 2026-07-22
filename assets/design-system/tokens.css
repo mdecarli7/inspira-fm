@@ -1,0 +1,58 @@
+/* Rádio Inspira FM — Design Tokens (CSS Custom Properties)
+   Marca: Inspira FM 97.7 · "Sintonia que te inspira"
+   Fontes: ID VISUAL + PALETA DE CORES + LOGO (PDFs) + tokens do site.
+   Gerado de design-tokens.json em 2026-07-21. Não editar à mão: mexer no JSON. */
+
+:root {
+  /* ---- Cores principais ---- */
+  --inspira-lime:  #82DD47; /* verde-lima — vitalidade */
+  --inspira-teal:  #005650; /* teal profundo — âncora da marca */
+  --inspira-coral: #F46C42; /* coral — calor/humanidade */
+
+  /* ---- Vibrantes / complementares ---- */
+  --inspira-teal-bright: #00BAA8;
+  --inspira-amber:       #FBB83B;
+  --inspira-purple:      #8965A9;
+
+  /* ---- Neutros ---- */
+  --inspira-paper: #F0F2E4; /* off-white — fundo */
+  --inspira-ink:   #5B5E56; /* cinza-escuro — neutro/texto */
+
+  /* ---- Paleta impressa (CMYK + Pantone Uncoated) ---- */
+  --inspira-print-01: #FAF6E9; /* Pantone P1-9 U */
+  --inspira-print-02: #FCF3DE; /* Pantone P7-1 U */
+  --inspira-print-03: #F0DDBC; /* Pantone P15-1 U */
+  --inspira-print-04: #EF9E67; /* Pantone P27-5 U */
+  --inspira-print-05: #9DD876; /* Pantone P157-6 U */
+  --inspira-print-06: #56AF9E; /* Pantone P127-5 U */
+  --inspira-print-07: #286965; /* Pantone P123-8 U */
+  --inspira-print-08: #005650; /* Pantone P126-8 U */
+
+  /* ---- Semântico (starter light/wellness · ajustar no build) ---- */
+  --color-bg:          var(--inspira-paper);
+  --color-surface:     #FFFFFF;
+  --color-primary:     var(--inspira-teal);
+  --color-on-primary:  #FFFFFF;
+  --color-accent:      var(--inspira-lime);
+  --color-coral:       var(--inspira-coral);
+  --color-text:        #14231F;
+  --color-text-muted:  var(--inspira-ink);
+  --color-border:      #DCE5DC;
+
+  /* ---- Tipografia ----
+     Camada MARCA (oficial ID VISUAL): Kind Sans + Edu QLD.
+     Camada WEB (site atual): Baloo 2 + Nunito Sans (substitutos).
+     --font-display/--font-body apontam pra web = o que de fato renderiza hoje. */
+  --font-brand-display: "Kind Sans", "Baloo 2", system-ui, sans-serif; /* logo/institucional */
+  --font-brand-script:  "Edu QLD", "Segoe Script", cursive;            /* cursiva de apoio */
+  --font-web-display:   "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --font-web-body:      "Nunito Sans", "Segoe UI", system-ui, sans-serif;
+
+  --font-display: var(--font-web-display);
+  --font-body:    var(--font-web-body);
+
+  --fw-regular: 400;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --fw-extrabold: 800;
+}

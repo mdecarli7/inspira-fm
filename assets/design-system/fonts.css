@@ -1,0 +1,47 @@
+/* Rádio Inspira FM — @font-face (camada web implementada)
+   Baloo 2 (display) + Nunito Sans (body). Arquivos woff2 em ./fonts/.
+   Camada MARCA oficial (Kind Sans + Edu QLD) NÃO está aqui: Kind Sans é licença
+   premium (sem arquivo) e Edu QLD vem do Google Fonts. Ver README + design-tokens.json. */
+
+@font-face {
+  font-family: "Baloo 2";
+  src: url("./fonts/baloo2-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Baloo 2";
+  src: url("./fonts/baloo2-800.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Nunito Sans";
+  src: url("./fonts/nunitosans-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Nunito Sans";
+  src: url("./fonts/nunitosans-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Nunito Sans";
+  src: url("./fonts/nunitosans-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Nunito Sans";
+  src: url("./fonts/nunitosans-800.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}

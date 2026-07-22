@@ -1,0 +1,79 @@
+{
+  "$meta": {
+    "name": "Rádio Inspira FM — Design Tokens",
+    "marca": "Inspira FM 97.7",
+    "slogan": "Sintonia que te inspira",
+    "site": "https://inspirafm.com.br/",
+    "instagram": "https://www.instagram.com/inspirafm/",
+    "essencia": "A boa sintonia que te inspira a viver melhor. Bem-estar, saúde, meio ambiente, propósito. Verdade e otimismo, multiplataforma.",
+    "fontes_dados": [
+      "ID VISUAL INSPIRA FM.pdf (22 p.)",
+      "PALETA DE CORES INSPIRA FM.pdf (2 p., RGB/CMYK/Pantone)",
+      "LOGO INSPIRA FM.pdf (6 p., variações)",
+      "tokens implementados no site (index.html)"
+    ],
+    "extraido_em": "2026-07-21",
+    "obs": "Fonte de verdade dos tokens. tokens.css é gerado daqui."
+  },
+  "color": {
+    "principais": {
+      "lime":  { "hex": "#82DD47", "label": "verde-lima — vitalidade/energia" },
+      "teal":  { "hex": "#005650", "label": "teal profundo — credibilidade (âncora da marca)" },
+      "coral": { "hex": "#F46C42", "label": "coral — calor/humanidade" }
+    },
+    "vibrantes": {
+      "teal-bright": { "hex": "#00BAA8", "label": "teal vibrante" },
+      "amber":       { "hex": "#FBB83B", "label": "âmbar" },
+      "purple":      { "hex": "#8965A9", "label": "roxo" }
+    },
+    "neutros": {
+      "paper": { "hex": "#F0F2E4", "label": "off-white — fundo" },
+      "ink":   { "hex": "#5B5E56", "label": "cinza-escuro — texto/neutro" }
+    },
+    "print_pantone": {
+      "$obs": "PALETA DE CORES INSPIRA FM.pdf — versões suaves p/ impresso, com CMYK + Pantone Uncoated.",
+      "01": { "hex": "#FAF6E9", "cmyk": "3 3 11 0",    "pantone": "P1-9 U" },
+      "02": { "hex": "#FCF3DE", "cmyk": "2 5 16 0",    "pantone": "P7-1 U" },
+      "03": { "hex": "#F0DDBC", "cmyk": "7 13 30 0",   "pantone": "P15-1 U" },
+      "04": { "hex": "#EF9E67", "cmyk": "3 46 62 0",   "pantone": "P27-5 U" },
+      "05": { "hex": "#9DD876", "cmyk": "45 0 66 0",   "pantone": "P157-6 U" },
+      "06": { "hex": "#56AF9E", "cmyk": "67 8 44 0",   "pantone": "P127-5 U" },
+      "07": { "hex": "#286965", "cmyk": "82 36 53 27", "pantone": "P123-8 U" },
+      "08": { "hex": "#005650", "cmyk": "89 39 60 40", "pantone": "P126-8 U" }
+    }
+  },
+  "semantic": {
+    "$obs": "Starter light/wellness — fundo paper, teal primário, lima como accent. Ajustar no build.",
+    "bg":        "#F0F2E4",
+    "surface":   "#FFFFFF",
+    "primary":   "#005650",
+    "on-primary":"#FFFFFF",
+    "accent":    "#82DD47",
+    "coral":     "#F46C42",
+    "text":      "#14231F",
+    "text-muted":"#5B5E56",
+    "border":    "#DCE5DC"
+  },
+  "font": {
+    "$obs": "Duas camadas: (1) marca oficial do ID VISUAL; (2) implementação web atual do site. Kind Sans é licença premium — resolver arquivo/licença antes de aplicar na web.",
+    "marca": {
+      "display": { "family": "Kind Sans", "role": "logo (FM/97.7) + textos institucionais", "arquivo": null, "licenca": "premium — pendente" },
+      "script":  { "family": "Edu QLD", "role": "cursiva de apoio (frases/assinaturas)", "fonte": "Google Fonts (Edu AU/QLD Beginner)" }
+    },
+    "web": {
+      "display": { "family": "Baloo 2", "role": "títulos (substitui Kind Sans no site)", "weights": { "bold": 700, "extrabold": 800 } },
+      "body":    { "family": "Nunito Sans", "role": "corpo", "weights": { "regular": 400, "semibold": 600, "bold": 700, "extrabold": 800 } }
+    }
+  },
+  "logo": {
+    "$obs": "HQ oficiais (alta resolução, do gestor) em ./logos/hq/. Versões do site em ./logos/. Original vetorial: LOGO INSPIRA FM.pdf (6 p.) no material de marca.",
+    "variacoes": ["horizontal completa", "fundos claros", "fundos escuros", "monocromática", "quadrada"],
+    "arquivos_hq": [
+      "logos/hq/logo-horizontal-completa.png",
+      "logos/hq/logo-fundos-claros.png",
+      "logos/hq/logo-fundos-escuros.png",
+      "logos/hq/logo-monocromatica.png"
+    ],
+    "arquivos_site": ["logos/logo-horizontal.png", "logos/logo-clara.png", "logos/logo-escura.png", "logos/logo-quadrada.png"]
+  }
+}
