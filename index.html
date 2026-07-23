@@ -474,17 +474,17 @@ tr.hl-inspira td{background:var(--lime-soft);font-weight:700}
 @media(min-width:900px){.duo{grid-template-columns:5fr 7fr}}
 
 /* footer — faixa fina, mesma altura da barra do topo: o app fica entre duas
-   faixas iguais, com o mesmo fundo (Grid Bloom sobre o gradiente teal) */
+   faixas iguais, com o mesmo fundo (Grid Bloom sobre o --paper do miolo) */
 footer{
   position:relative;overflow:hidden;margin-top:0;height:var(--navh);
-  color:var(--muted-inverse);background:var(--teal-950);
+  color:var(--muted);background:var(--paper);
 }
 /* sem logo nem slogan, sobra o crédito — centralizado no espaço que resta */
-footer .wrap{position:relative;height:100%;padding-block:0;display:flex;align-items:center;justify-content:center}
 footer small{
-  font-size:.78rem;color:var(--muted-inverse-2);text-align:center;
+  font-size:.78rem;color:var(--muted);text-align:center;
   overflow:hidden;text-overflow:ellipsis;min-width:0;
 }
+footer .wrap{position:relative;height:100%;padding-block:0;display:flex;align-items:center;justify-content:center}
 @media(max-width:820px){
   footer{height:auto}
   footer .wrap{padding-block:1rem}
@@ -546,8 +546,9 @@ td.sal-nd{color:var(--muted);font-style:italic}
 
 /* ============ Motion / a11y ============ */
 :focus-visible{outline:3px solid var(--dv-orange);outline-offset:2px;border-radius:.3rem}
-/* sobre o chrome escuro o laranja cai pra 3,6:1; o lima claro dá 12,3:1 */
-.topbar :focus-visible,#sidenav :focus-visible,#gate :focus-visible{outline-color:var(--lime-bright)}
+/* sobre o chrome escuro do gate o laranja cai pra 3,6:1; o lima claro dá 12,3:1.
+   Barra e menu agora são claros (--paper) e voltaram pro outline padrão. */
+#gate :focus-visible{outline-color:var(--lime-bright)}
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.001s!important}
   html{scroll-behavior:auto}
@@ -588,10 +589,11 @@ main p,main li,main dd,.hero .hero-sub,.page-hero .sub{hyphenate-limit-chars:6 3
 /* barra, menu e rodapé usam a MESMA tinta chapada e não têm borda entre si:
    qualquer gradiente ancorado em cada painel, ou linha divisória, marcava a
    emenda no canto superior esquerdo. A textura fica por conta do bloom, que
-   atravessa os três (data-link). */
+   atravessa os três (data-link). A tinta é o MESMO --paper do miolo do site
+   (pedido de 23/07): o chrome escuro destoava do conteúdo. */
 .topbar{
   position:fixed;top:0;left:0;right:0;height:var(--navh);z-index:var(--z-topnav);
-  display:flex;align-items:stretch;overflow:hidden;background:var(--teal-950);
+  display:flex;align-items:stretch;overflow:hidden;background:var(--paper);
 }
 .tb-left,.tb-title,.tb-user{position:relative}  /* acima do canvas do bloom */
 /* logo centrada na coluna do menu; o burger sai do fluxo pra não puxá-la */
@@ -606,10 +608,11 @@ main p,main li,main dd,.hero .hero-sub,.page-hero .sub{hyphenate-limit-chars:6 3
 .tb-title{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;padding:0 .1rem 0 .9rem}
 .tb-crumb{
   margin:0;font-size:.72rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;
-  color:var(--orange);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  /* --orange só funciona sobre fundo escuro; sobre --paper entra a tinta validada */
+  color:var(--dv-orange-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .tb-h1{
-  margin:.1rem 0 0;font-size:clamp(1.05rem,2.1vw,1.45rem);font-weight:800;color:var(--on-dark);
+  margin:.1rem 0 0;font-size:clamp(1.05rem,2.1vw,1.45rem);font-weight:800;color:var(--teal-900);
   line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .tb-crumb:empty{display:none}
@@ -621,7 +624,7 @@ main p,main li,main dd,.hero .hero-sub,.page-hero .sub{hyphenate-limit-chars:6 3
   transition:background .15s,transform .15s;
 }
 .tb-chip:hover{background:var(--lime-bright);transform:scale(1.06)}
-.tb-chip[aria-current="page"]{box-shadow:0 0 0 2px var(--teal-950),0 0 0 4px var(--lime-bright)}
+.tb-chip[aria-current="page"]{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--teal-700)}
 @media(max-width:1023px){
   /* sem menu fixo na tela, a coluna da logo não precisa da largura do #sidenav */
   .tb-left{width:auto;border-right:0;padding-right:.2rem}
@@ -639,8 +642,8 @@ main p,main li,main dd,.hero .hero-sub,.page-hero .sub{hyphenate-limit-chars:6 3
 #app>main{flex:1}
 #app[hidden]{display:none}
 .nav-burger{display:flex;flex-direction:column;gap:.32rem;justify-content:center;border:0;background:transparent;cursor:pointer;padding:.6rem .45rem;border-radius:.5rem}
-.nav-burger:hover{background:rgba(255,255,255,.08)}
-.nav-burger span{display:block;width:1.45rem;height:2px;background:#EAF7EC;border-radius:2px;transition:transform .2s,opacity .2s}
+.nav-burger:hover{background:rgba(4,51,46,.07)}
+.nav-burger span{display:block;width:1.45rem;height:2px;background:var(--teal-900);border-radius:2px;transition:transform .2s,opacity .2s}
 body.nav-open .nav-burger span:nth-child(1){transform:translateY(.34rem) rotate(45deg)}
 body.nav-open .nav-burger span:nth-child(2){opacity:0}
 body.nav-open .nav-burger span:nth-child(3){transform:translateY(-.34rem) rotate(-45deg)}
@@ -648,22 +651,22 @@ body.nav-open .nav-burger span:nth-child(3){transform:translateY(-.34rem) rotate
    ao painel (inset:0) em vez de rolar junto com a lista de links */
 #sidenav{
   position:fixed;top:var(--navh);bottom:0;left:0;width:var(--snw);z-index:45;
-  background:var(--teal-950);overflow:hidden;
+  background:var(--paper);overflow:hidden;
   transform:translateX(-103%);transition:transform .22s cubic-bezier(.25,1,.5,1);
 }
 /* a barra de rolagem clara do sistema abria uma faixa branca colada na emenda */
 #sidenav nav{
   position:relative;height:100%;overflow-y:auto;padding:.6rem .7rem 2rem;
-  scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.13) transparent;
+  scrollbar-width:thin;scrollbar-color:rgba(4,51,46,.18) transparent;
 }
 #sidenav nav::-webkit-scrollbar{width:5px}
 #sidenav nav::-webkit-scrollbar-track{background:transparent}
-#sidenav nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.13);border-radius:3px}
-#sidenav nav:hover::-webkit-scrollbar-thumb{background:rgba(255,255,255,.3)}
+#sidenav nav::-webkit-scrollbar-thumb{background:rgba(4,51,46,.18);border-radius:3px}
+#sidenav nav:hover::-webkit-scrollbar-thumb{background:rgba(4,51,46,.35)}
 body.nav-open #sidenav{transform:none}
-#sidenav .sn-cap{margin:1.1rem .6rem .3rem;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--lime)}
-#sidenav a{display:flex;align-items:center;gap:.7rem;color:#DCEFE2;text-decoration:none;font-weight:600;font-size:.95rem;padding:.6rem .7rem;border-radius:.6rem;margin-bottom:.1rem}
-#sidenav a:hover{background:rgba(255,255,255,.09)}
+#sidenav .sn-cap{margin:1.1rem .6rem .3rem;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--teal-700)}
+#sidenav a{display:flex;align-items:center;gap:.7rem;color:var(--muted);text-decoration:none;font-weight:600;font-size:.95rem;padding:.6rem .7rem;border-radius:.6rem;margin-bottom:.1rem}
+#sidenav a:hover{background:rgba(4,51,46,.07)}
 #sidenav a[aria-current="page"]{background:var(--lime);color:var(--teal-950);font-weight:800}
 #sidenav .sn-ic{flex:none;width:1.4rem;text-align:center}
 /* fallback do inert: visibility:hidden tira os 19 links do tab order em qualquer
@@ -911,10 +914,10 @@ ol.hc-list li.hc-empty::before{display:none}
 .btn-sair:hover{border-color:var(--lime)}
 /* botão Sair, no canto direito da barra (o e-mail agora vive na Minha conta) */
 .tb-user button{
-  border:1px solid rgba(255,255,255,.25);background:transparent;color:var(--muted-inverse);
+  border:1px solid var(--line);background:transparent;color:var(--muted);
   border-radius:.55rem;padding:.3rem .7rem;cursor:pointer;font:inherit;font-weight:700;font-size:.8rem;
 }
-.tb-user button:hover{color:var(--on-dark);border-color:var(--on-dark)}
+.tb-user button:hover{color:var(--teal-900);border-color:var(--teal-700)}
 /* página Usuários (admin) */
 .users-wrap .fin-input{max-width:100%}
 .users-table td{vertical-align:middle}
@@ -1161,12 +1164,12 @@ main:focus{outline:none}
        da janela. Os três precisam dos mesmos parâmetros de movimento, senão a
        malha descola na emenda com o tempo. Só a opacidade muda entre eles. -->
   <canvas class="bloom" aria-hidden="true" data-link style="--bloom-o:.5"
-          data-cell="44" data-color="#82DD47" data-speed=".5" data-rotation=".04"
+          data-cell="44" data-color="#005650" data-speed=".5" data-rotation=".04"
           data-fade="40" data-distortion=".6" data-flow-x="-.09" data-flow-y="-.16"
           data-hover-light="5" data-hover-radius="10" data-hover-strength=".3"></canvas>
   <div class="tb-left">
     <button type="button" class="nav-burger" id="navToggle" aria-label="Abrir ou fechar o menu" aria-controls="sidenav" aria-expanded="false"><span></span><span></span><span></span></button>
-    <a class="brand" href="#inicio"><img src="img/logo-clara.png" alt="Inspira FM 97.7 — Início"></a>
+    <a class="brand" href="#inicio"><img src="img/logo-escura.png" alt="Inspira FM 97.7 — Início"></a>
   </div>
   <!-- crumb e título são copiados da .page-hero da view ativa (syncTopbar) -->
   <div class="tb-title">
@@ -1181,7 +1184,7 @@ main:focus{outline:none}
 
 <aside id="sidenav" aria-label="Menu principal">
   <canvas class="bloom" aria-hidden="true" data-link style="--bloom-o:.34"
-          data-cell="44" data-color="#82DD47" data-speed=".5" data-rotation=".04"
+          data-cell="44" data-color="#005650" data-speed=".5" data-rotation=".04"
           data-fade="40" data-distortion=".6" data-flow-x="-.09" data-flow-y="-.16"
           data-hover-light="5" data-hover-radius="10" data-hover-strength=".3"></canvas>
   <nav>
@@ -1457,7 +1460,7 @@ main:focus{outline:none}
           <h3 style="margin:0" id="pgCanalTitulo"></h3>
           <button type="button" class="mini" id="pgEditBtn" data-need="re" hidden>Editar grade</button>
         </div>
-        <div class="tbl-scroll" id="pgTable"><div class="load-note">Carregando…</div></div>
+        <div id="pgTable"><div class="load-note">Carregando…</div></div>
         <div id="pgForm" hidden style="margin-top:1.4rem">
           <div class="pg-grid-head"><span>Dia(s)</span><span>Horário</span><span>Programa</span><span>Sobre o programa</span><span></span></div>
           <div id="pgRows"></div>
@@ -1628,7 +1631,7 @@ main:focus{outline:none}
             <span class="fin-msg" id="clMsg" role="status" aria-live="polite"></span>
           </div>
         </div>
-        <div class="tbl-scroll" id="clTable"><div class="load-note">Carregando colunistas…</div></div>
+        <div id="clTable"><div class="load-note">Carregando colunistas…</div></div>
       </div>
     </div>
   </section>
@@ -2131,7 +2134,7 @@ main:focus{outline:none}
 
 <footer>
   <canvas class="bloom" aria-hidden="true" data-link style="--bloom-o:.45"
-          data-cell="44" data-color="#82DD47" data-speed=".5" data-rotation=".04"
+          data-cell="44" data-color="#005650" data-speed=".5" data-rotation=".04"
           data-fade="40" data-distortion=".6" data-flow-x="-.09" data-flow-y="-.16"
           data-hover-light="5" data-hover-radius="10" data-hover-strength=".3"></canvas>
   <div class="wrap">
