@@ -243,7 +243,7 @@ function enterApp(){
 }
 
 /* =================== router =================== */
-var VIEWS = ['inicio','conta','analise','dial','site','mobradio','processos','campanhas','reestruturacao','organograma','financeiro','usuarios','juridico','programacao','quadros','embaixadores'];
+var VIEWS = ['inicio','conta','analise','dial','site','mobradio','processos','campanhas','planejamento','reestruturacao','organograma','financeiro','usuarios','juridico','programacao','quadros','embaixadores'];
 
 function viewAllowed(id){
   if(id === 'reestruturacao' || id === 'juridico') return canRe();
@@ -329,6 +329,7 @@ function route(){
   if(id === 'juridico') jurInit();
   if(id === 'programacao') progInit();
   if(id === 'quadros') qdInit();
+  if(id === 'planejamento') planInit();
   if(id === 'embaixadores') embInit();
   if(id === 'conta') contaInit();
   syncTopbar(id);   // depois dos inits: no Início, a data e a saudação acabaram de ser escritas
@@ -3186,6 +3187,340 @@ function contaSave(){
   try{ saved = localStorage.getItem(KEY); }catch(e){}
   navSet(isDesktop() ? saved !== '0' : false);
 })();
+
+/* =================== Planejamento (calendário de conteúdo das redes) =================== */
+/* Cada documento de 'planejamento' é UMA pauta; a recorrência mora no próprio doc
+   (tipo: unico | semanal | periodo) e é expandida aqui na renderização — apagar o
+   doc apaga todas as repetições de uma vez, que é o que se espera de um quadro fixo. */
+var plBound = false, plRows = [], PL = null, PL_MES = -1, PL_MODO = 'cal', PL_FILTRO = null;
+var PL_MESES = [
+  { ano: 2026, mes: 7,  nome: 'Agosto' },
+  { ano: 2026, mes: 8,  nome: 'Setembro' },
+  { ano: 2026, mes: 9,  nome: 'Outubro' },
+  { ano: 2026, mes: 10, nome: 'Novembro' },
+  { ano: 2026, mes: 11, nome: 'Dezembro' }
+];
+var PL_REDES = ['Instagram', 'TikTok', 'YouTube', 'Facebook'];
+/* cores só marcam a rede (borda e bolinha) — o texto do chip continua em --ink */
+var PL_CORES = { Instagram: '#B0367B', TikTok: '#14231F', YouTube: '#C0271D', Facebook: '#1B5FAA' };
+var PL_FORMATOS = ['Post estático', 'Carrossel', 'Stories', 'Reels', 'Vídeo', 'Live', 'Cobertura'];
+var PL_FMT_CURTO = { 'Post estático': 'Post' };
+/* ordem de exibição seg→dom; o value é o getDay() do JS (dom=0) */
+var PL_SEMANA = [
+  { v: 1, nome: 'Seg' }, { v: 2, nome: 'Ter' }, { v: 3, nome: 'Qua' }, { v: 4, nome: 'Qui' },
+  { v: 5, nome: 'Sex' }, { v: 6, nome: 'Sáb' }, { v: 0, nome: 'Dom' }
+];
+var PL_MIN = '2026-08-01', PL_MAX = '2026-12-31';
+function canPlan(){ return ME && ['colaborador', 'diretor', 'admin'].indexOf(ME.role) > -1; }
+function plIso(ano, mes, dia){
+  return ano + '-' + String(mes + 1).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
+}
+function plBr(iso){ return iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : ''; }
+function plDiaNome(v){
+  var achou = '';
+  PL_SEMANA.forEach(function(s){ if(s.v === v) achou = s.nome; });
+  return achou;
+}
+/* comparação de datas direto na string: ISO AAAA-MM-DD ordena igual cronologicamente */
+function plNoDia(d, iso, dow){
+  if(d.tipo === 'semanal'){
+    if((d.diasSemana || []).indexOf(dow) < 0) return false;
+    if(d.de && iso < d.de) return false;
+    if(d.ate && iso > d.ate) return false;
+    return true;
+  }
+  if(d.tipo === 'periodo') return !!(d.de && d.ate && iso >= d.de && iso <= d.ate);
+  return d.data === iso;
+}
+function plRecTexto(d){
+  if(d.tipo === 'semanal'){
+    var dias = (d.diasSemana || []).map(plDiaNome).join(', ');
+    return 'Repete toda semana: ' + dias +
+      (d.de || d.ate ? ' (' + (d.de ? 'de ' + plBr(d.de) : '') + (d.ate ? ' até ' + plBr(d.ate) : '') + ')' : '');
+  }
+  if(d.tipo === 'periodo') return 'Todos os dias de ' + plBr(d.de) + ' a ' + plBr(d.ate);
+  return '';
+}
+function planInit(){
+  if(!plBound){
+    plBound = true;
+    /* abas dos meses */
+    var tabs = document.getElementById('plTabs');
+    tabs.innerHTML = PL_MESES.map(function(m, i){
+      return '<button type="button" data-plmes="' + i + '">' + m.nome + '</button>';
+    }).join('');
+    tabs.addEventListener('click', function(ev){
+      var b = ev.target.closest('[data-plmes]'); if(!b) return;
+      plTabSet(Number(b.dataset.plmes));
+    });
+    /* legenda / filtro por rede */
+    var leg = document.getElementById('plLegenda');
+    leg.innerHTML = '<button type="button" data-plfiltro="" class="on">Todas as redes</button>' +
+      PL_REDES.map(function(r){
+        return '<button type="button" data-plfiltro="' + r + '"><i class="pl-dot" style="background:' +
+          PL_CORES[r] + '"></i>' + r + '</button>';
+      }).join('');
+    leg.addEventListener('click', function(ev){
+      var b = ev.target.closest('[data-plfiltro]'); if(!b) return;
+      PL_FILTRO = b.dataset.plfiltro || null;
+      leg.querySelectorAll('button').forEach(function(x){
+        x.classList.toggle('on', (x.dataset.plfiltro || null) === PL_FILTRO);
+      });
+      renderPlan();
+    });
+    /* form */
+    document.getElementById('plFormato').innerHTML = PL_FORMATOS.map(function(f){
+      return '<option>' + escHtml(f) + '</option>';
+    }).join('');
+    document.getElementById('plRedes').innerHTML = PL_REDES.map(function(r){
+      return '<label><input type="checkbox" value="' + r + '"> ' + r + '</label>';
+    }).join('');
+    document.getElementById('plDias').innerHTML = PL_SEMANA.map(function(s){
+      return '<label><input type="checkbox" value="' + s.v + '"> ' + s.nome + '</label>';
+    }).join('');
+    document.querySelectorAll('input[name="plTipo"]').forEach(function(r){
+      r.addEventListener('change', plTipoSync);
+    });
+    document.getElementById('plNovo').addEventListener('click', function(){
+      var m = PL_MESES[PL_MES];
+      plOpen(null, { tipo: 'unico', data: plIso(m.ano, m.mes, 1) });
+    });
+    document.getElementById('plCancelarBtn').addEventListener('click', function(){
+      PL = null;
+      document.getElementById('plForm').hidden = true;
+    });
+    document.getElementById('plSalvar').addEventListener('click', plSave);
+    document.getElementById('plExcluir').addEventListener('click', function(){ plDelete(PL && PL.id); });
+    document.getElementById('plModo').addEventListener('click', function(){
+      PL_MODO = PL_MODO === 'cal' ? 'lista' : 'cal';
+      this.textContent = PL_MODO === 'cal' ? 'Ver como lista' : 'Ver como calendário';
+      renderPlan();
+    });
+    /* um clique serve pros dois modos: editar no chip, excluir no ×, adicionar no + do dia */
+    ['plCal', 'plLista'].forEach(function(hostId){
+      document.getElementById(hostId).addEventListener('click', function(ev){
+        var x = ev.target.closest('[data-pldel]');
+        if(x){ plDelete(x.dataset.pldel); return; }
+        var e = ev.target.closest('[data-pledit]');
+        if(e){
+          var row = null;
+          plRows.forEach(function(r){ if(r.id === e.dataset.pledit) row = r; });
+          if(row) plOpen(row.id, row.d);
+          return;
+        }
+        var a = ev.target.closest('[data-pladd]');
+        if(a && canPlan()) plOpen(null, { tipo: 'unico', data: a.dataset.pladd });
+      });
+    });
+    /* abre no mês corrente quando ele está na faixa (hoje em julho, cai em Agosto) */
+    var hoje = new Date(), mesIni = 0;
+    PL_MESES.forEach(function(m, i){
+      if(m.ano === hoje.getFullYear() && m.mes === hoje.getMonth()) mesIni = i;
+    });
+    plTabSet(mesIni);
+  }
+  document.getElementById('plNovo').hidden = !canPlan();
+  if(!UNSUB.plan){
+    UNSUB.plan = db.collection('planejamento').orderBy('criadoEm').onSnapshot(function(qs){
+      plRows = [];
+      qs.forEach(function(doc){ plRows.push({ id: doc.id, d: doc.data() }); });
+      renderPlan();
+    }, function(){
+      document.getElementById('plCal').innerHTML =
+        '<div class="proj-empty" style="grid-column:1/-1">Não foi possível carregar o planejamento. As regras da coleção <b>planejamento</b> foram publicadas?</div>';
+    });
+  }
+  renderPlan();
+}
+function plTabSet(i){
+  PL_MES = i;
+  document.querySelectorAll('#plTabs [data-plmes]').forEach(function(b){
+    var on = Number(b.dataset.plmes) === i;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  renderPlan();
+}
+function plTipoSync(){
+  var t = (document.querySelector('input[name="plTipo"]:checked') || {}).value || 'unico';
+  document.getElementById('plQdoUnico').hidden = t !== 'unico';
+  document.getElementById('plQdoSemanal').hidden = t !== 'semanal';
+  document.getElementById('plQdoPeriodo').hidden = t !== 'periodo';
+}
+/* ocorrências do mês ativo, já com o filtro de rede aplicado: { dia: [rows] } */
+function plDoMes(){
+  var m = PL_MESES[PL_MES];
+  var nDias = new Date(m.ano, m.mes + 1, 0).getDate();
+  var porDia = {};
+  for(var dia = 1; dia <= nDias; dia++){
+    var iso = plIso(m.ano, m.mes, dia);
+    var dow = new Date(m.ano, m.mes, dia).getDay();
+    var itens = plRows.filter(function(r){
+      if(PL_FILTRO && (r.d.redes || []).indexOf(PL_FILTRO) < 0) return false;
+      return plNoDia(r.d, iso, dow);
+    });
+    if(itens.length){
+      itens.sort(function(a, b){
+        var ha = parseInt(a.d.horario, 10), hb = parseInt(b.d.horario, 10);
+        if(isNaN(ha)) ha = 99; if(isNaN(hb)) hb = 99;
+        return ha - hb || String(a.d.titulo).localeCompare(String(b.d.titulo));
+      });
+      porDia[dia] = itens;
+    }
+  }
+  return porDia;
+}
+function plChip(r){
+  var d = r.d;
+  var cor = PL_CORES[(d.redes || [])[0]] || 'var(--teal-700)';
+  var dots = (d.redes || []).map(function(rede){
+    return '<i class="pl-dot" style="background:' + (PL_CORES[rede] || '#888') + '" title="' + escHtml(rede) + '"></i>';
+  }).join('');
+  var tip = (d.redes || []).join(' + ') + ' · ' + (d.formato || '') +
+    (d.horario ? ' · ' + d.horario : '') + (d.obs ? ' — ' + d.obs : '');
+  return '<div class="pl-chip" style="--rc:' + cor + '">' +
+    '<button type="button" class="pl-chip-main" data-pledit="' + r.id + '" title="' + escHtml(tip) + '">' +
+    dots +
+    '<span class="pl-fmt">' + escHtml(PL_FMT_CURTO[d.formato] || d.formato || '') + '</span>' +
+    (d.horario ? '<span class="pl-hora">' + escHtml(d.horario) + '</span>' : '') +
+    (d.tipo && d.tipo !== 'unico' ? '<span class="pl-rec" title="' + escHtml(plRecTexto(d)) + '">↻</span>' : '') +
+    '<span class="pl-tit">' + escHtml(d.titulo || '') + '</span>' +
+    '</button>' +
+    (canPlan() ? '<button type="button" class="pl-chip-x" data-pldel="' + r.id + '" aria-label="Excluir ' + escHtml(d.titulo || 'publicação') + '">×</button>' : '') +
+    '</div>';
+}
+function renderPlan(){
+  if(PL_MES < 0 || !plBound) return;
+  var m = PL_MESES[PL_MES];
+  var porDia = plDoMes();
+  var total = 0;
+  Object.keys(porDia).forEach(function(k){ total += porDia[k].length; });
+  document.getElementById('plTitulo').textContent = m.nome + ' de ' + m.ano + ' · ' +
+    (total ? total + ' publicaç' + (total > 1 ? 'ões' : 'ão') : 'nada planejado ainda') +
+    (PL_FILTRO ? ' no ' + PL_FILTRO : '');
+  var calWrap = document.getElementById('plCalWrap');
+  var lista = document.getElementById('plLista');
+  calWrap.hidden = PL_MODO !== 'cal';
+  lista.hidden = PL_MODO !== 'lista';
+  var hojeIso = (function(){ var h = new Date(); return plIso(h.getFullYear(), h.getMonth(), h.getDate()); })();
+  var nDias = new Date(m.ano, m.mes + 1, 0).getDate();
+  if(PL_MODO === 'cal'){
+    var html = PL_SEMANA.slice(-1).concat(PL_SEMANA.slice(0, 6)) /* dom primeiro, como no mês impresso */
+      .map(function(s){ return '<div class="pl-dow">' + s.nome + '</div>'; }).join('');
+    var primeiro = new Date(m.ano, m.mes, 1).getDay();
+    for(var v = 0; v < primeiro; v++) html += '<div class="pl-vazio"></div>';
+    for(var dia = 1; dia <= nDias; dia++){
+      var iso = plIso(m.ano, m.mes, dia);
+      var dow = new Date(m.ano, m.mes, dia).getDay();
+      html += '<div class="pl-dia' + (dow === 0 || dow === 6 ? ' fds' : '') + (iso === hojeIso ? ' hoje' : '') + '">' +
+        '<span class="pl-num">' + dia + '</span>' +
+        (porDia[dia] || []).map(plChip).join('') +
+        (canPlan() ? '<button type="button" class="pl-add" data-pladd="' + iso + '" title="Adicionar publicação em ' + plBr(iso) + '" aria-label="Adicionar publicação em ' + plBr(iso) + '">+</button>' : '') +
+        '</div>';
+    }
+    document.getElementById('plCal').innerHTML = html;
+  } else {
+    var dias = Object.keys(porDia).map(Number).sort(function(a, b){ return a - b; });
+    lista.innerHTML = dias.length
+      ? dias.map(function(dia){
+          var iso = plIso(m.ano, m.mes, dia);
+          var dow = new Date(m.ano, m.mes, dia).getDay();
+          return '<div class="pl-l-dia"><div class="pl-l-data">' + plBr(iso) +
+            '<small>' + plDiaNome(dow) + (iso === hojeIso ? ' · hoje' : '') + '</small></div>' +
+            '<div class="pl-l-itens">' + porDia[dia].map(plChip).join('') + '</div></div>';
+        }).join('')
+      : '<div class="proj-empty">Nada planejado em ' + m.nome + (PL_FILTRO ? ' no ' + PL_FILTRO : '') + ' ainda.' +
+        (canPlan() ? ' Clique em <b>+ Nova publicação</b> ou no <b>+</b> de um dia no calendário.' : '') + '</div>';
+  }
+}
+function plOpen(id, d){
+  if(!canPlan()) return;
+  PL = { id: id };
+  document.getElementById('plTituloIn').value = d.titulo || '';
+  document.getElementById('plFormato').value = PL_FORMATOS.indexOf(d.formato) > -1 ? d.formato : PL_FORMATOS[0];
+  document.getElementById('plHora').value = d.horario || '';
+  var redes = d.redes || [];
+  document.querySelectorAll('#plRedes input').forEach(function(i){ i.checked = redes.indexOf(i.value) > -1; });
+  var tipo = d.tipo || 'unico';
+  document.querySelectorAll('input[name="plTipo"]').forEach(function(r){ r.checked = r.value === tipo; });
+  plTipoSync();
+  document.getElementById('plData').value = d.data || '';
+  var diasSem = d.diasSemana || [];
+  document.querySelectorAll('#plDias input').forEach(function(i){ i.checked = diasSem.indexOf(Number(i.value)) > -1; });
+  document.getElementById('plSemDe').value = tipo === 'semanal' ? (d.de || '') : '';
+  document.getElementById('plSemAte').value = tipo === 'semanal' ? (d.ate || '') : '';
+  document.getElementById('plDe').value = tipo === 'periodo' ? (d.de || '') : '';
+  document.getElementById('plAte').value = tipo === 'periodo' ? (d.ate || '') : '';
+  document.getElementById('plObs').value = d.obs || '';
+  document.getElementById('plExcluir').hidden = !id;
+  var f = document.getElementById('plForm');
+  f.hidden = false;
+  f.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  document.getElementById('plTituloIn').focus();
+}
+function plSave(){
+  if(!PL) return;
+  var titulo = document.getElementById('plTituloIn').value.trim();
+  if(!titulo){ flashMsg('plMsg', 'Diga o que vai ser publicado.'); return; }
+  var redes = Array.prototype.slice.call(document.querySelectorAll('#plRedes input:checked')).map(function(i){ return i.value; });
+  if(!redes.length){ flashMsg('plMsg', 'Marque pelo menos uma rede.'); return; }
+  var tipo = (document.querySelector('input[name="plTipo"]:checked') || {}).value || 'unico';
+  var doc = {
+    titulo: titulo,
+    formato: document.getElementById('plFormato').value,
+    horario: document.getElementById('plHora').value.trim(),
+    redes: redes,
+    tipo: tipo,
+    data: '', diasSemana: [], de: '', ate: '',
+    obs: document.getElementById('plObs').value.trim(),
+    atualizadoPor: ME.nome || ME.email,
+    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  if(tipo === 'unico'){
+    doc.data = document.getElementById('plData').value;
+    if(!doc.data){ flashMsg('plMsg', 'Escolha a data da publicação.'); return; }
+    if(doc.data < PL_MIN || doc.data > PL_MAX){ flashMsg('plMsg', 'O calendário vai de agosto a dezembro de 2026.'); return; }
+  }
+  if(tipo === 'semanal'){
+    doc.diasSemana = Array.prototype.slice.call(document.querySelectorAll('#plDias input:checked')).map(function(i){ return Number(i.value); });
+    if(!doc.diasSemana.length){ flashMsg('plMsg', 'Marque em quais dias da semana o quadro se repete.'); return; }
+    doc.de = document.getElementById('plSemDe').value;
+    doc.ate = document.getElementById('plSemAte').value;
+    if(doc.de && doc.ate && doc.de > doc.ate){ flashMsg('plMsg', 'A data de início vem antes da de término.'); return; }
+  }
+  if(tipo === 'periodo'){
+    doc.de = document.getElementById('plDe').value;
+    doc.ate = document.getElementById('plAte').value;
+    if(!doc.de || !doc.ate){ flashMsg('plMsg', 'Preencha o começo e o fim do período.'); return; }
+    if(doc.de > doc.ate){ flashMsg('plMsg', 'A data de início vem antes da de término.'); return; }
+    if(doc.ate < PL_MIN || doc.de > PL_MAX){ flashMsg('plMsg', 'O calendário vai de agosto a dezembro de 2026.'); return; }
+  }
+  var btn = document.getElementById('plSalvar');
+  btnBusy(btn, true);
+  var op = PL.id
+    ? db.collection('planejamento').doc(PL.id).set(doc, { merge: true })
+    : db.collection('planejamento').add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp() }, doc));
+  op.then(function(){
+    PL = null;
+    document.getElementById('plForm').hidden = true;
+  }).catch(function(){ flashMsg('plMsg', 'Sem permissão para salvar.'); })
+    .finally(function(){ btnBusy(btn, false); });
+}
+function plDelete(id){
+  if(!id || !canPlan()) return;
+  var row = null;
+  plRows.forEach(function(r){ if(r.id === id) row = r; });
+  var aviso = row && row.d.tipo && row.d.tipo !== 'unico'
+    ? 'Excluir "' + (row.d.titulo || 'esta publicação') + '"?\nIsso remove TODAS as repetições dela do calendário.'
+    : 'Excluir "' + (row && row.d.titulo || 'esta publicação') + '" do planejamento?';
+  if(!confirm(aviso)) return;
+  db.collection('planejamento').doc(id).delete().then(function(){
+    if(PL && PL.id === id){
+      PL = null;
+      document.getElementById('plForm').hidden = true;
+    }
+  }).catch(function(){ flashMsg('plMsg', 'Sem permissão para excluir.'); });
+}
 
 /* =================== init =================== */
 function initApp(){
