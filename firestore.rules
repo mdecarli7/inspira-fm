@@ -132,6 +132,12 @@ service cloud.firestore {
       allow write: if signedIn() && myRole() in ['diretor', 'admin'];
     }
 
+    // Planejamento de conteúdo das redes (calendário ago–dez/2026) — ferramenta de
+    // trabalho da equipe: todo aprovado lê e edita, igual ao espírito do Brainstorm.
+    match /planejamento/{id} {
+      allow read, write: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+    }
+
     // Destaques da semana (Início) — todos leem; diretoria edita
     match /destaques/{doc} {
       allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
