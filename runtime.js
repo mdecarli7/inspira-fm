@@ -3200,9 +3200,11 @@ var PL_MESES = [
   { ano: 2026, mes: 10, nome: 'Novembro' },
   { ano: 2026, mes: 11, nome: 'Dezembro' }
 ];
-var PL_REDES = ['Instagram', 'TikTok', 'YouTube', 'Facebook'];
+/* Instagram, TikTok e Facebook andam juntos: o conteúdo é replicado igual nos três,
+   então no planejador eles são UMA rede só. YouTube tem conteúdo próprio, fica à parte. */
+var PL_REDES = ['Instagram · TikTok · Facebook', 'YouTube'];
 /* cores só marcam a rede (borda e bolinha) — o texto do chip continua em --ink */
-var PL_CORES = { Instagram: '#B0367B', TikTok: '#14231F', YouTube: '#C0271D', Facebook: '#1B5FAA' };
+var PL_CORES = { 'Instagram · TikTok · Facebook': '#B0367B', 'YouTube': '#C0271D' };
 var PL_FORMATOS = ['Post estático', 'Carrossel', 'Stories', 'Reels', 'Vídeo', 'Live', 'Cobertura'];
 var PL_FMT_CURTO = { 'Post estático': 'Post' };
 /* ordem de exibição seg→dom; o value é o getDay() do JS (dom=0) */
@@ -3211,6 +3213,30 @@ var PL_SEMANA = [
   { v: 5, nome: 'Sex' }, { v: 6, nome: 'Sáb' }, { v: 0, nome: 'Dom' }
 ];
 var PL_MIN = '2026-08-01', PL_MAX = '2026-12-31';
+/* Datas pra ter no radar — objetivas, sem aprofundar. Ficam no código de propósito
+   (mudam pouco); pra ajustar, editar aqui. Aparecem na faixa acima do calendário e
+   marcadas no dia. Julho ficou de fora porque o calendário começa em agosto. */
+var PL_DATAS = {
+  '2026-08-09': ['Dia dos Pais'],
+  '2026-08-12': ['Dia do Evangélico'],
+  '2026-09-07': ['Independência do Brasil'],
+  '2026-09-15': ['Dia do Cliente'],
+  '2026-09-21': ['Dia da Paz'],
+  '2026-09-23': ['Começa a primavera'],
+  '2026-09-25': ['Dia Nacional do Rádio'],
+  '2026-10-10': ['Dia da Saúde Mental'],
+  '2026-10-12': ['Dia das Crianças', 'Nossa Senhora Aparecida'],
+  '2026-10-15': ['Dia do Professor'],
+  '2026-10-31': ['Halloween'],
+  '2026-11-02': ['Finados'],
+  '2026-11-15': ['Proclamação da República'],
+  '2026-11-20': ['Consciência Negra', 'Dia do Refugiado'],
+  '2026-11-26': ['Thanksgiving'],
+  '2026-11-27': ['Black Friday'],
+  '2026-12-08': ['Padroeira de Campinas'],
+  '2026-12-25': ['Natal'],
+  '2026-12-31': ['Ano Novo']
+};
 function canPlan(){ return ME && ['colaborador', 'diretor', 'admin'].indexOf(ME.role) > -1; }
 function plIso(ano, mes, dia){
   return ano + '-' + String(mes + 1).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
@@ -3398,6 +3424,20 @@ function renderPlan(){
   document.getElementById('plTitulo').textContent = m.nome + ' de ' + m.ano + ' · ' +
     (total ? total + ' publicaç' + (total > 1 ? 'ões' : 'ão') : 'nada planejado ainda') +
     (PL_FILTRO ? ' no ' + PL_FILTRO : '');
+  /* faixa "no radar": as datas do mês, sempre visíveis acima do calendário */
+  var ym = plIso(m.ano, m.mes, 1).slice(0, 7);
+  var dest = [];
+  Object.keys(PL_DATAS).sort().forEach(function(isoD){
+    if(isoD.slice(0, 7) !== ym) return;
+    PL_DATAS[isoD].forEach(function(nome){ dest.push({ dia: isoD.slice(8, 10), nome: nome }); });
+  });
+  var destHost = document.getElementById('plDestaques');
+  destHost.hidden = !dest.length;
+  destHost.innerHTML = dest.length
+    ? '<span class="pl-dest-cap">No radar</span>' + dest.map(function(x){
+        return '<span class="pl-dest-item"><b>' + x.dia + '</b>' + escHtml(x.nome) + '</span>';
+      }).join('')
+    : '';
   var calWrap = document.getElementById('plCalWrap');
   var lista = document.getElementById('plLista');
   calWrap.hidden = PL_MODO !== 'cal';
@@ -3414,6 +3454,7 @@ function renderPlan(){
       var dow = new Date(m.ano, m.mes, dia).getDay();
       html += '<div class="pl-dia' + (dow === 0 || dow === 6 ? ' fds' : '') + (iso === hojeIso ? ' hoje' : '') + '">' +
         '<span class="pl-num">' + dia + '</span>' +
+        (PL_DATAS[iso] || []).map(function(n){ return '<span class="pl-data-nome">' + escHtml(n) + '</span>'; }).join('') +
         (porDia[dia] || []).map(plChip).join('') +
         (canPlan() ? '<button type="button" class="pl-add" data-pladd="' + iso + '" title="Adicionar publicação em ' + plBr(iso) + '" aria-label="Adicionar publicação em ' + plBr(iso) + '">+</button>' : '') +
         '</div>';
@@ -3426,7 +3467,9 @@ function renderPlan(){
           var iso = plIso(m.ano, m.mes, dia);
           var dow = new Date(m.ano, m.mes, dia).getDay();
           return '<div class="pl-l-dia"><div class="pl-l-data">' + plBr(iso) +
-            '<small>' + plDiaNome(dow) + (iso === hojeIso ? ' · hoje' : '') + '</small></div>' +
+            '<small>' + plDiaNome(dow) + (iso === hojeIso ? ' · hoje' : '') + '</small>' +
+            (PL_DATAS[iso] || []).map(function(n){ return '<small class="pl-l-evt">' + escHtml(n) + '</small>'; }).join('') +
+            '</div>' +
             '<div class="pl-l-itens">' + porDia[dia].map(plChip).join('') + '</div></div>';
         }).join('')
       : '<div class="proj-empty">Nada planejado em ' + m.nome + (PL_FILTRO ? ' no ' + PL_FILTRO : '') + ' ainda.' +

@@ -770,6 +770,17 @@ ol.hc-list li::before{
 .pl-legenda button:hover{border-color:var(--teal-700);color:var(--teal-900)}
 .pl-legenda button.on{border-color:var(--teal-900);background:var(--teal-900);color:var(--on-dark)}
 .pl-dot{width:.62rem;height:.62rem;border-radius:50%;display:inline-block;flex:none}
+/* destaques do mês: datas pra ter no radar, sempre acima do calendário */
+.pl-destaques{display:flex;gap:.45rem;flex-wrap:wrap;align-items:center;margin:0 0 .9rem}
+.pl-dest-cap{font-size:.78rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-right:.25rem}
+.pl-dest-item{
+  display:inline-flex;align-items:center;gap:.5rem;background:var(--surface);
+  border:1px solid var(--line);border-radius:.55rem;padding:.26rem .75rem .26rem .26rem;
+  font-size:.83rem;font-weight:700;color:var(--ink);
+}
+.pl-dest-item b{background:var(--teal-900);color:var(--on-dark);border-radius:.4rem;padding:.2rem .48rem;font-family:var(--display);font-size:.8rem;line-height:1}
+.pl-data-nome{font-size:.62rem;font-weight:800;color:var(--dv-orange-ink);line-height:1.2;text-transform:uppercase;letter-spacing:.02em}
+.pl-l-evt{display:block;font-weight:800;color:var(--dv-orange-ink);font-size:.7rem;text-transform:uppercase;letter-spacing:.03em}
 .pl-scroll{border:0;background:transparent;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .pl-cal{min-width:56rem;display:grid;grid-template-columns:repeat(7,1fr);gap:.35rem}
 .pl-dow{font-size:.72rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:.15rem .45rem}
@@ -1487,6 +1498,7 @@ main:focus{outline:none}
             <button type="button" class="btn primary" id="plNovo" hidden>+ Nova publicação</button>
           </div>
         </div>
+        <div class="pl-destaques" id="plDestaques" hidden aria-label="Datas do mês para ter no radar"></div>
         <div class="pl-legenda" id="plLegenda" aria-label="Filtrar por rede"></div>
 
         <div id="plForm" hidden style="margin-bottom:1.6rem">
@@ -1595,7 +1607,7 @@ main:focus{outline:none}
       </div>
     </div>
 
-    <div class="section alt" id="clSection" hidden>
+    <div class="section" id="clSection" hidden>
       <div class="wrap">
         <div class="proj-toolbar">
           <h3 style="margin:0">Colunistas do site</h3>
@@ -2139,6 +2151,6 @@ main:focus{outline:none}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="runtime.js?v=07c97959"></script>
+<script src="runtime.js?v=866ca5f4"></script>
 </body>
 </html>
