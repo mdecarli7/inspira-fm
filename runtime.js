@@ -3253,6 +3253,15 @@ function plNoDia(d, iso, dow){
     if((d.diasSemana || []).indexOf(dow) < 0) return false;
     if(d.de && iso < d.de) return false;
     if(d.ate && iso > d.ate) return false;
+    /* quinzenal: só as semanas de paridade PAR contadas a partir do início ('de',
+       que é a primeira ocorrência). Duas quinzenais alternadas = dois docs com
+       'de' defasado em 7 dias (ex.: Giovana 04/08, Mari Julia 11/08). */
+    if(d.cadencia === 'quinzenal'){
+      if(!d.de) return false;
+      var a = iso.split('-'), b = d.de.split('-');
+      var dif = (Date.UTC(a[0], a[1] - 1, a[2]) - Date.UTC(b[0], b[1] - 1, b[2])) / 864e5;
+      if(Math.floor(dif / 7) % 2 !== 0) return false;
+    }
     return true;
   }
   if(d.tipo === 'periodo') return !!(d.de && d.ate && iso >= d.de && iso <= d.ate);
@@ -3261,7 +3270,7 @@ function plNoDia(d, iso, dow){
 function plRecTexto(d){
   if(d.tipo === 'semanal'){
     var dias = (d.diasSemana || []).map(plDiaNome).join(', ');
-    return 'Repete toda semana: ' + dias +
+    return (d.cadencia === 'quinzenal' ? 'Repete a cada duas semanas: ' : 'Repete toda semana: ') + dias +
       (d.de || d.ate ? ' (' + (d.de ? 'de ' + plBr(d.de) : '') + (d.ate ? ' até ' + plBr(d.ate) : '') + ')' : '');
   }
   if(d.tipo === 'periodo') return 'Todos os dias de ' + plBr(d.de) + ' a ' + plBr(d.ate);
@@ -3490,6 +3499,7 @@ function plOpen(id, d){
   document.getElementById('plData').value = d.data || '';
   var diasSem = d.diasSemana || [];
   document.querySelectorAll('#plDias input').forEach(function(i){ i.checked = diasSem.indexOf(Number(i.value)) > -1; });
+  document.getElementById('plQuinz').checked = d.cadencia === 'quinzenal';
   document.getElementById('plSemDe').value = tipo === 'semanal' ? (d.de || '') : '';
   document.getElementById('plSemAte').value = tipo === 'semanal' ? (d.ate || '') : '';
   document.getElementById('plDe').value = tipo === 'periodo' ? (d.de || '') : '';
@@ -3527,8 +3537,10 @@ function plSave(){
   if(tipo === 'semanal'){
     doc.diasSemana = Array.prototype.slice.call(document.querySelectorAll('#plDias input:checked')).map(function(i){ return Number(i.value); });
     if(!doc.diasSemana.length){ flashMsg('plMsg', 'Marque em quais dias da semana o quadro se repete.'); return; }
+    doc.cadencia = document.getElementById('plQuinz').checked ? 'quinzenal' : 'semanal';
     doc.de = document.getElementById('plSemDe').value;
     doc.ate = document.getElementById('plSemAte').value;
+    if(doc.cadencia === 'quinzenal' && !doc.de){ flashMsg('plMsg', 'Quinzenal precisa da data da primeira ocorrência em "Começa em".'); return; }
     if(doc.de && doc.ate && doc.de > doc.ate){ flashMsg('plMsg', 'A data de início vem antes da de término.'); return; }
   }
   if(tipo === 'periodo'){

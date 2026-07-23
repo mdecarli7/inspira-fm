@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Seed — Quadros do Planejamento · Inspira FM</title>
+<!-- Grava os quadros fixos definidos em 23/07/2026 na coleção 'planejamento'.
+     Uso único (idempotente: rodar de novo só sobrescreve os mesmos docs).
+     Servir em localhost (npx serve scripts), entrar com Google e clicar. -->
+<style>
+  body{font-family:system-ui,sans-serif;background:#FBFCF9;color:#14231F;max-width:46rem;margin:2rem auto;padding:0 1rem}
+  h1{font-size:1.3rem;color:#06443C}
+  button{font:inherit;font-weight:700;padding:.6rem 1.2rem;border-radius:.6rem;border:1px solid #DCE5DC;background:#06443C;color:#fff;cursor:pointer}
+  button[disabled]{opacity:.5;cursor:default}
+  ul{line-height:1.6}
+  #log{white-space:pre-wrap;background:#fff;border:1px solid #DCE5DC;border-radius:.6rem;padding:1rem;margin-top:1rem;font-size:.9rem}
+</style>
+</head>
+<body>
+<h1>Seed — quadros fixos do Planejamento</h1>
+<p>Grava na coleção <b>planejamento</b> os 7 documentos abaixo (6 quadros; as Dicas de
+especialistas viram 2 docs quinzenais alternados). Rodar de novo não duplica — só
+regrava os mesmos documentos.</p>
+<ul>
+  <li>Inspira News com Wendy — Reels — seg, qua e sex</li>
+  <li>Dicas de especialistas — Giovana Fernandes (nutricionista) — Reels — terças quinzenais desde 04/08</li>
+  <li>Dicas de especialistas — Mari Julia (psicóloga) — Reels — terças quinzenais desde 11/08</li>
+  <li>Histórias da música com Raul Ruffo — Reels — quinta</li>
+  <li>Resumo da semana — Carrossel informativo — sexta</li>
+  <li>Histórias que inspiram com Rafaela — Reels — sábado</li>
+  <li>Agenda da semana — Carrossel informativo — domingo</li>
+</ul>
+<p><button id="btnLogin">1 · Entrar com Google</button>
+   <button id="btnSeed" disabled>2 · Gravar quadros</button></p>
+<div id="log">Aguardando login…</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyArw45z7IbzziWHhWpd25N3R8NA84pu890",
+  authDomain: "inspira-fm-c2a06.firebaseapp.com",
+  projectId: "inspira-fm-c2a06",
+  storageBucket: "inspira-fm-c2a06.firebasestorage.app",
+  messagingSenderId: "946317890768",
+  appId: "1:946317890768:web:c03e8e317748da79e43ad5"
+});
+var auth = firebase.auth(), db = firebase.firestore();
+var logEl = document.getElementById('log');
+function log(t){ logEl.textContent += '\n' + t; }
+
+var REDE = 'Instagram · TikTok · Facebook';
+function base(extra){
+  return Object.assign({
+    horario: '', redes: [REDE], tipo: 'semanal', cadencia: 'semanal',
+    data: '', de: '', ate: '', obs: '',
+    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+    criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  }, extra);
+}
+var QUADROS = [
+  { id: 'quadro-inspira-news', doc: base({
+      titulo: 'Inspira News com Wendy', formato: 'Reels', diasSemana: [1, 3, 5],
+      obs: 'Quadro fixo de notícias — toda segunda, quarta e sexta.' }) },
+  { id: 'quadro-dicas-giovana', doc: base({
+      titulo: 'Dicas de especialistas — Giovana Fernandes (nutricionista)', formato: 'Reels',
+      diasSemana: [2], cadencia: 'quinzenal', de: '2026-08-04',
+      obs: 'Alterna as terças com a Mari Julia (psicóloga).' }) },
+  { id: 'quadro-dicas-mari-julia', doc: base({
+      titulo: 'Dicas de especialistas — Mari Julia (psicóloga)', formato: 'Reels',
+      diasSemana: [2], cadencia: 'quinzenal', de: '2026-08-11',
+      obs: 'Alterna as terças com a Giovana Fernandes (nutricionista).' }) },
+  { id: 'quadro-historias-da-musica', doc: base({
+      titulo: 'Histórias da música com Raul Ruffo', formato: 'Reels', diasSemana: [4] }) },
+  { id: 'quadro-resumo-da-semana', doc: base({
+      titulo: 'Resumo da semana', formato: 'Carrossel', diasSemana: [5],
+      obs: 'Informativo — retrospectiva do que aconteceu na semana.' }) },
+  { id: 'quadro-historias-que-inspiram', doc: base({
+      titulo: 'Histórias que inspiram com Rafaela', formato: 'Reels', diasSemana: [6] }) },
+  { id: 'quadro-agenda-da-semana', doc: base({
+      titulo: 'Agenda da semana', formato: 'Carrossel', diasSemana: [0],
+      obs: 'Informativo — agenda da semana que está começando.' }) }
+];
+
+document.getElementById('btnLogin').addEventListener('click', function(){
+  auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function(e){ log('Erro no login: ' + e.message); });
+});
+auth.onAuthStateChanged(function(u){
+  if(!u) return;
+  log('Logado como ' + u.email + '. Pode gravar.');
+  document.getElementById('btnSeed').disabled = false;
+});
+document.getElementById('btnSeed').addEventListener('click', function(){
+  var me = auth.currentUser;
+  if(!me) return;
+  var btn = this;
+  btn.disabled = true;
+  var lote = db.batch();
+  QUADROS.forEach(function(q){
+    lote.set(db.collection('planejamento').doc(q.id),
+      Object.assign({ atualizadoPor: me.displayName || me.email }, q.doc), { merge: true });
+  });
+  lote.commit().then(function(){
+    log('✔ ' + QUADROS.length + ' documentos gravados. Abra o site em Conteúdo → Planejamento e confira agosto.');
+  }).catch(function(e){
+    btn.disabled = false;
+    log('✘ Falhou: ' + e.message + '\nSe for permissão, a regra da coleção planejamento ainda não está publicada no Console.');
+  });
+});
+</script>
+</body>
+</html>
