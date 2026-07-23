@@ -143,6 +143,9 @@ a{color:var(--teal-700)}
 @keyframes shake{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
 
 /* ============ Grid Bloom (fundo WebGL — bloom.js) ============
+   SEM USO no momento (23/07): os canvases e o <script> do bloom.js foram
+   retirados a pedido. O CSS fica aqui pra facilitar o retorno — basta devolver
+   os <canvas class="bloom"> e o <script src="bloom.js"> no fim do body.
    O canvas entra transparente e só aparece quando o contexto WebGL sobe
    (bloom.js marca .bloom-on). Sem WebGL fica o gradiente do container. */
 .bloom{
@@ -474,7 +477,7 @@ tr.hl-inspira td{background:var(--lime-soft);font-weight:700}
 @media(min-width:900px){.duo{grid-template-columns:5fr 7fr}}
 
 /* footer — faixa fina, mesma altura da barra do topo: o app fica entre duas
-   faixas iguais, com o mesmo fundo (Grid Bloom sobre o --paper do miolo) */
+   faixas iguais, com o mesmo fundo --paper do miolo */
 footer{
   position:relative;overflow:hidden;margin-top:0;height:var(--navh);
   color:var(--muted);background:var(--paper);
@@ -588,9 +591,10 @@ main p,main li,main dd,.hero .hero-sub,.page-hero .sub{hyphenate-limit-chars:6 3
    #sidenav) · título da página · conta. */
 /* barra, menu e rodapé usam a MESMA tinta chapada e não têm borda entre si:
    qualquer gradiente ancorado em cada painel, ou linha divisória, marcava a
-   emenda no canto superior esquerdo. A textura fica por conta do bloom, que
-   atravessa os três (data-link). A tinta é o MESMO --paper do miolo do site
-   (pedido de 23/07): o chrome escuro destoava do conteúdo. */
+   emenda no canto superior esquerdo. A tinta é o MESMO --paper do miolo do
+   site (pedido de 23/07): o chrome escuro destoava do conteúdo. O Grid Bloom
+   foi retirado dos painéis em 23/07 (bloom.js e o CSS .bloom ficam no repo
+   pra quando voltar). */
 .topbar{
   position:fixed;top:0;left:0;right:0;height:var(--navh);z-index:var(--z-topnav);
   display:flex;align-items:stretch;overflow:hidden;background:var(--paper);
@@ -1100,10 +1104,6 @@ main:focus{outline:none}
 
 <!-- ======================= LOGIN ======================= -->
 <div id="gate">
-  <canvas class="bloom" aria-hidden="true" style="--bloom-o:.55"
-          data-cell="44" data-color="#82DD47" data-speed=".7" data-rotation=".1"
-          data-fade="13" data-distortion=".6" data-flow-x="-.12" data-flow-y="-.24"
-          data-hover-light="5" data-hover-radius="10" data-hover-strength=".5"></canvas>
   <div class="gate-card">
     <img src="img/logo-clara.png" alt="Inspira FM 97.7" width="320" height="135" style="width:min(300px,72%);height:auto">
     <p class="tagline">Faz bem ouvir</p>
@@ -1160,13 +1160,6 @@ main:focus{outline:none}
 <button type="button" class="skip" id="skipLink">Pular para o conteúdo</button>
 
 <header class="topbar">
-  <!-- data-link: barra, menu e rodapé desenham a MESMA malha, ancorada no centro
-       da janela. Os três precisam dos mesmos parâmetros de movimento, senão a
-       malha descola na emenda com o tempo. Só a opacidade muda entre eles. -->
-  <canvas class="bloom" aria-hidden="true" data-link style="--bloom-o:.5"
-          data-cell="44" data-color="#005650" data-speed=".5" data-rotation=".04"
-          data-fade="40" data-distortion=".6" data-flow-x="-.09" data-flow-y="-.16"
-          data-hover-light="5" data-hover-radius="10" data-hover-strength=".3"></canvas>
   <div class="tb-left">
     <button type="button" class="nav-burger" id="navToggle" aria-label="Abrir ou fechar o menu" aria-controls="sidenav" aria-expanded="false"><span></span><span></span><span></span></button>
     <a class="brand" href="#inicio"><img src="img/logo-escura.png" alt="Inspira FM 97.7 — Início"></a>
@@ -1183,10 +1176,6 @@ main:focus{outline:none}
 </header>
 
 <aside id="sidenav" aria-label="Menu principal">
-  <canvas class="bloom" aria-hidden="true" data-link style="--bloom-o:.34"
-          data-cell="44" data-color="#005650" data-speed=".5" data-rotation=".04"
-          data-fade="40" data-distortion=".6" data-flow-x="-.09" data-flow-y="-.16"
-          data-hover-light="5" data-hover-radius="10" data-hover-strength=".3"></canvas>
   <nav>
     <a href="#inicio" data-nav="inicio"><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22v-9h6v9"/></svg></span><span>Início</span></a>
     <p class="sn-cap">Análises</p>
@@ -2133,10 +2122,6 @@ main:focus{outline:none}
 </main>
 
 <footer>
-  <canvas class="bloom" aria-hidden="true" data-link style="--bloom-o:.45"
-          data-cell="44" data-color="#005650" data-speed=".5" data-rotation=".04"
-          data-fade="40" data-distortion=".6" data-flow-x="-.09" data-flow-y="-.16"
-          data-hover-light="5" data-hover-radius="10" data-hover-strength=".3"></canvas>
   <div class="wrap">
     <small>A primeira rádio wellness do Brasil · inspirafm.com.br · @inspirafm · Relatórios internos</small>
   </div>
@@ -2154,7 +2139,6 @@ main:focus{outline:none}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="bloom.js?v=3" defer></script>
 <script src="runtime.js?v=07c97959"></script>
 </body>
 </html>
