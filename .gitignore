@@ -9,7 +9,7 @@ seed.html
 inspira-conteudo-backup*.json
 
 # estratégia comercial (tabela de preços) — repo é público via GitHub Pages:
-docs/plano-comercial-redes-sociais.md
+docs/plano-comercial-redes-sociais.*
 
 # pipeline de migração aposentado (não roda: o HTML-fonte não existe mais)
 site-src/
