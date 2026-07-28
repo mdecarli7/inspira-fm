@@ -763,6 +763,40 @@ ol.hc-list li::before{
 .qd-sub h4{margin:0;font-size:1rem;color:var(--teal-900)}
 .qd-sub small{color:var(--muted);font-weight:700}
 .qd-sub::after{content:"";flex:1;height:1px;background:var(--line)}
+/* ============ Impressão / PDF do Planejamento (lista) ============
+   Documento próprio (#plPrint), escondido na tela. plImprimir() o preenche e
+   liga body.pl-printing; aí o print esconde o #app e mostra só esta lista.
+   Cores em hex fixo: papel branco, tinta escura, independente de tema. */
+.pl-print{display:none}
+@media print{
+  body.pl-printing #app,
+  body.pl-printing #tip,
+  body.pl-printing #navBackdrop{display:none!important}
+  body.pl-printing .pl-print{display:block}
+  body.pl-printing{background:#fff}
+  @page{margin:1.4cm}
+}
+.pl-print{font-family:var(--body);color:#14231F;line-height:1.42}
+.pp-head{margin-bottom:1.1rem;border-bottom:2px solid #04332E;padding-bottom:.5rem}
+.pp-head h1{font-family:var(--display);font-size:1.65rem;margin:0;color:#04332E}
+.pp-sub{margin:.25rem 0 0;font-weight:700;color:#0A5B47;font-size:.95rem}
+.pp-meta{margin:.15rem 0 0;font-size:.78rem;color:#3E5049}
+.pp-month{margin-top:1rem}
+.pp-month-h{
+  font-family:var(--display);font-size:1.15rem;color:#04332E;margin:0 0 .25rem;
+  border-bottom:1px solid #DCE5DC;padding-bottom:.15rem;break-after:avoid;
+}
+.pp-month-h span{font-family:var(--body);font-weight:600;font-size:.82rem;color:#3E5049;margin-left:.3rem}
+.pp-radar{margin:.15rem 0 .5rem;font-size:.8rem;color:#3E5049}
+.pp-empty{font-style:italic;color:#3E5049;margin:.25rem 0 .6rem}
+.pp-day{break-inside:avoid;margin:.35rem 0}
+.pp-date{font-weight:800;color:#0A5B47;font-size:.9rem}
+.pp-items{list-style:none;margin:.1rem 0 0;padding:0 0 0 .8rem}
+.pp-items li{padding:.14rem 0;font-size:.88rem;border-bottom:1px dotted #DCE5DC}
+.pp-it-meta{color:#3E5049}
+.pp-fixo{color:#0A5B47;font-weight:700}
+.pp-obs{display:block;font-size:.78rem;color:#5A6B63;padding-left:.7rem}
+
 /* ============ Planejamento (calendário de redes) ============ */
 .pl-legenda{display:flex;gap:.45rem;flex-wrap:wrap;align-items:center;margin:0 0 1rem}
 .pl-legenda button{
@@ -1497,6 +1531,7 @@ main:focus{outline:none}
         <div class="proj-toolbar">
           <h3 style="margin:0" id="plTitulo"></h3>
           <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+            <button type="button" class="mini" id="plImprimir" title="Gerar uma lista de todo o planejamento para imprimir ou salvar em PDF"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg> Imprimir / PDF</button>
             <button type="button" class="mini" id="plModo">Ver como lista</button>
             <button type="button" class="btn primary" id="plNovo" hidden>+ Nova publicação</button>
           </div>
@@ -2147,6 +2182,10 @@ main:focus{outline:none}
 
 </div><!-- /app -->
 
+<!-- documento de impressão do Planejamento (fica fora do #app pra sobreviver
+     quando o #app é escondido no print). Preenchido por plImprimir(). -->
+<div id="plPrint" class="pl-print" aria-hidden="true"></div>
+
 <div id="tip" role="tooltip"></div>
 <div id="srLive" class="sr-only" role="status" aria-live="polite"></div>
 <div id="lightbox" role="dialog" aria-modal="true" aria-label="Foto ampliada" hidden>
@@ -2157,6 +2196,6 @@ main:focus{outline:none}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="runtime.js?v=76a75233"></script>
+<script src="runtime.js?v=f39f93e5"></script>
 </body>
 </html>

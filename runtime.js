@@ -3331,6 +3331,9 @@ function planInit(){
       this.textContent = PL_MODO === 'cal' ? 'Ver como lista' : 'Ver como calendário';
       renderPlan();
     });
+    document.getElementById('plImprimir').addEventListener('click', plImprimir);
+    /* solta o modo de impressão quando a caixa de diálogo fecha (imprimir ou cancelar) */
+    window.addEventListener('afterprint', function(){ document.body.classList.remove('pl-printing'); });
     /* um clique serve pros dois modos: editar no chip, excluir no ×, adicionar no + do dia */
     ['plCal', 'plLista'].forEach(function(hostId){
       document.getElementById(hostId).addEventListener('click', function(ev){
@@ -3382,9 +3385,11 @@ function plTipoSync(){
   document.getElementById('plQdoSemanal').hidden = t !== 'semanal';
   document.getElementById('plQdoPeriodo').hidden = t !== 'periodo';
 }
-/* ocorrências do mês ativo, já com o filtro de rede aplicado: { dia: [rows] } */
-function plDoMes(){
-  var m = PL_MESES[PL_MES];
+/* ocorrências de um mês (índice em PL_MESES), com o filtro de rede aplicado:
+   { dia: [rows] }. plDoMes() = o mês ativo; plImprimir percorre todos. */
+function plDoMes(){ return plMesPorDia(PL_MES); }
+function plMesPorDia(idx){
+  var m = PL_MESES[idx];
   var nDias = new Date(m.ano, m.mes + 1, 0).getDate();
   var porDia = {};
   for(var dia = 1; dia <= nDias; dia++){
@@ -3484,6 +3489,63 @@ function renderPlan(){
       : '<div class="proj-empty">Nada planejado em ' + m.nome + (PL_FILTRO ? ' no ' + PL_FILTRO : '') + ' ainda.' +
         (canPlan() ? ' Clique em <b>+ Nova publicação</b> ou no <b>+</b> de um dia no calendário.' : '') + '</div>';
   }
+}
+/* Exporta o planejamento inteiro (agosto a dezembro) como lista para impressão
+   ou PDF (via "Salvar como PDF" na caixa de impressão do navegador). Respeita o
+   filtro de rede ativo. Não depende de canPlan(): quem vê, pode imprimir. */
+function plImprimir(){
+  var host = document.getElementById('plPrint');
+  if(!host) return;
+  var dd = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+  var out = ['<div class="pp-doc"><div class="pp-head">' +
+    '<h1>Planejamento de conteúdo</h1>' +
+    '<p class="pp-sub">Inspira FM 97.7 · redes sociais · agosto a dezembro de 2026' +
+    (PL_FILTRO ? ' · ' + escHtml(PL_FILTRO) : '') + '</p>' +
+    '<p class="pp-meta">Gerado em ' + escHtml(dd) + '</p></div>'];
+  PL_MESES.forEach(function(m, i){
+    var porDia = plMesPorDia(i);
+    var dias = Object.keys(porDia).map(Number).sort(function(a, b){ return a - b; });
+    var total = 0;
+    dias.forEach(function(dia){ total += porDia[dia].length; });
+    out.push('<section class="pp-month"><h2 class="pp-month-h">' + m.nome + ' de ' + m.ano +
+      '<span>' + (total ? total + ' publicaç' + (total > 1 ? 'ões' : 'ão') : 'nada planejado') + '</span></h2>');
+    /* datas "no radar" do mês */
+    var ym = plIso(m.ano, m.mes, 1).slice(0, 7);
+    var dest = [];
+    Object.keys(PL_DATAS).sort().forEach(function(isoD){
+      if(isoD.slice(0, 7) !== ym) return;
+      PL_DATAS[isoD].forEach(function(nome){ dest.push(isoD.slice(8, 10) + ' ' + nome); });
+    });
+    if(dest.length) out.push('<p class="pp-radar"><b>No radar:</b> ' + dest.map(escHtml).join(' · ') + '</p>');
+    if(!dias.length){
+      out.push('<p class="pp-empty">Nada planejado neste mês' +
+        (PL_FILTRO ? ' no ' + escHtml(PL_FILTRO) : '') + '.</p></section>');
+      return;
+    }
+    dias.forEach(function(dia){
+      var iso = plIso(m.ano, m.mes, dia);
+      var dow = new Date(m.ano, m.mes, dia).getDay();
+      var ev = PL_DATAS[iso] || [];
+      out.push('<div class="pp-day"><div class="pp-date"><b>' + plBr(iso) + '</b> ' + plDiaNome(dow) +
+        (ev.length ? ' — ' + ev.map(escHtml).join(', ') : '') + '</div><ul class="pp-items">');
+      porDia[dia].forEach(function(r){
+        var d = r.d;
+        var meta = [d.horario, d.formato, (d.redes || []).join(' + ')].filter(Boolean).map(escHtml).join(' · ');
+        out.push('<li>' +
+          (d.tipo && d.tipo !== 'unico' ? '<span class="pp-fixo" title="quadro fixo">↻</span> ' : '') +
+          '<b>' + escHtml(d.titulo || '') + '</b>' +
+          (meta ? ' — <span class="pp-it-meta">' + meta + '</span>' : '') +
+          (d.obs ? '<span class="pp-obs">' + escHtml(d.obs) + '</span>' : '') +
+          '</li>');
+      });
+      out.push('</ul></div>');
+    });
+    out.push('</section>');
+  });
+  out.push('</div>');
+  host.innerHTML = out.join('');
+  document.body.classList.add('pl-printing');
+  window.print();
 }
 function plOpen(id, d){
   if(!canPlan()) return;
