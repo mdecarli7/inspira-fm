@@ -630,8 +630,11 @@ main p,main li,main dd,.hero .hero-sub,.page-hero .sub{hyphenate-limit-chars:6 3
 .tb-chip:hover{background:var(--lime-bright);transform:scale(1.06)}
 .tb-chip[aria-current="page"]{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--teal-700)}
 @media(max-width:1023px){
-  /* sem menu fixo na tela, a coluna da logo não precisa da largura do #sidenav */
-  .tb-left{width:auto;border-right:0;padding-right:.2rem}
+  /* sem menu fixo na tela, a coluna da logo não precisa da largura do #sidenav.
+     O burger volta ao fluxo (à esquerda da logo): com width:auto a coluna
+     encolhe até a logo e o burger absoluto ficava por cima dela. */
+  .tb-left{width:auto;border-right:0;justify-content:flex-start;gap:.15rem;padding:0 .2rem 0 .35rem}
+  .tb-left .nav-burger{position:static;transform:none}
   .tb-left .brand img{height:2.1rem}
   .tb-title{padding:0 .8rem}
 }
