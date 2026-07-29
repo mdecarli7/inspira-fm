@@ -232,7 +232,9 @@ document.getElementById('setorSalvar').addEventListener('click', function(){
 });
 
 function canRe(){ return ME && (ME.role === 'diretor' || ME.role === 'admin'); }
-function canFin(){ return ME && (ME.role === 'admin' || ME.verFinanceiro === true); }
+/* desde 29/07/2026 a página Equipe é da diretoria inteira (além da flag Balanço) —
+   espelha o canFin() do firestore.rules */
+function canFin(){ return ME && (ME.role === 'admin' || ME.role === 'diretor' || ME.verFinanceiro === true); }
 function isAdmin(){ return ME && ME.role === 'admin'; }
 /* tabela única de gates: enterApp() e viewAllowed() leem daqui; módulos novos
    (js/*.js) acrescentam a própria chave sem tocar neste arquivo */
@@ -294,9 +296,12 @@ function enterApp(){
 var VIEWS = ['inicio','conta','analise','dial','site','mobradio','processos','campanhas','planejamento','reestruturacao','organograma','financeiro','usuarios','juridico','programacao','quadros','embaixadores'];
 
 function viewAllowed(id){
-  if(id === 'reestruturacao' || id === 'juridico') return canRe();
-  if(id === 'financeiro') return canFin();
-  if(id === 'usuarios') return isAdmin();
+  /* o gate de cada view legada é o data-need do próprio link no menu — fonte
+     única (era hardcoded por id aqui; virou atributo quando o menu ganhou a
+     visão por setor em 29/07/2026). Link sem data-need = view aberta. */
+  var a = document.querySelector('#sidenav a[data-nav="' + id + '"]');
+  var need = a && a.getAttribute('data-need');
+  if(need) return GATES[need] ? !!GATES[need]() : false;
   var m = moduloDe(id);
   if(m && m.extensaoDe) return false;   // extensão não é view navegável
   if(m && m.need) return GATES[m.need] ? !!GATES[m.need]() : false;
@@ -798,22 +803,25 @@ function initFin(){
 }
 /* o financeiro agora abre direto para quem tem permissão (regras no servidor) */
 
-/* =================== Usuários (admin) =================== */
+/* =================== Usuários (diretoria) =================== */
 function buildUsers(){
-  if(!isAdmin()) return;
+  if(!canRe()) return; // diretoria gerencia acessos; rules limitam o que diretor pode
   var host = document.getElementById('usersTable');
   if(UNSUB.users) return; // já ligado (onSnapshot mantém atualizado)
   UNSUB.users = db.collection('users').onSnapshot(function(qs){
     var rows = [];
     qs.forEach(function(doc){ rows.push({ id: doc.id, d: doc.data() }); });
     rows.sort(function(a,b){ return (a.d.email||'').localeCompare(b.d.email||''); });
-    host.innerHTML = '<table class="users-table"><thead><tr><th scope="col">E-mail</th><th scope="col">Nome</th><th scope="col">Setor</th><th scope="col">Nível</th><th scope="col">Balanço</th><th scope="col">Nível atual</th><th scope="col"></th></tr></thead><tbody>' +
+    host.innerHTML = '<table class="users-table"><thead><tr><th scope="col">E-mail</th><th scope="col">Nome</th><th scope="col">Setor</th><th scope="col">Nível</th><th scope="col">Balanço</th><th scope="col">Comercial</th><th scope="col">Nível atual</th><th scope="col"></th></tr></thead><tbody>' +
       rows.map(function(r){
         var d = r.d;
-        var roleOpts = ['pendente','colaborador','diretor','admin'].map(function(x){
+        /* diretor não promove ninguém a admin (rules negam; a opção nem aparece) */
+        var papeis = isAdmin() ? ['pendente','colaborador','diretor','admin'] : ['pendente','colaborador','diretor'];
+        var roleOpts = papeis.map(function(x){
           return '<option value="' + x + '"' + (d.role === x ? ' selected' : '') + '>' + x.charAt(0).toUpperCase() + x.slice(1) + '</option>';
         }).join('');
-        var lock = d.email === ADMIN_EMAIL;
+        /* conta admin só o próprio admin mexe */
+        var lock = d.email === ADMIN_EMAIL || (!isAdmin() && d.role === 'admin');
         return '<tr data-uid="' + r.id + '">' +
           '<td>' + escHtml(d.email || '') + (lock ? ' ' + ic('chave') : '') + '</td>' +
           '<td>' + escHtml(d.nome || '—') + '</td>' +
@@ -823,6 +831,7 @@ function buildUsers(){
             }).join('') + '</select></td>' +
           '<td><select class="fin-input u-role"' + (lock ? ' disabled' : '') + '>' + roleOpts + '</select></td>' +
           '<td style="text-align:center"><input type="checkbox" class="u-fin"' + (d.verFinanceiro ? ' checked' : '') + (lock ? ' disabled' : '') + '></td>' +
+          '<td style="text-align:center"><input type="checkbox" class="u-com"' + (d.verComercial ? ' checked' : '') + (lock ? ' disabled' : '') + '></td>' +
           '<td><span class="pill role-' + (d.role || 'pendente') + '">' + (d.role || 'pendente').toUpperCase() + '</span></td>' +
           '<td>' + (lock ? '' : '<button type="button" class="mini u-save">Salvar</button>') + '</td></tr>';
       }).join('') + '</tbody></table>';
@@ -841,7 +850,8 @@ function buildUsers(){
     db.collection('users').doc(uid).update({
       setor: tr.querySelector('.u-setor').value.trim(),
       role: novoPapel,
-      verFinanceiro: tr.querySelector('.u-fin').checked
+      verFinanceiro: tr.querySelector('.u-fin').checked,
+      verComercial: tr.querySelector('.u-com').checked
     }).then(function(){
       btn.textContent = 'Salvo ✓';
       liveAnnounce('Permissões salvas.');

@@ -38,7 +38,8 @@
 - **Cores:** `--lime`, `--lime-bright` e `--orange` só funcionam sobre fundo escuro
   (sobre `--paper` dão 1,65:1). `--dv-*` são dataviz, não texto.
 - **`fin/folha` × `fin/equipe` × `fin/folha_anterior`:** a folha completa (com nascimento)
-  é `canFin()`; o espelho sem nascimento é o que o diretor lê na Estruturação; o
+  é `canFin()` — desde 29/07/2026 inclui a diretoria inteira, além da flag
+  `verFinanceiro`; o espelho sem nascimento segue sendo o que a Estruturação importa; o
   `folha_anterior` guarda a versão substituída no último save. `finSave()` grava os três
   num batch — ao mexer num, mexer nos outros.
   **Desfazer a folha:** Console do Firestore → `fin/folha_anterior` → copiar `rows` para
@@ -56,26 +57,32 @@
   (assuntos), músicas em alta (nacionais/internacionais — adulto contemporâneo),
   Brainstorm (últimas ideias). Destaques editáveis pela diretoria.
 - **Minha conta** — perfil do usuário (nome, apelido, nascimento, setor).
-- **Análises** — Análise Dial · Análise Redes Sociais · Análise Site · Análise MobRadio.
-- **Conteúdo:**
-  - **Nossa Programação** — grade por canal (rádio, Instagram, YouTube): o que vai ao ar, quando, proposta.
-  - **Quadros da Inspira** — quadros de conteúdo, subabas por canal (rádio / redes / site).
-  - **Radar** — embaixadores/colunistas em planilha: perfil, frequência de publicação, busca.
-  - **Campanhas** — ciclo rascunho → ativa → comercializar → encerrada; editor, fotos, brainstorm.
-- **Gestão:**
-  - **Organograma** — estrutura da empresa.
-  - **Processos** — processo de trabalho ativo por setor, publicado a partir da Estruturação.
-  - **Estruturação** (diretoria) — simulador de equipe/custo: antes vs depois, KPIs de custo
-    fixo, etapas do processo; "publicar processo" vira o processo oficial do setor.
-  - **Equipe** (`view-financeiro`, gate `fin`) — folha e custo da equipe. Rotulada
-    "Equipe" no menu; internamente ainda se chama `financeiro`. HTML vem de
-    `content/financeiro`, os dados da folha de `fin/folha`. **Não tem senha própria** —
-    o acesso é por permissão (`role: admin` ou `verFinanceiro: true`). Não existe
-    view "Balanço Financeiro" separada: é esta.
-- **Administração** (gate `re` — diretoria, não admin):
-  - **Jurídico** — modelos de contrato em papel timbrado: embaixador, colunista, influenciador,
-    equipe, patrocínio, permuta, imagem, NDA.
-  - **Usuários** (gate `admin`) — gestão de acessos e papéis.
+- **Análises** (todos) — Site · Dial · MobRadio · Redes Sociais, nesta ordem no menu.
+- **Comercial** (menu reorganizado em 29/07/2026):
+  - **Painel · Agenda · Clientes · Contratos** — gate `com` (diretoria ou flag `verComercial`).
+  - **Materiais** — gate `matcom` (= `com` **ou** setor Marketing): o Marketing consome
+    mídia kit e apresentações. Leitura de `documentos` aberta a todo aprovado nas rules.
+- **Marketing** (visibilidade por setor — ver "gates de menu" na Stack):
+  - **Planejamento** e **Radar** — gate `mkt` (setor Marketing + diretoria).
+  - **Programação**, **Campanhas** e **Quadros** — gate `mktcom` (Marketing, Comercial
+    + diretoria). Programação: grade por canal (rádio, Instagram, YouTube). Quadros:
+    subabas por canal. Radar: embaixadores/colunistas em planilha. Campanhas: ciclo
+    rascunho → ativa → comercializar → encerrada.
+- **Administração** (título sempre visível — Processos é de todos):
+  - **Painel** (gate `admin`) — auditoria, fila de aprovação, métricas, saúde.
+  - **Jurídico** (gate `re`) — modelos de contrato em papel timbrado: embaixador, colunista,
+    influenciador, equipe, patrocínio, permuta, imagem, NDA.
+  - **Usuários** (gate `re` desde 29/07/2026) — diretoria gerencia acessos, papéis e as
+    flags Balanço/Comercial. Diretor **não** mexe em conta admin nem promove a admin
+    (a UI esconde a opção e as rules negam).
+  - **Organograma** (gate `re`) — estrutura da empresa.
+  - **Estruturação** (gate `re`) — simulador de equipe/custo; "publicar processo" vira
+    o processo oficial do setor.
+  - **Processos** (todos) — processo de trabalho ativo por setor.
+  - **Equipe** (`view-financeiro`, gate `fin` = diretoria **ou** `verFinanceiro`) — folha
+    e custo da equipe. Internamente ainda se chama `financeiro`; HTML vem de
+    `content/financeiro`, dados de `fin/folha`. Não existe view "Balanço Financeiro"
+    separada: é esta.
 
 ## Stack específica
 
@@ -107,17 +114,25 @@
   `base-org` (config/org + `col()`), `admin` (Painel do administrador),
   `comercial-core/painel/clientes/agenda/contratos/docs` (módulo comercial, gate
   `com` = diretoria ou flag `verComercial`), `home-setor` (card "Seu dia" no Início),
-  `analises-mensais` (histórico manual de Site/MobRadio). **A tabela de preços do
-  comercial vive SÓ em `config/comercial`** (repo é público — preço nunca em código).
+  `analises-mensais` (histórico manual de Site/MobRadio), `nav-setores` (gates de menu
+  por setor). **A tabela de preços do comercial vive SÓ em `config/comercial`**
+  (repo é público — preço nunca em código).
 - **⚠️ Três views não têm markup no `index.html`** — o HTML delas vem do Firestore
   via `innerHTML`: `view-analise` ← `content/base.analise`, `view-organograma` ←
   `content/base.organograma`, `view-financeiro` ← `content/financeiro.html`.
   Editar essas três = editar o documento no Firestore, não o arquivo.
 - **Papéis:** pendente → colaborador → diretor → admin. Páginas restritas por papel
   (gates `data-need` = re / fin / admin / com). Flags por usuário: `verFinanceiro` e
-  `verComercial` (admin concede em Usuários). Cadastro novo entra como *pendente* até
+  `verComercial` (diretoria concede em Usuários). Cadastro novo entra como *pendente* até
   liberação — fila de aprovação com badge no **Painel** do admin. Todo save/delete/login
   registra na coleção `auditoria` via `auditar()` (fire-and-forget; admin lê no Painel).
+- **Gates de MENU por setor (29/07/2026, `js/nav-setores.js`):** `mkt` (Marketing +
+  diretoria), `mktcom` (Marketing, Comercial + diretoria), `matcom` (comercial de
+  verdade + Marketing). São **organização de menu, não segurança** — `setor` é
+  self-editável em Minha conta, e o dado por trás dessas views continua legível por
+  todo aprovado nas rules. Segurança de verdade segue nos gates com/fin/admin/re.
+  O `viewAllowed()` das views legadas agora lê o `data-need` do link do menu
+  (fonte única) — não há mais ids hardcoded lá.
 
 ## Segurança do conteúdo (versão publicada)
 
