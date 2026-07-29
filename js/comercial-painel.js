@@ -392,7 +392,11 @@ function comProdFormCarregar(){
       valorMensal: +p.valorMensal || 0,
       cotasMax: +p.cotasMax || 7,
       exclusividadeCategoria: p.exclusividadeCategoria !== false,
-      descricao: p.descricao || ''
+      descricao: p.descricao || '',
+      /* editados só na página Nossos Produtos — carregados aqui pra não se
+         perderem quando esta aba regrava o array inteiro */
+      canal: p.canal || '',
+      descontoMax: +p.descontoMax || 0
     };
   });
   if(!COM_PROD_ROWS.length) COM_PROD_ROWS.push(comProdNova());
@@ -464,7 +468,9 @@ function comProdSalvar(){
       valorMensal: +r.valorMensal || 0,
       cotasMax: parseInt(r.cotasMax, 10) || 7,
       exclusividadeCategoria: !!r.exclusividadeCategoria,
-      descricao: (r.descricao || '').trim()
+      descricao: (r.descricao || '').trim(),
+      canal: r.canal || '',
+      descontoMax: +r.descontoMax || 0
     };
   });
   var categorias = document.getElementById('comCats').value.split(/\r?\n/)

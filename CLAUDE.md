@@ -59,7 +59,13 @@
 - **Minha conta** — perfil do usuário (nome, apelido, nascimento, setor).
 - **Análises** (todos) — Site · Dial · MobRadio · Redes Sociais, nesta ordem no menu.
 - **Comercial** (menu reorganizado em 29/07/2026):
-  - **Painel · Agenda · Clientes · Contratos** — gate `com` (diretoria ou flag `verComercial`).
+  - **Painel · Nossos Produtos · Agenda · Clientes · Contratos** — gate `com` (diretoria
+    ou flag `verComercial`).
+  - **Nossos Produtos** (`js/comercial-produtos.js`) — catálogo por canal de divulgação
+    (radio / redes / youtube / siteapp) com valor de tabela e `descontoMax` (%). Edita o
+    MESMO array `config/comercial.produtos` da aba "Produtos e tabela" do Painel — a aba
+    do Painel preserva `canal`/`descontoMax` no save (campos que só a página nova edita).
+    Escrita só diretoria (rules de `config/comercial`); flag `verComercial` lê.
   - **Materiais** — gate `matcom` (= `com` **ou** setor Marketing): o Marketing consome
     mídia kit e apresentações. Leitura de `documentos` aberta a todo aprovado nas rules.
 - **Marketing** (visibilidade por setor — ver "gates de menu" na Stack; título usa `mktcap`):
