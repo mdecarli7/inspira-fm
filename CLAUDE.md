@@ -96,13 +96,28 @@
 - **Firebase Auth** (login Google + e-mail/senha) + **Firestore**. Coleções reais:
   `users`, `content`, `fin`, `projetos`, `processos`, `campanhas`, `brainstorm`,
   `analises`, `juridico`, `programacao`, `quadros`, `colunistas`, `embaixadores`,
-  `destaques`.
+  `destaques`, `planejamento` — e, desde 29/07/2026: `auditoria`, `config`
+  (docs nomeados: `org`, `comercial`, `backups`, `checklistSeguranca`), `clientes`,
+  `negocios`, `contratos`, `agenda_comercial`, `documentos`.
+- **Kernel de extensão (29/07/2026):** o `runtime.js` está **congelado** — módulo novo
+  vive em `js/*.js`, carregado depois dele no `index.html`, e se registra com
+  `registrarModulo({id, need, init, extensaoDe})`; gates viraram a tabela `GATES`
+  (módulo adiciona a própria chave, ex. `GATES.com`). Section da view nova é casca
+  vazia no index — o markup é injetado pelo módulo no 1º init. Módulos atuais:
+  `base-org` (config/org + `col()`), `admin` (Painel do administrador),
+  `comercial-core/painel/clientes/agenda/contratos/docs` (módulo comercial, gate
+  `com` = diretoria ou flag `verComercial`), `home-setor` (card "Seu dia" no Início),
+  `analises-mensais` (histórico manual de Site/MobRadio). **A tabela de preços do
+  comercial vive SÓ em `config/comercial`** (repo é público — preço nunca em código).
 - **⚠️ Três views não têm markup no `index.html`** — o HTML delas vem do Firestore
   via `innerHTML`: `view-analise` ← `content/base.analise`, `view-organograma` ←
   `content/base.organograma`, `view-financeiro` ← `content/financeiro.html`.
   Editar essas três = editar o documento no Firestore, não o arquivo.
 - **Papéis:** pendente → colaborador → diretor → admin. Páginas restritas por papel
-  (gates `data-need` = re / fin / admin). Cadastro novo entra como *pendente* até liberação.
+  (gates `data-need` = re / fin / admin / com). Flags por usuário: `verFinanceiro` e
+  `verComercial` (admin concede em Usuários). Cadastro novo entra como *pendente* até
+  liberação — fila de aprovação com badge no **Painel** do admin. Todo save/delete/login
+  registra na coleção `auditoria` via `auditar()` (fire-and-forget; admin lê no Painel).
 
 ## Segurança do conteúdo (versão publicada)
 
