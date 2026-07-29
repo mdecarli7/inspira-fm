@@ -62,12 +62,14 @@
   - **Painel · Agenda · Clientes · Contratos** — gate `com` (diretoria ou flag `verComercial`).
   - **Materiais** — gate `matcom` (= `com` **ou** setor Marketing): o Marketing consome
     mídia kit e apresentações. Leitura de `documentos` aberta a todo aprovado nas rules.
-- **Marketing** (visibilidade por setor — ver "gates de menu" na Stack):
-  - **Planejamento** e **Radar** — gate `mkt` (setor Marketing + diretoria).
-  - **Programação**, **Campanhas** e **Quadros** — gate `mktcom` (Marketing, Comercial
-    + diretoria). Programação: grade por canal (rádio, Instagram, YouTube). Quadros:
-    subabas por canal. Radar: embaixadores/colunistas em planilha. Campanhas: ciclo
-    rascunho → ativa → comercializar → encerrada.
+- **Marketing** (visibilidade por setor — ver "gates de menu" na Stack; título usa `mktcap`):
+  - **Radar** — gate `mkt` (setor Marketing + diretoria).
+  - **Planejamento** — gate `plan` (Marketing, Agência Externa + diretoria).
+  - **Campanhas** e **Quadros** — gate `mktcom` (Marketing, Comercial + diretoria).
+  - **Programação** — gate `prog` (= `mktcom` + Rádio Ao Vivo — a grade do ar é deles).
+    Grade por canal (rádio, Instagram, YouTube). Quadros: subabas por canal. Radar:
+    embaixadores/colunistas em planilha. Campanhas: ciclo rascunho → ativa →
+    comercializar → encerrada.
 - **Administração** (título sempre visível — Processos é de todos):
   - **Painel** (gate `admin`) — auditoria, fila de aprovação, métricas, saúde.
   - **Jurídico** (gate `re`) — modelos de contrato em papel timbrado: embaixador, colunista,
@@ -127,8 +129,10 @@
   liberação — fila de aprovação com badge no **Painel** do admin. Todo save/delete/login
   registra na coleção `auditoria` via `auditar()` (fire-and-forget; admin lê no Painel).
 - **Gates de MENU por setor (29/07/2026, `js/nav-setores.js`):** `mkt` (Marketing +
-  diretoria), `mktcom` (Marketing, Comercial + diretoria), `matcom` (comercial de
-  verdade + Marketing). São **organização de menu, não segurança** — `setor` é
+  diretoria), `plan` (mkt + Agência Externa), `mktcom` (Marketing, Comercial +
+  diretoria), `prog` (mktcom + Rádio Ao Vivo), `mktcap` (união — título da seção),
+  `matcom` (comercial de verdade + Marketing). São **organização de menu, não
+  segurança** — `setor` é
   self-editável em Minha conta, e o dado por trás dessas views continua legível por
   todo aprovado nas rules. Segurança de verdade segue nos gates com/fin/admin/re.
   O `viewAllowed()` das views legadas agora lê o `data-need` do link do menu
