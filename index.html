@@ -998,6 +998,10 @@ ol.hc-list li.hc-empty::before{display:none}
 .proj-head{display:flex;gap:1rem;flex-wrap:wrap;margin:1.2rem 0 .9rem}
 .proj-meta{font-size:.82rem;color:var(--muted);margin:.4rem 0 0}
 textarea.fin-input{resize:vertical;font-family:var(--body)}
+/* o dropdown nativo do <select> abre num popup claro do sistema: option sem cor
+   própria herda o texto claro dos selects sobre fundo escuro (ex.: escolha de
+   setor no cadastro) e some — só aparecia no hover. Cor fixa resolve pra todos. */
+select option{color:var(--ink);background:#fff}
 .kpis-light{background:var(--line)}
 .kpis-light .kpi{background:var(--teal-900)}
 .proj-panel{border:1px solid var(--line);border-radius:.9rem;background:var(--surface);overflow:hidden}
