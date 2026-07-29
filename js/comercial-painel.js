@@ -21,6 +21,7 @@ var COM_ERR = { neg: false, ctr: false, agc: false, camp: false };
 var COM_PROD_ROWS = [];
 var COM_TIPOS = [
   ['quadro', 'Quadro'],
+  ['avulso', 'Avulso'],
   ['combo', 'Combo'],
   ['cota_master', 'Cota master'],
   ['360', '360']
@@ -396,7 +397,8 @@ function comProdFormCarregar(){
       /* editados só na página Nossos Produtos — carregados aqui pra não se
          perderem quando esta aba regrava o array inteiro */
       canal: p.canal || '',
-      descontoMax: +p.descontoMax || 0
+      descontoMax: +p.descontoMax || 0,
+      valorAvulso: +p.valorAvulso || 0
     };
   });
   if(!COM_PROD_ROWS.length) COM_PROD_ROWS.push(comProdNova());
@@ -470,7 +472,8 @@ function comProdSalvar(){
       exclusividadeCategoria: !!r.exclusividadeCategoria,
       descricao: (r.descricao || '').trim(),
       canal: r.canal || '',
-      descontoMax: +r.descontoMax || 0
+      descontoMax: +r.descontoMax || 0,
+      valorAvulso: +r.valorAvulso || 0
     };
   });
   var categorias = document.getElementById('comCats').value.split(/\r?\n/)

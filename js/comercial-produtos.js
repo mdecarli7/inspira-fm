@@ -73,8 +73,17 @@ function prodRender(){
     return;
   }
   var html = '';
+  /* combos e pacotes primeiro — são a âncora da venda (o avulso conduz pro combo) */
+  var combos = todos.filter(prodEhCombo);
+  if(combos.length){
+    html += '<h3 style="margin:1.3rem 0 .55rem">Combos mensais' +
+      ' <small style="opacity:.6;font-weight:400">' + combos.length + ' pacote' + (combos.length > 1 ? 's' : '') + '</small></h3>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:.8rem">' +
+      combos.map(prodCard).join('') + '</div>';
+  }
   PROD_CANAIS.forEach(function(c){
     var doCanal = todos.filter(function(p){
+      if(prodEhCombo(p)) return false;
       return (c[0] ? (p.canal || '') === c[0] : !prodCanalTem(p.canal));
     });
     if(!doCanal.length) return;
@@ -91,17 +100,30 @@ function prodCanalTem(k){
   for(var i = 0; i < PROD_CANAIS.length - 1; i++) if(PROD_CANAIS[i][0] === k) return true;
   return false;
 }
+function prodEhCombo(p){ return p.tipo === 'combo' || p.tipo === '360'; }
 function prodCard(p){
+  var valor = +p.valorMensal || 0;
   var desc = +p.descontoMax || 0;
-  var minimo = desc > 0 ? (+p.valorMensal || 0) * (1 - desc / 100) : 0;
+  var avulso = +p.valorAvulso || 0;
+  var minimo = desc > 0 ? valor * (1 - desc / 100) : 0;
+  var meta = [];
+  if(p.tipo === 'quadro' || p.tipo === 'cota_master') meta.push('Cotas máx.: ' + (parseInt(p.cotasMax, 10) || 1));
+  if(p.exclusividadeCategoria !== false) meta.push('exclusividade por categoria');
   return '<div class="bs-card" style="margin-bottom:0">' +
     '<b>' + escHtml(p.nome || '') + '</b> <span class="pill">' + escHtml(comRotulo(COM_TIPOS, p.tipo)) + '</span>' +
-    '<p style="margin:.45rem 0 .2rem"><b>' + prodBRL(p.valorMensal) + '</b><small>/mês (tabela)</small></p>' +
-    (desc > 0
-      ? '<p style="margin:.2rem 0;font-size:.88em">Desconto máx.: <b>' + desc + '%</b> → mín. ' + prodBRL(minimo) + '</p>'
-      : '<p style="margin:.2rem 0;font-size:.88em;opacity:.7">Sem desconto autorizado</p>') +
-    '<p style="margin:.2rem 0;font-size:.85em;opacity:.8">Cotas máx.: ' + (parseInt(p.cotasMax, 10) || 7) +
-      (p.exclusividadeCategoria !== false ? ' · exclusividade por categoria' : '') + '</p>' +
+    (valor > 0
+      ? '<p style="margin:.45rem 0 .2rem"><b>' + prodBRL(valor) + '</b><small>/mês (tabela)</small></p>'
+      : '<p style="margin:.45rem 0 .2rem"><b>Sob consulta</b></p>') +
+    (prodEhCombo(p) && avulso > valor && valor > 0
+      ? '<p style="margin:.2rem 0;font-size:.88em">Avulso ' + prodBRL(avulso) +
+        ' · <b>economia de aprox. ' + Math.round((1 - valor / avulso) * 100) + '%</b></p>'
+      : '') +
+    (valor > 0
+      ? (desc > 0
+          ? '<p style="margin:.2rem 0;font-size:.88em">Desconto máx.: <b>' + desc + '%</b> → mín. ' + prodBRL(minimo) + '</p>'
+          : '<p style="margin:.2rem 0;font-size:.88em;opacity:.7">Sem desconto autorizado</p>')
+      : '') +
+    (meta.length ? '<p style="margin:.2rem 0;font-size:.85em;opacity:.8">' + meta.join(' · ') + '</p>' : '') +
     (p.descricao ? '<p style="margin:.3rem 0 0;font-size:.85em">' + escHtml(p.descricao) + '</p>' : '') +
     (canRe() ? '<p style="margin:.55rem 0 0"><button type="button" class="mini" data-prod-edit="' + escHtml(p.id || '') + '">Editar</button></p>' : '') +
   '</div>';
@@ -115,7 +137,7 @@ function prodAbrir(id){
   if(id && COM_CFG){
     (COM_CFG.produtos || []).forEach(function(x){ if(x.id === id) p = x; });
   }
-  p = p || { nome: '', canal: '', tipo: 'quadro', valorMensal: '', descontoMax: '', cotasMax: 7, exclusividadeCategoria: true, descricao: '' };
+  p = p || { nome: '', canal: '', tipo: 'quadro', valorMensal: '', descontoMax: '', cotasMax: 2, exclusividadeCategoria: true, descricao: '', valorAvulso: '' };
   var f = document.getElementById('prodForm');
   var campo = 'display:block;margin:.55rem 0 .15rem;font-size:.85em;font-weight:700';
   f.innerHTML =
@@ -132,7 +154,8 @@ function prodAbrir(id){
         }).join('') + '</select></div>' +
       '<div><label style="' + campo + '">Valor de tabela (R$/mês)</label><input class="fin-input" id="prodValor" type="number" min="0" step="0.01" value="' + escHtml(String(+p.valorMensal || '')) + '" placeholder="0,00"></div>' +
       '<div><label style="' + campo + '">Desconto máximo (%)</label><input class="fin-input" id="prodDesc" type="number" min="0" max="100" step="1" value="' + escHtml(String(+p.descontoMax || '')) + '" placeholder="0"></div>' +
-      '<div><label style="' + campo + '">Cotas máx.</label><input class="fin-input" id="prodCotas" type="number" min="1" step="1" value="' + escHtml(String(parseInt(p.cotasMax, 10) || 7)) + '"></div>' +
+      '<div><label style="' + campo + '">Valor avulso de referência (R$)</label><input class="fin-input" id="prodAvulso" type="number" min="0" step="0.01" value="' + escHtml(String(+p.valorAvulso || '')) + '" placeholder="só pra combo — calcula a economia"></div>' +
+      '<div><label style="' + campo + '">Cotas máx.</label><input class="fin-input" id="prodCotas" type="number" min="1" step="1" value="' + escHtml(String(parseInt(p.cotasMax, 10) || 2)) + '"></div>' +
       '<div style="align-self:end"><label style="display:flex;gap:.35rem;align-items:center;font-size:.88em"><input type="checkbox" id="prodExcl"' + (p.exclusividadeCategoria !== false ? ' checked' : '') + '> Exclusividade por categoria</label></div>' +
     '</div>' +
     '<label style="' + campo + '">Descrição</label><textarea class="fin-input" id="prodDescricao" rows="2" placeholder="o que está incluso, formato, frequência…">' + escHtml(p.descricao || '') + '</textarea>' +
@@ -157,7 +180,8 @@ function prodColeta(){
     tipo: document.getElementById('prodTipo').value || 'quadro',
     valorMensal: +document.getElementById('prodValor').value || 0,
     descontoMax: desc,
-    cotasMax: parseInt(document.getElementById('prodCotas').value, 10) || 7,
+    valorAvulso: +document.getElementById('prodAvulso').value || 0,
+    cotasMax: parseInt(document.getElementById('prodCotas').value, 10) || 2,
     exclusividadeCategoria: document.getElementById('prodExcl').checked,
     descricao: document.getElementById('prodDescricao').value.trim()
   };
