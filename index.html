@@ -1145,6 +1145,19 @@ main:focus{outline:none}
 .bs-foot{display:flex;gap:.7rem;align-items:center;margin-top:.6rem;flex-wrap:wrap}
 .bs-apoiar{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:.32rem .95rem;cursor:pointer;font:inherit;font-weight:700;font-size:.85rem}
 .bs-apoiar.on{background:var(--teal-700);color:var(--on-dark);border-color:var(--teal-700)}
+
+/* ==== Painel do administrador (js/admin.js) ==== */
+.sn-badge{display:inline-block;min-width:1.15rem;padding:.05rem .35rem;margin-left:.35rem;border-radius:999px;background:var(--coral);color:#fff;font-size:.68rem;font-weight:800;text-align:center;line-height:1.1rem;vertical-align:middle}
+.adm-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem;margin:0 0 1.4rem}
+.adm-kpi{border:1px solid var(--line);border-radius:.9rem;background:var(--surface);padding:.9rem 1.1rem}
+.adm-kpi b{display:block;font-size:1.7rem;font-family:var(--display);color:var(--teal-900);line-height:1.1}
+.adm-kpi span{color:var(--muted);font-size:.85rem}
+.adm-filtros{display:flex;gap:.6rem;flex-wrap:wrap;margin:.9rem 0}
+.adm-filtros .fin-input{max-width:220px}
+.adm-pend{border:1px solid var(--line);border-radius:.8rem;background:var(--surface);padding:.7rem 1rem;display:flex;gap:.6rem .9rem;align-items:center;flex-wrap:wrap;margin-bottom:.6rem}
+.adm-pend b{margin-right:auto}
+.adm-check{display:flex;gap:.6rem;align-items:flex-start;padding:.45rem 0;border-bottom:1px dashed var(--line)}
+.adm-check input{margin-top:.25rem}
 </style>
 </head>
 <body>
@@ -1243,6 +1256,7 @@ main:focus{outline:none}
     <a href="#reestruturacao" data-nav="reestruturacao" data-need="re" hidden><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M1.5 14h5"/><path d="M9.5 8h5"/><path d="M17.5 16h5"/></svg></span><span>Estruturação</span></a>
     <a href="#financeiro" data-nav="financeiro" data-need="fin" hidden><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Equipe</span></a>
     <p class="sn-cap" data-need="re" hidden>Administração</p>
+    <a href="#admin" data-nav="admin" data-need="admin" hidden><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 13l3.5-3.5"/><path d="M9 2h6"/></svg></span><span>Painel <span id="admBadge" class="sn-badge" hidden>0</span></span></a>
     <a href="#juridico" data-nav="juridico" data-need="re" hidden><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg></span><span>Jurídico</span></a>
     <a href="#usuarios" data-nav="usuarios" data-need="admin" hidden><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><span>Usuários</span></a>
   </nav>
@@ -2172,6 +2186,10 @@ main:focus{outline:none}
       </div>
     </div>
   </section>
+
+  <!-- Painel do administrador: casca vazia — o markup vem do js/admin.js no 1º acesso
+       (mesmo modelo das views cujo HTML vem do Firestore; o index não incha) -->
+  <section id="view-admin" class="view" aria-labelledby="adm-title"></section>
 </main>
 
 <footer>
@@ -2196,8 +2214,9 @@ main:focus{outline:none}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="runtime.js?v=88110d95"></script>
+<script src="runtime.js?v=42ce2766"></script>
 <!-- módulos novos: carregam DEPOIS do runtime (usam os globais dele e registrarModulo) -->
 <script src="js/base-org.js?v=255d4cc1"></script>
+<script src="js/admin.js?v=babb8d27"></script>
 </body>
 </html>

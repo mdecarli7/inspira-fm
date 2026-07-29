@@ -24,6 +24,10 @@ service cloud.firestore {
     function myRole() {
       return isAdminEmail() ? 'admin' : (hasProfile() ? userData().role : 'pendente');
     }
+    // atalho para o padrão repetido em quase toda coleção: conta aprovada
+    function aprovado() {
+      return signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+    }
     // a flag verFinanceiro só vale para quem já foi aprovado — nunca para 'pendente'
     function canFin() {
       return isAdmin() || (
@@ -32,34 +36,57 @@ service cloud.firestore {
         && userData().role in ['colaborador', 'diretor', 'admin']
       );
     }
+    // Módulo comercial: diretoria inteira + quem tem a flag verComercial (aprovado).
+    // Espelho do canFin — o gate NUNCA é por setor: 'setor' é editável pela própria
+    // pessoa (self-update abaixo), seria escalação de privilégio.
+    function canComercial() {
+      return isAdmin() || (
+        hasProfile()
+        && (
+          userData().role == 'diretor'
+          || (userData().verComercial == true
+              && userData().role in ['colaborador', 'diretor', 'admin'])
+        )
+      );
+    }
 
     // Perfis e permissões
     match /users/{uid} {
       allow read: if (signedIn() && request.auth.uid == uid) || isAdmin();
-      // cadastro novo: só os campos da lista, sempre 'pendente' e sem acesso ao financeiro.
-      // sem o hasOnly abaixo, dava para gravar verFinanceiro:true no próprio doc e ler a folha.
+      // cadastro novo: só os campos da lista, sempre 'pendente' e sem acesso ao financeiro
+      // nem ao comercial. sem o hasOnly abaixo, dava para gravar verFinanceiro:true no
+      // próprio doc e ler a folha.
       // o ramo do próprio usuário vem PRIMEIRO de propósito: assim o caso normal de
       // cadastro nem chega a avaliar isAdmin(), que precisaria ler um doc inexistente
       allow create: if (
         signedIn()
         && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(
-             ['email', 'nome', 'sobrenome', 'apelido', 'nascimento', 'setor', 'role', 'verFinanceiro', 'criadoEm'])
+             ['email', 'nome', 'sobrenome', 'apelido', 'nascimento', 'setor', 'role',
+              'verFinanceiro', 'verComercial', 'ultimoAcesso', 'criadoEm'])
         && request.resource.data.role == 'pendente'
         && request.resource.data.verFinanceiro == false
+        && (!('verComercial' in request.resource.data) || request.resource.data.verComercial == false)
         && request.resource.data.email == request.auth.token.email
       ) || isAdmin();
       // a própria pessoa só pode completar o cadastro (dados pessoais) — nunca papel
+      // nem flags ver*. ultimoAcesso entra aqui (gravado no login), mas só com o
+      // timestamp do servidor — não dá pra forjar data de acesso.
       allow update: if isAdmin() || (
         signedIn() && request.auth.uid == uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['setor', 'nome', 'sobrenome', 'apelido', 'nascimento'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+             ['setor', 'nome', 'sobrenome', 'apelido', 'nascimento', 'ultimoAcesso'])
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ultimoAcesso'])
+          || request.resource.data.ultimoAcesso == request.time
+        )
       );
       allow delete: if isAdmin();
     }
 
     // Conteúdo dos relatórios
     match /content/base {
-      allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+      allow read: if aprovado();
       allow write: if isAdmin();
     }
     // content/reestruturacao não é lido por ninguém no runtime.js (a Estruturação usa a
@@ -99,13 +126,13 @@ service cloud.firestore {
 
     // Processos ativos por setor — todos leem; diretoria publica
     match /processos/{setor} {
-      allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+      allow read: if aprovado();
       allow write: if signedIn() && myRole() in ['diretor', 'admin'];
     }
 
     // Análises (Dial etc.) — todos leem; diretoria edita
     match /analises/{doc} {
-      allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+      allow read: if aprovado();
       allow write: if signedIn() && myRole() in ['diretor', 'admin'];
     }
 
@@ -116,37 +143,37 @@ service cloud.firestore {
 
     // Programação, quadros, colunistas e embaixadores — todos leem; diretoria edita
     match /programacao/{canal} {
-      allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+      allow read: if aprovado();
       allow write: if signedIn() && myRole() in ['diretor', 'admin'];
     }
     match /quadros/{id} {
-      allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+      allow read: if aprovado();
       allow write: if signedIn() && myRole() in ['diretor', 'admin'];
     }
     match /colunistas/{id} {
-      allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+      allow read: if aprovado();
       allow write: if signedIn() && myRole() in ['diretor', 'admin'];
     }
     match /embaixadores/{id} {
-      allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+      allow read: if aprovado();
       allow write: if signedIn() && myRole() in ['diretor', 'admin'];
     }
 
     // Planejamento de conteúdo das redes (calendário ago–dez/2026) — ferramenta de
     // trabalho da equipe: todo aprovado lê e edita, igual ao espírito do Brainstorm.
     match /planejamento/{id} {
-      allow read, write: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+      allow read, write: if aprovado();
     }
 
     // Destaques da semana (Início) — todos leem; diretoria edita
     match /destaques/{doc} {
-      allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+      allow read: if aprovado();
       allow write: if signedIn() && myRole() in ['diretor', 'admin'];
     }
 
     // Campanhas — todos os aprovados veem; diretoria cria, edita e faz o relatório
     match /campanhas/{id} {
-      allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+      allow read: if aprovado();
       allow create, update, delete: if signedIn() && myRole() in ['diretor', 'admin'];
       // Fotos em tamanho cheio. Ficam fora do documento pai porque consulta de coleção
       // não traz subcoleção — assim a Home não baixa megabytes de imagem para mostrar
@@ -154,7 +181,7 @@ service cloud.firestore {
       // O id é fixo ('campanha' ou 'relatorio') e o conteúdo é validado: com curinga
       // livre, qualquer diretor criaria N documentos de 1 MiB que ninguém apagaria.
       match /midia/{grupo} {
-        allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+        allow read: if aprovado();
         allow delete: if signedIn() && myRole() in ['diretor', 'admin'];
         allow create, update: if signedIn() && myRole() in ['diretor', 'admin']
           && grupo in ['campanha', 'relatorio']
@@ -166,9 +193,8 @@ service cloud.firestore {
 
     // Brainstorm — todos os aprovados publicam ideias e apoiam
     match /brainstorm/{id} {
-      allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
-      allow create: if signedIn()
-        && myRole() in ['colaborador', 'diretor', 'admin']
+      allow read: if aprovado();
+      allow create: if aprovado()
         && request.resource.data.autorEmail == request.auth.token.email
         && request.resource.data.keys().hasOnly(
              ['titulo', 'texto', 'autor', 'autorEmail', 'setor', 'fotos', 'fotosThumb', 'apoios', 'criadoEm'])
@@ -181,7 +207,7 @@ service cloud.firestore {
       // dono edita a própria ideia; os demais só apoiam/desapoiam — e só com o PRÓPRIO uid.
       // sem a checagem de diferença abaixo, qualquer um zerava ou inflava os apoios alheios.
       allow update: if isAdmin() || (
-        signedIn() && myRole() in ['colaborador', 'diretor', 'admin'] && (
+        aprovado() && (
           resource.data.autorEmail == request.auth.token.email
           || (
             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['apoios'])
@@ -202,7 +228,7 @@ service cloud.firestore {
           && get(/databases/$(db)/documents/brainstorm/$(id)).data.autorEmail == request.auth.token.email;
       }
       match /midia/{grupo} {
-        allow read: if signedIn() && myRole() in ['colaborador', 'diretor', 'admin'];
+        allow read: if aprovado();
         allow delete: if isAdmin() || souDono();
         allow create, update: if (isAdmin() || souDono())
           && grupo == 'ideia'
@@ -210,6 +236,80 @@ service cloud.firestore {
           && request.resource.data.fotos is list
           && request.resource.data.fotos.size() <= 3;
       }
+    }
+
+    // ================= Área admin (Fase 1) =================
+
+    // Trilha de auditoria: todo aprovado REGISTRA (só a própria ação, só com o
+    // timestamp do servidor); só o admin LÊ e limpa. Imutável — update nunca.
+    match /auditoria/{id} {
+      allow read: if isAdmin();
+      allow create: if aprovado()
+        && request.resource.data.keys().hasOnly(
+             ['quando', 'quem', 'quemEmail', 'quemNome', 'acao', 'col', 'docId', 'rotulo', 'extra'])
+        && request.resource.data.quem == request.auth.uid
+        && request.resource.data.quemEmail == request.auth.token.email
+        && request.resource.data.quando == request.time
+        && request.resource.data.acao in ['login', 'criar', 'editar', 'apagar', 'aprovar', 'publicar']
+        && request.resource.data.col is string && request.resource.data.col.size() < 60
+        && request.resource.data.rotulo is string && request.resource.data.rotulo.size() < 200;
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // Configuração — docs NOMEADOS (sem curinga aberto: doc fora da lista = negado).
+    // config/org: dados da organização (nome, cidade, CNPJ, setores) — nada sensível.
+    match /config/org {
+      allow read: if aprovado();
+      allow write: if isAdmin();
+    }
+    // config/comercial: tabela de produtos/combos e PREÇOS. O repositório do site é
+    // público — preço vive SÓ aqui, nunca em código. Leitura restrita ao comercial.
+    match /config/comercial {
+      allow read: if canComercial();
+      allow write: if signedIn() && myRole() in ['diretor', 'admin'];
+    }
+    // config/backups: carimbo do último export de conteúdo (scripts/export-conteudo.html)
+    match /config/backups {
+      allow read, write: if isAdmin();
+    }
+    // config/checklistSeguranca: estado das pendências do Console (marcáveis na área admin)
+    match /config/checklistSeguranca {
+      allow read, write: if isAdmin();
+    }
+
+    // ================= Módulo comercial (Fase 2) =================
+    // Tudo atrás de canComercial(); excluir é da diretoria (carteira e contratos são
+    // histórico da empresa — colaborador com a flag opera, não apaga).
+
+    // Carteira de clientes/anunciantes
+    match /clientes/{id} {
+      allow read, create, update: if canComercial();
+      allow delete: if signedIn() && myRole() in ['diretor', 'admin'];
+    }
+    // Negócios (pipeline de oportunidades: cliente × produto × etapa × valor)
+    match /negocios/{id} {
+      allow read, create, update: if canComercial();
+      allow delete: if signedIn() && myRole() in ['diretor', 'admin'];
+    }
+    // Contratos comerciais (vigência, valor, renovação; doc assinado = link externo)
+    match /contratos/{id} {
+      allow read, create, update: if canComercial();
+      allow delete: if signedIn() && myRole() in ['diretor', 'admin'];
+    }
+    // Agenda do comercial (reuniões, follow-ups, prazos, tarefas) — 1 doc por compromisso
+    match /agenda_comercial/{id} {
+      allow read, create, update, delete: if canComercial();
+    }
+    // Repositório de documentos aprovados (mídia kit, apresentações, propostas).
+    // Plano Spark, sem Storage: o arquivo em si é link externo https — validado aqui
+    // para não virar vetor de javascript: ou data: no href.
+    match /documentos/{id} {
+      allow read: if canComercial();
+      allow create, update: if canComercial()
+        && request.resource.data.link is string
+        && request.resource.data.link.matches('https://.*');
+      allow delete: if signedIn() && myRole() in ['diretor', 'admin'];
     }
   }
 }

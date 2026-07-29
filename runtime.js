@@ -174,9 +174,20 @@ auth.onAuthStateChanged(function(user){
     var d = snap && snap.exists ? snap.data() : { role: 'pendente' };
     if(user.email === ADMIN_EMAIL){ d.role = 'admin'; d.verFinanceiro = true; }
     ME = { uid: user.uid, email: user.email, nome: d.nome || user.displayName || '',
-           setor: d.setor || '', role: d.role || 'pendente', verFinanceiro: !!d.verFinanceiro };
+           setor: d.setor || '', role: d.role || 'pendente', verFinanceiro: !!d.verFinanceiro,
+           verComercial: !!d.verComercial };
+    /* carimbo de acesso: o valor anterior vai pro localStorage (alimenta o "desde o
+       meu último acesso") e o novo pro perfil — serverTimestamp, exigido nas rules.
+       Fire-and-forget: regras antigas ainda publicadas não podem travar o login. */
+    try{
+      if(d.ultimoAcesso && d.ultimoAcesso.toMillis){
+        localStorage.setItem('ultimoAcessoAnterior', String(d.ultimoAcesso.toMillis()));
+      }
+    }catch(e){}
+    ref.set({ ultimoAcesso: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true }).catch(function(){});
     if(!ME.setor && ME.role !== 'admin'){ showSetorPicker(); return; }
     if(ME.role === 'pendente'){ showPending(); return; }
+    auditar('login', 'users', ME.uid, ME.nome || ME.email);
     loadContent();
   }).catch(function(){
     // sem permissão de criar/ler o próprio doc = regras ainda não publicadas
@@ -227,6 +238,22 @@ function isAdmin(){ return ME && ME.role === 'admin'; }
    (js/*.js) acrescentam a própria chave sem tocar neste arquivo */
 var GATES = { re: canRe, fin: canFin, admin: isAdmin };
 
+/* =================== auditoria =================== */
+/* Registro fire-and-forget da trilha de auditoria (área admin). NUNCA bloqueia nem
+   quebra o save que o chamou: falha (regras não publicadas, offline) é engolida.
+   Só grava o essencial — nada de foto/HTML aqui (e as rules validam o formato). */
+function auditar(acao, colecao, docId, rotulo){
+  try{
+    if(!ME) return;
+    db.collection('auditoria').add({
+      quando: firebase.firestore.FieldValue.serverTimestamp(),
+      quem: ME.uid, quemEmail: ME.email, quemNome: ME.nome || '',
+      acao: acao, col: colecao,
+      docId: String(docId || ''), rotulo: String(rotulo || '').slice(0, 180)
+    }).catch(function(){});
+  }catch(e){}
+}
+
 function loadContent(){
   var gets = [ db.collection('content').doc('base').get() ];
   if(canFin()) gets.push(db.collection('content').doc('financeiro').get()); else gets.push(Promise.resolve(null));
@@ -271,6 +298,7 @@ function viewAllowed(id){
   if(id === 'financeiro') return canFin();
   if(id === 'usuarios') return isAdmin();
   var m = moduloDe(id);
+  if(m && m.extensaoDe) return false;   // extensão não é view navegável
   if(m && m.need) return GATES[m.need] ? !!GATES[m.need]() : false;
   return true;
 }
@@ -642,6 +670,7 @@ function finSave(){
       { rows: finEspelho(), atualizadoEm: stamp });
     return lote.commit();
   })
+    .then(function(){ auditar('editar', 'fin', 'folha', 'Folha da equipe'); })
     .catch(function(err){
       finMsg('Sem permissão para salvar.');
       // repropaga: sem isso o .then() de quem chamou rodava mesmo com a escrita negada
@@ -805,13 +834,19 @@ function buildUsers(){
     var tr = btn.closest('tr');
     var uid = tr.getAttribute('data-uid');
     btn.disabled = true; btn.textContent = 'Salvando…';
+    var pill = tr.querySelector('.pill');
+    var papelAntes = pill ? pill.textContent.trim().toLowerCase() : '';
+    var novoPapel = tr.querySelector('.u-role').value;
+    var emailLinha = tr.querySelector('td') ? tr.querySelector('td').textContent.trim() : uid;
     db.collection('users').doc(uid).update({
       setor: tr.querySelector('.u-setor').value.trim(),
-      role: tr.querySelector('.u-role').value,
+      role: novoPapel,
       verFinanceiro: tr.querySelector('.u-fin').checked
     }).then(function(){
       btn.textContent = 'Salvo ✓';
       liveAnnounce('Permissões salvas.');
+      auditar(papelAntes === 'pendente' && novoPapel !== 'pendente' ? 'aprovar' : 'editar',
+              'users', uid, emailLinha + ' → ' + novoPapel);
       setTimeout(function(){ btn.disabled = false; btn.textContent = 'Salvar'; }, 1500);
     }).catch(function(){
       // antes o rótulo ficava 'Erro' para sempre e o botão nunca voltava a 'Salvar'
@@ -1912,6 +1947,7 @@ function campSave(auto){
         });
       });
   }).then(function(){
+    auditar(idAntes ? 'editar' : 'criar', 'campanhas', (CP && CP.id) || idAntes || '', doc.nome + ' [' + doc.status + ']');
     if(!CP) return;   // voltou pro hub enquanto salvava
     cpStatusUI();
     cpMsgShow(auto ? 'Status atualizado ✓' : 'Campanha salva ✓');
@@ -1927,9 +1963,10 @@ function campDelete(){
   // o Firestore NÃO apaga subcoleção em cascata: sem isso as fotos em tamanho cheio
   // ficariam no banco para sempre, sem nenhum documento apontando para elas
   var lote = db.batch();
+  var idCamp = CP.id, nomeCamp = CP.data.nome;
   midiaDelete(lote, 'campanhas', CP.id, ['campanha', 'relatorio']);
   lote.delete(db.collection('campanhas').doc(CP.id));
-  lote.commit().then(campShowHub)
+  lote.commit().then(function(){ auditar('apagar', 'campanhas', idCamp, nomeCamp); campShowHub(); })
     .catch(function(){ cpMsgShow('Sem permissão para excluir.'); });
 }
 
@@ -2035,6 +2072,7 @@ function repSave(){
     midiaSet(lote, 'campanhas', idRel, 'relatorio', f.fulls);
     return lote.commit();
   }).then(function(){
+    auditar('publicar', 'campanhas', idRel, 'Relatório final — campanha encerrada');
     rpMsgShow('Relatório salvo ✓ — campanha encerrada.');
   }).catch(function(err){
     rpMsgShow(err && err.message === 'fotos-carregando'
@@ -2250,6 +2288,7 @@ function dstSave(){
     atualizadoPor: ME.nome || ME.email,
     atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
   }).then(function(){
+    auditar('editar', 'destaques', 'semana', 'Destaques da semana');
     document.getElementById('dstForm').hidden = true;
   }).catch(function(){
     flashMsg('dstMsg', 'Sem permissão para salvar — só a diretoria edita os destaques.');
@@ -2560,8 +2599,10 @@ function jrSave(){
   var op = JR.id
     ? db.collection('juridico').doc(JR.id).set(doc, { merge: true })
     : db.collection('juridico').add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp() }, doc));
+  var jrNovo = !JR.id;
   op.then(function(ref){
     if(!JR.id && ref) JR.id = ref.id;
+    auditar(jrNovo ? 'criar' : 'editar', 'juridico', JR.id || '', doc.titulo);
     document.getElementById('jrExcluir').hidden = false;
     flashMsg('jrMsg', 'Documento salvo ✓');
   }).catch(function(){ flashMsg('jrMsg', 'Sem permissão para salvar.'); })
@@ -2570,8 +2611,11 @@ function jrSave(){
 function jrDelete(){
   if(!JR || !JR.id) return;
   if(!confirm('Excluir o documento "' + JR.data.titulo + '" para todos? Essa ação não pode ser desfeita.')) return;
-  db.collection('juridico').doc(JR.id).delete().then(jrShowHub)
-    .catch(function(){ flashMsg('jrMsg', 'Sem permissão para excluir.'); });
+  var jrId = JR.id, jrTitulo = JR.data.titulo;
+  db.collection('juridico').doc(JR.id).delete().then(function(){
+    auditar('apagar', 'juridico', jrId, jrTitulo);
+    jrShowHub();
+  }).catch(function(){ flashMsg('jrMsg', 'Sem permissão para excluir.'); });
 }
 function jrVer(){
   if(!JR) return;
@@ -2681,6 +2725,7 @@ function pgSave(){
     atualizadoPor: ME.nome || ME.email,
     atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
   }).then(function(){
+    auditar('editar', 'programacao', PG_TAB, 'Grade — ' + pgLabel());
     document.getElementById('pgForm').hidden = true;
   }).catch(function(){
     flashMsg('pgMsg', 'Sem permissão para salvar — só a diretoria edita a grade.');
@@ -2840,10 +2885,12 @@ function qdSave(){
   };
   var btn = document.getElementById('qdSalvar');
   btnBusy(btn, true);
+  var qdNovo = !QD.id;
   var op = QD.id
     ? db.collection('quadros').doc(QD.id).set(doc, { merge: true })
     : db.collection('quadros').add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp() }, doc));
-  op.then(function(){
+  op.then(function(ref){
+    auditar(qdNovo ? 'criar' : 'editar', 'quadros', (ref && ref.id) || (QD && QD.id) || '', doc.nome || '');
     QD = null;
     document.getElementById('qdForm').hidden = true;
   }).catch(function(){ flashMsg('qdMsg', 'Sem permissão para salvar.'); })
@@ -2852,7 +2899,9 @@ function qdSave(){
 function qdDelete(){
   if(!QD || !QD.id) return;
   if(!confirm('Excluir este quadro para todos?')) return;
+  var qdId = QD.id;
   db.collection('quadros').doc(QD.id).delete().then(function(){
+    auditar('apagar', 'quadros', qdId, '');
     QD = null;
     document.getElementById('qdForm').hidden = true;
   }).catch(function(){ flashMsg('qdMsg', 'Sem permissão para excluir.'); });
@@ -2906,10 +2955,12 @@ function colSave(){
   if(pfx === 'rc') doc.radar = document.getElementById('rcRadar').checked;
   var btn = document.getElementById(pfx + 'Salvar');
   btnBusy(btn, true);
+  var clNovo = !CL.id;
   var op = CL.id
     ? db.collection('colunistas').doc(CL.id).set(doc, { merge: true })
     : db.collection('colunistas').add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp() }, doc));
-  op.then(function(){
+  op.then(function(ref){
+    auditar(clNovo ? 'criar' : 'editar', 'colunistas', (ref && ref.id) || (CL && CL.id) || '', doc.nome);
     CL = null;
     document.getElementById(pfx + 'Form').hidden = true;
   }).catch(function(){ flashMsg(pfx + 'Msg', 'Sem permissão para salvar.'); })
@@ -2920,7 +2971,9 @@ function colDelete(){
   if(!CL || !CL.id) return;
   var pfx = CL.pfx || 'cl';
   if(!confirm('Excluir este colunista para todos?')) return;
+  var clId = CL.id;
   db.collection('colunistas').doc(CL.id).delete().then(function(){
+    auditar('apagar', 'colunistas', clId, '');
     CL = null;
     document.getElementById(pfx + 'Form').hidden = true;
   }).catch(function(){ flashMsg(pfx + 'Msg', 'Sem permissão para excluir.'); });
@@ -3105,10 +3158,12 @@ function ebSave(){
   };
   var btn = document.getElementById('ebSalvar');
   btnBusy(btn, true);
+  var ebNovo = !EB.id;
   var op = EB.id
     ? db.collection('embaixadores').doc(EB.id).set(doc, { merge: true })
     : db.collection('embaixadores').add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp() }, doc));
-  op.then(function(){
+  op.then(function(ref){
+    auditar(ebNovo ? 'criar' : 'editar', 'embaixadores', (ref && ref.id) || (EB && EB.id) || '', doc.nome);
     EB = null;
     document.getElementById('embForm').hidden = true;
   }).catch(function(){ flashMsg('ebMsg', 'Sem permissão para salvar.'); })
@@ -3117,7 +3172,9 @@ function ebSave(){
 function ebDelete(){
   if(!EB || !EB.id) return;
   if(!confirm('Excluir este influenciador para todos?')) return;
+  var ebId = EB.id;
   db.collection('embaixadores').doc(EB.id).delete().then(function(){
+    auditar('apagar', 'embaixadores', ebId, '');
     EB = null;
     document.getElementById('embForm').hidden = true;
   }).catch(function(){ flashMsg('ebMsg', 'Sem permissão para excluir.'); });
@@ -3647,10 +3704,12 @@ function plSave(){
   }
   var btn = document.getElementById('plSalvar');
   btnBusy(btn, true);
+  var plNovo = !PL.id;
   var op = PL.id
     ? db.collection('planejamento').doc(PL.id).set(doc, { merge: true })
     : db.collection('planejamento').add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp() }, doc));
-  op.then(function(){
+  op.then(function(ref){
+    auditar(plNovo ? 'criar' : 'editar', 'planejamento', (ref && ref.id) || (PL && PL.id) || '', doc.titulo);
     PL = null;
     document.getElementById('plForm').hidden = true;
   }).catch(function(){ flashMsg('plMsg', 'Sem permissão para salvar.'); })
@@ -3665,6 +3724,7 @@ function plDelete(id){
     : 'Excluir "' + (row && row.d.titulo || 'esta publicação') + '" do planejamento?';
   if(!confirm(aviso)) return;
   db.collection('planejamento').doc(id).delete().then(function(){
+    auditar('apagar', 'planejamento', id, (row && row.d.titulo) || '');
     if(PL && PL.id === id){
       PL = null;
       document.getElementById('plForm').hidden = true;

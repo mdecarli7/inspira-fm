@@ -129,6 +129,14 @@ document.getElementById('btnExport').addEventListener('click', function(){
     log(n + ' documento(s) baixado(s) em inspira-conteudo-backup.json', 'ok');
     log('Guarde FORA do repositório — contém a folha salarial.', 'err');
     btn.disabled = false;
+
+    /* carimbo pro Painel do admin saber a idade do último backup (config/backups).
+       Falha aqui não atrapalha o export — o arquivo já foi baixado. */
+    db.collection('config').doc('backups').set({
+      quando: firebase.firestore.FieldValue.serverTimestamp(),
+      quem: (auth.currentUser && auth.currentUser.email) || ''
+    }).then(function(){ log('Backup registrado no painel do admin.', 'ok'); })
+      .catch(function(){});
   });
 });
 </script>
