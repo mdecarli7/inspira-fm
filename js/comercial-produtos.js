@@ -52,7 +52,13 @@ function prodInit(){
     document.getElementById('prodNovo').addEventListener('click', function(){ prodAbrir(''); });
     sec.addEventListener('click', function(ev){
       var b = ev.target.closest('[data-prod-edit]');
-      if(b) prodAbrir(b.getAttribute('data-prod-edit'));
+      if(b){ prodAbrir(b.getAttribute('data-prod-edit')); return; }
+      /* card compacto: o clique alterna o detalhe */
+      var card = ev.target.closest('[data-prod-abre]');
+      if(card){
+        var det = card.querySelector('.prod-det');
+        if(det) det.hidden = !det.hidden;
+      }
     });
   }
   document.getElementById('prodNovo').hidden = !canRe();
@@ -101,31 +107,37 @@ function prodCanalTem(k){
   return false;
 }
 function prodEhCombo(p){ return p.tipo === 'combo' || p.tipo === '360'; }
+/* card compacto (só nome + valor); o clique expande o detalhe inline */
 function prodCard(p){
   var valor = +p.valorMensal || 0;
   var desc = +p.descontoMax || 0;
   var avulso = +p.valorAvulso || 0;
   var minimo = desc > 0 ? valor * (1 - desc / 100) : 0;
+  var porMes = p.tipo === 'avulso' ? '' : '/mês';
   var meta = [];
   if(p.tipo === 'quadro' || p.tipo === 'cota_master') meta.push('Cotas máx.: ' + (parseInt(p.cotasMax, 10) || 1));
   if(p.exclusividadeCategoria !== false) meta.push('exclusividade por categoria');
-  return '<div class="bs-card" style="margin-bottom:0">' +
-    '<b>' + escHtml(p.nome || '') + '</b> <span class="pill">' + escHtml(comRotulo(COM_TIPOS, p.tipo)) + '</span>' +
+  return '<div class="bs-card" style="margin-bottom:0;cursor:pointer" data-prod-abre="' + escHtml(p.id || '') + '" title="Clique pra ver o detalhe">' +
+    '<b>' + escHtml(p.nome || '') + '</b>' +
     (valor > 0
-      ? '<p style="margin:.45rem 0 .2rem"><b>' + prodBRL(valor) + '</b><small>/mês (tabela)</small></p>'
-      : '<p style="margin:.45rem 0 .2rem"><b>Sob consulta</b></p>') +
-    (prodEhCombo(p) && avulso > valor && valor > 0
-      ? '<p style="margin:.2rem 0;font-size:.88em">Avulso ' + prodBRL(avulso) +
-        ' · <b>economia de aprox. ' + Math.round((1 - valor / avulso) * 100) + '%</b></p>'
-      : '') +
-    (valor > 0
-      ? (desc > 0
-          ? '<p style="margin:.2rem 0;font-size:.88em">Desconto máx.: <b>' + desc + '%</b> → mín. ' + prodBRL(minimo) + '</p>'
-          : '<p style="margin:.2rem 0;font-size:.88em;opacity:.7">Sem desconto autorizado</p>')
-      : '') +
-    (meta.length ? '<p style="margin:.2rem 0;font-size:.85em;opacity:.8">' + meta.join(' · ') + '</p>' : '') +
-    (p.descricao ? '<p style="margin:.3rem 0 0;font-size:.85em">' + escHtml(p.descricao) + '</p>' : '') +
-    (canRe() ? '<p style="margin:.55rem 0 0"><button type="button" class="mini" data-prod-edit="' + escHtml(p.id || '') + '">Editar</button></p>' : '') +
+      ? '<p style="margin:.4rem 0 0"><b>' + prodBRL(valor) + '</b><small>' + porMes + '</small></p>'
+      : '<p style="margin:.4rem 0 0"><b>Sob consulta</b></p>') +
+    '<div class="prod-det" hidden>' +
+      '<p style="margin:.5rem 0 .2rem"><span class="pill">' + escHtml(comRotulo(COM_TIPOS, p.tipo)) + '</span>' +
+        (valor > 0 ? ' <small>valor de tabela' + porMes + '</small>' : '') + '</p>' +
+      (prodEhCombo(p) && avulso > valor && valor > 0
+        ? '<p style="margin:.2rem 0;font-size:.88em">Avulso ' + prodBRL(avulso) +
+          ' · <b>economia de aprox. ' + Math.round((1 - valor / avulso) * 100) + '%</b></p>'
+        : '') +
+      (valor > 0
+        ? (desc > 0
+            ? '<p style="margin:.2rem 0;font-size:.88em">Desconto máx.: <b>' + desc + '%</b> → mín. ' + prodBRL(minimo) + '</p>'
+            : '<p style="margin:.2rem 0;font-size:.88em;opacity:.7">Sem desconto autorizado</p>')
+        : '') +
+      (meta.length ? '<p style="margin:.2rem 0;font-size:.85em;opacity:.8">' + meta.join(' · ') + '</p>' : '') +
+      (p.descricao ? '<p style="margin:.3rem 0 0;font-size:.85em">' + escHtml(p.descricao) + '</p>' : '') +
+      (canRe() ? '<p style="margin:.55rem 0 0"><button type="button" class="mini" data-prod-edit="' + escHtml(p.id || '') + '">Editar</button></p>' : '') +
+    '</div>' +
   '</div>';
 }
 
