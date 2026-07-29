@@ -56,6 +56,23 @@ function detachAll(){
   var fin = document.getElementById('view-financeiro');
   if(fin) fin.innerHTML = '<div class="load-note">Carregando…</div>';
 }
+
+/* =================== módulos externos (js/*.js) =================== */
+/* O runtime legado está congelado: funcionalidade nova vive em arquivos na pasta
+   js/, carregados DEPOIS deste script no index.html. Cada arquivo se registra:
+     registrarModulo({ id:'clientes', need:'com', init: cliInit })
+   - id: view #<id> (section #view-<id> no index) e hash da URL
+   - need: chave em GATES ('re'|'fin'|'admin'|nova) — ausente = todo aprovado
+   - init: chamado pelo router ao entrar na view (lazy, como os inits legados)
+   - extensaoDe: id de view existente que o módulo complementa (ex.: 'inicio');
+     nesse caso o módulo não tem section própria e o init roda junto do dono.
+   Gate novo = o próprio módulo faz GATES.x = função, e o nav usa data-need="x". */
+var MODULOS = [];
+function registrarModulo(m){ MODULOS.push(m); }
+function moduloDe(id){
+  for(var i = 0; i < MODULOS.length; i++) if(MODULOS[i].id === id) return MODULOS[i];
+  return null;
+}
 /* PENDÊNCIA DE PERFORMANCE — a Home baixa TODA campanha e TODA ideia, cada uma com até
    6 fotos base64 de ~130 KB, para qualquer colaborador a cada carregamento.
    .limit() NÃO resolve: campanhas, radar, colunistas, jurídico e quadros alimentam
@@ -206,6 +223,9 @@ document.getElementById('setorSalvar').addEventListener('click', function(){
 function canRe(){ return ME && (ME.role === 'diretor' || ME.role === 'admin'); }
 function canFin(){ return ME && (ME.role === 'admin' || ME.verFinanceiro === true); }
 function isAdmin(){ return ME && ME.role === 'admin'; }
+/* tabela única de gates: enterApp() e viewAllowed() leem daqui; módulos novos
+   (js/*.js) acrescentam a própria chave sem tocar neste arquivo */
+var GATES = { re: canRe, fin: canFin, admin: isAdmin };
 
 function loadContent(){
   var gets = [ db.collection('content').doc('base').get() ];
@@ -229,10 +249,11 @@ function enterApp(){
   document.getElementById('view-organograma').innerHTML = CONTENT.base.organograma;
   if(CONTENT.fin) document.getElementById('view-financeiro').innerHTML = CONTENT.fin.html;
   /* Reestruturações: o hub é fixo; o relatório original (legado) injeta sob demanda */
-  // nav conforme permissão
-  document.querySelectorAll('[data-need="re"]').forEach(function(a){ a.hidden = !canRe(); });
-  document.querySelectorAll('[data-need="fin"]').forEach(function(a){ a.hidden = !canFin(); });
-  document.querySelectorAll('[data-need="admin"]').forEach(function(a){ a.hidden = !isAdmin(); });
+  // nav conforme permissão (GATES cobre também as chaves criadas pelos módulos)
+  Object.keys(GATES).forEach(function(g){
+    var ok = !!GATES[g]();
+    document.querySelectorAll('[data-need="' + g + '"]').forEach(function(a){ a.hidden = !ok; });
+  });
   // esconde da Home os cartões de relatório sem permissão
   if(!canRe()) document.querySelectorAll('#view-inicio a[href="#reestruturacao"]').forEach(function(a){ a.remove(); });
   setChip();
@@ -249,6 +270,8 @@ function viewAllowed(id){
   if(id === 'reestruturacao' || id === 'juridico') return canRe();
   if(id === 'financeiro') return canFin();
   if(id === 'usuarios') return isAdmin();
+  var m = moduloDe(id);
+  if(m && m.need) return GATES[m.need] ? !!GATES[m.need]() : false;
   return true;
 }
 /* região aria-live única: limpar antes de escrever força o leitor de tela a
@@ -298,14 +321,17 @@ function syncTopbar(id){
 function route(){
   if(app.hidden) return;
   var id = (location.hash || '#inicio').slice(1);
-  if(VIEWS.indexOf(id) < 0 || !viewAllowed(id)){
+  if((VIEWS.indexOf(id) < 0 && !moduloDe(id)) || !viewAllowed(id)){
     id = 'inicio';
     // a URL continuava em #financeiro com o Início na tela: recarregar repetia o
     // desvio em silêncio e o link compartilhado parecia página quebrada
     if(location.hash && location.hash !== '#inicio') location.replace('#inicio');
   }
-  VIEWS.forEach(function(v){
+  /* módulos com view própria entram no mesmo laço de ativação das views legadas */
+  var todas = VIEWS.concat(MODULOS.filter(function(m){ return !m.extensaoDe; }).map(function(m){ return m.id; }));
+  todas.forEach(function(v){
     var sec = document.getElementById('view-' + v);
+    if(!sec) return;
     var active = v === id;
     sec.classList.toggle('active', active);
     document.querySelectorAll('[data-nav="' + v + '"]').forEach(function(a){
@@ -332,6 +358,13 @@ function route(){
   if(id === 'planejamento') planInit();
   if(id === 'embaixadores') embInit();
   if(id === 'conta') contaInit();
+  /* inits dos módulos externos: view própria ou extensão da view ativa.
+     try/catch pra um módulo quebrado não derrubar o router dos demais. */
+  MODULOS.forEach(function(m){
+    if(m.id === id || m.extensaoDe === id){
+      try{ m.init(); }catch(e){ console.error('módulo ' + m.id + ':', e); }
+    }
+  });
   syncTopbar(id);   // depois dos inits: no Início, a data e a saudação acabaram de ser escritas
   requestAnimationFrame(armCharts);
 }
