@@ -2528,6 +2528,30 @@ function jurInit(){
       if(JR) JR.data.tipo = this.value;
     });
   }
+  /* ponte do Comercial: "Gerar contrato no Jurídico" (js/comercial-contratos.js)
+     grava jrPrefill no sessionStorage e navega pra cá — abre o editor já no
+     modelo certo com os dados do contrato anotados nas partes */
+  try{
+    var pf = sessionStorage.getItem('jrPrefill');
+    if(pf){
+      sessionStorage.removeItem('jrPrefill');
+      pf = JSON.parse(pf);
+      var mp = JR_MODELOS[pf.modelo === 'permuta' ? 'permuta' : 'patrocinio'];
+      if(mp){
+        var extra = [];
+        if(pf.clienteNome) extra.push('Cliente: ' + pf.clienteNome);
+        if(pf.valorMensal) extra.push('Valor mensal: R$ ' + fmtBRL(pf.valorMensal));
+        if(pf.inicio) extra.push('Início: ' + pf.inicio);
+        if(pf.fim) extra.push('Término: ' + pf.fim);
+        jrOpen(null, {
+          titulo: mp.titulo + (pf.clienteNome ? ' — ' + pf.clienteNome : ''),
+          tipo: mp.tipo,
+          partes: mp.partes + (extra.length ? '\n' + extra.join(' · ') : ''),
+          texto: mp.texto
+        });
+      }
+    }
+  }catch(e){}
   if(UNSUB.jur) return;
   UNSUB.jur = db.collection('juridico').orderBy('atualizadoEm','desc').onSnapshot(function(qs){
     jurRows = [];

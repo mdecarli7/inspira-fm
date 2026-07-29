@@ -1259,6 +1259,12 @@ main:focus{outline:none}
     <a href="#processos" data-nav="processos"><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 4v6h-6"/><path d="M3 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 15-3.3L21 8"/><path d="M20.5 15a9 9 0 0 1-15 3.3L3 16"/></svg></span><span>Processos</span></a>
     <a href="#reestruturacao" data-nav="reestruturacao" data-need="re" hidden><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M1.5 14h5"/><path d="M9.5 8h5"/><path d="M17.5 16h5"/></svg></span><span>Estruturação</span></a>
     <a href="#financeiro" data-nav="financeiro" data-need="fin" hidden><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Equipe</span></a>
+    <p class="sn-cap" data-need="com" hidden>Comercial</p>
+    <a href="#comercial" data-nav="comercial" data-need="com" hidden><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><path d="M2 13h20"/></svg></span><span>Painel comercial</span></a>
+    <a href="#clientes" data-nav="clientes" data-need="com" hidden><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 21a6.5 6.5 0 0 1 13 0"/></svg></span><span>Clientes</span></a>
+    <a href="#agenda-comercial" data-nav="agenda-comercial" data-need="com" hidden><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M12 14v3l2 1"/></svg></span><span>Agenda</span></a>
+    <a href="#contratos" data-nav="contratos" data-need="com" hidden><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 16l2 2 4-4"/></svg></span><span>Contratos</span></a>
+    <a href="#docs-comerciais" data-nav="docs-comerciais" data-need="com" hidden><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span><span>Materiais</span></a>
     <p class="sn-cap" data-need="re" hidden>Administração</p>
     <a href="#admin" data-nav="admin" data-need="admin" hidden><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 13l3.5-3.5"/><path d="M9 2h6"/></svg></span><span>Painel <span id="admBadge" class="sn-badge" hidden>0</span></span></a>
     <a href="#juridico" data-nav="juridico" data-need="re" hidden><span class="sn-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg></span><span>Jurídico</span></a>
@@ -2194,6 +2200,13 @@ main:focus{outline:none}
   <!-- Painel do administrador: casca vazia — o markup vem do js/admin.js no 1º acesso
        (mesmo modelo das views cujo HTML vem do Firestore; o index não incha) -->
   <section id="view-admin" class="view" aria-labelledby="adm-title"></section>
+
+  <!-- Módulo comercial (gate "com"): cascas vazias — markup vem dos js/comercial-*.js -->
+  <section id="view-comercial" class="view" aria-labelledby="com-title"></section>
+  <section id="view-clientes" class="view" aria-labelledby="cli-title"></section>
+  <section id="view-agenda-comercial" class="view" aria-labelledby="agc-title"></section>
+  <section id="view-contratos" class="view" aria-labelledby="ctr-title"></section>
+  <section id="view-docs-comerciais" class="view" aria-labelledby="docr-title"></section>
 </main>
 
 <footer>
@@ -2218,9 +2231,16 @@ main:focus{outline:none}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="runtime.js?v=42ce2766"></script>
+<script src="runtime.js?v=8c3123f7"></script>
 <!-- módulos novos: carregam DEPOIS do runtime (usam os globais dele e registrarModulo) -->
 <script src="js/base-org.js?v=255d4cc1"></script>
 <script src="js/admin.js?v=babb8d27"></script>
+<!-- módulo comercial: core primeiro (gate canCom + config/comercial), depois as views -->
+<script src="js/comercial-core.js?v=ce9990d3"></script>
+<script src="js/comercial-painel.js?v=3579e5e8"></script>
+<script src="js/comercial-clientes.js?v=a1090aa1"></script>
+<script src="js/comercial-agenda.js?v=61d7d5f1"></script>
+<script src="js/comercial-contratos.js?v=22fc62c9"></script>
+<script src="js/comercial-docs.js?v=bf88c064"></script>
 </body>
 </html>
