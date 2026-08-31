@@ -3316,13 +3316,25 @@ function contaSave(){
 /* Cada documento de 'planejamento' é UMA pauta; a recorrência mora no próprio doc
    (tipo: unico | semanal | periodo) e é expandida aqui na renderização — apagar o
    doc apaga todas as repetições de uma vez, que é o que se espera de um quadro fixo. */
-var plBound = false, plRows = [], PL = null, PL_MES = -1, PL_MODO = 'cal', PL_FILTRO = null, PL_DET = null;
+var plBound = false, plRows = [], PL = null, PL_MES = -1, PL_MODO = 'cal', PL_FILTRO = null, PL_DET = null, PL_PERF = false;
 var PL_MESES = [
   { ano: 2026, mes: 7,  nome: 'Agosto' },
   { ano: 2026, mes: 8,  nome: 'Setembro' },
   { ano: 2026, mes: 9,  nome: 'Outubro' },
   { ano: 2026, mes: 10, nome: 'Novembro' },
-  { ano: 2026, mes: 11, nome: 'Dezembro' }
+  { ano: 2026, mes: 11, nome: 'Dezembro' },
+  { ano: 2027, mes: 0,  nome: 'Janeiro' },
+  { ano: 2027, mes: 1,  nome: 'Fevereiro' },
+  { ano: 2027, mes: 2,  nome: 'Março' },
+  { ano: 2027, mes: 3,  nome: 'Abril' },
+  { ano: 2027, mes: 4,  nome: 'Maio' },
+  { ano: 2027, mes: 5,  nome: 'Junho' },
+  { ano: 2027, mes: 6,  nome: 'Julho' },
+  { ano: 2027, mes: 7,  nome: 'Agosto' },
+  { ano: 2027, mes: 8,  nome: 'Setembro' },
+  { ano: 2027, mes: 9,  nome: 'Outubro' },
+  { ano: 2027, mes: 10, nome: 'Novembro' },
+  { ano: 2027, mes: 11, nome: 'Dezembro' }
 ];
 /* Instagram, TikTok e Facebook andam juntos: o conteúdo é replicado igual nos três,
    então no planejador eles são UMA rede só. YouTube tem conteúdo próprio, fica à parte. */
@@ -3336,7 +3348,7 @@ var PL_SEMANA = [
   { v: 1, nome: 'Seg' }, { v: 2, nome: 'Ter' }, { v: 3, nome: 'Qua' }, { v: 4, nome: 'Qui' },
   { v: 5, nome: 'Sex' }, { v: 6, nome: 'Sáb' }, { v: 0, nome: 'Dom' }
 ];
-var PL_MIN = '2026-08-01', PL_MAX = '2026-12-31';
+var PL_MIN = '2026-08-01', PL_MAX = '2027-12-31';
 /* Datas pra ter no radar — objetivas, sem aprofundar. Ficam no código de propósito
    (mudam pouco); pra ajustar, editar aqui. Aparecem na faixa acima do calendário e
    marcadas no dia. Julho ficou de fora porque o calendário começa em agosto. */
@@ -3359,7 +3371,31 @@ var PL_DATAS = {
   '2026-11-27': ['Black Friday'],
   '2026-12-08': ['Padroeira de Campinas'],
   '2026-12-25': ['Natal'],
-  '2026-12-31': ['Ano Novo']
+  '2026-12-31': ['Ano Novo'],
+  '2027-01-01': ['Ano Novo'],
+  '2027-02-09': ['Carnaval'],
+  '2027-03-08': ['Dia da Mulher'],
+  '2027-03-28': ['Páscoa'],
+  '2027-04-21': ['Tiradentes'],
+  '2027-05-01': ['Dia do Trabalho'],
+  '2027-05-09': ['Dia das Mães'],
+  '2027-06-12': ['Dia dos Namorados'],
+  '2027-06-24': ['São João'],
+  '2027-08-08': ['Dia dos Pais'],
+  '2027-08-12': ['Dia do Evangélico'],
+  '2027-09-07': ['Independência do Brasil'],
+  '2027-09-15': ['Dia do Cliente'],
+  '2027-09-25': ['Dia Nacional do Rádio'],
+  '2027-10-12': ['Dia das Crianças', 'Nossa Senhora Aparecida'],
+  '2027-10-15': ['Dia do Professor'],
+  '2027-10-31': ['Halloween'],
+  '2027-11-02': ['Finados'],
+  '2027-11-15': ['Proclamação da República'],
+  '2027-11-20': ['Consciência Negra'],
+  '2027-11-26': ['Black Friday'],
+  '2027-12-08': ['Padroeira de Campinas'],
+  '2027-12-25': ['Natal'],
+  '2027-12-31': ['Ano Novo']
 };
 function canPlan(){ return ME && ['colaborador', 'diretor', 'admin'].indexOf(ME.role) > -1; }
 /* Status de produção (produzido/postado/sobre): diretoria + setor Marketing.
@@ -3373,6 +3409,12 @@ function plRowById(id){
   plRows.forEach(function(r){ if(r.id === id) achou = r; });
   return achou;
 }
+function plHojeIso(){
+  var h = new Date();
+  return plIso(h.getFullYear(), h.getMonth(), h.getDate());
+}
+/* atrasada = o dia passou e ninguém marcou como postada */
+function plAtrasada(d, iso){ return iso < plHojeIso() && !plOc(d, iso).post; }
 function plIso(ano, mes, dia){
   return ano + '-' + String(mes + 1).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
 }
@@ -3417,7 +3459,7 @@ function planInit(){
     /* abas dos meses */
     var tabs = document.getElementById('plTabs');
     tabs.innerHTML = PL_MESES.map(function(m, i){
-      return '<button type="button" data-plmes="' + i + '">' + m.nome + '</button>';
+      return '<button type="button" data-plmes="' + i + '">' + m.nome + (m.ano === 2026 ? '' : ' ’27') + '</button>';
     }).join('');
     tabs.addEventListener('click', function(ev){
       var b = ev.target.closest('[data-plmes]'); if(!b) return;
@@ -3467,6 +3509,7 @@ function planInit(){
       renderPlan();
     });
     document.getElementById('plImprimir').addEventListener('click', plImprimir);
+    document.getElementById('plPerfBtn').addEventListener('click', plPerfToggle);
     /* painel de detalhe da ocorrência (status + sobre) */
     document.getElementById('plDetFechar').addEventListener('click', plVerFechar);
     document.getElementById('plDetProd').addEventListener('click', function(){ plStFlip('prod'); });
@@ -3504,6 +3547,7 @@ function planInit(){
       qs.forEach(function(doc){ plRows.push({ id: doc.id, d: doc.data() }); });
       renderPlan();
       if(PL_DET) plVerFill(); /* outro usuário mexeu: painel aberto acompanha */
+      if(PL_PERF) plPerfRender();
     }, function(){
       document.getElementById('plCal').innerHTML =
         '<div class="proj-empty" style="grid-column:1/-1">Não foi possível carregar o planejamento. As regras da coleção <b>planejamento</b> foram publicadas?</div>';
@@ -3558,14 +3602,18 @@ function plChip(r, iso){
   var dots = (d.redes || []).map(function(rede){
     return '<i class="pl-dot" style="background:' + (PL_CORES[rede] || '#888') + '" title="' + escHtml(rede) + '"></i>';
   }).join('');
+  var atrasada = plAtrasada(d, iso);
   var tip = (d.redes || []).join(' + ') + ' · ' + (d.formato || '') +
     (d.horario ? ' · ' + d.horario : '') +
+    (d.resp ? ' · resp.: ' + d.resp : '') +
     (oc.post ? ' · postado ✓' : oc.prod ? ' · produzido' : '') +
+    (atrasada ? ' · ATRASADA' : '') +
     (oc.sobre ? ' — ' + oc.sobre : d.obs ? ' — ' + d.obs : '');
   var st = oc.post
     ? '<span class="pl-st ok" title="Postado">✓</span>'
+    : atrasada ? '<span class="pl-st late" title="Atrasada — o dia passou e não foi postada">!</span>'
     : oc.prod ? '<span class="pl-st meio" title="Produzido — falta postar">◐</span>' : '';
-  return '<div class="pl-chip' + (oc.post ? ' feito' : '') + '" style="--rc:' + cor + '">' +
+  return '<div class="pl-chip' + (oc.post ? ' feito' : atrasada ? ' atrasada' : '') + '" style="--rc:' + cor + '">' +
     '<button type="button" class="pl-chip-main" data-plver="' + r.id + '" data-pliso="' + iso + '" title="' + escHtml(tip) + '">' +
     dots + st +
     '<span class="pl-fmt">' + escHtml(PL_FMT_CURTO[d.formato] || d.formato || '') + '</span>' +
@@ -3580,15 +3628,19 @@ function renderPlan(){
   if(PL_MES < 0 || !plBound) return;
   var m = PL_MESES[PL_MES];
   var porDia = plDoMes();
-  var total = 0, postados = 0;
+  var total = 0, postados = 0, atrasadas = 0;
   Object.keys(porDia).forEach(function(k){
     total += porDia[k].length;
     var isoK = plIso(m.ano, m.mes, Number(k));
-    porDia[k].forEach(function(r){ if(plOc(r.d, isoK).post) postados++; });
+    porDia[k].forEach(function(r){
+      if(plOc(r.d, isoK).post) postados++;
+      else if(plAtrasada(r.d, isoK)) atrasadas++;
+    });
   });
   document.getElementById('plTitulo').textContent = m.nome + ' de ' + m.ano + ' · ' +
     (total ? total + ' publicaç' + (total > 1 ? 'ões' : 'ão') : 'nada planejado ainda') +
     (postados ? ' · ' + postados + ' já no ar' : '') +
+    (atrasadas ? ' · ' + atrasadas + ' atrasada' + (atrasadas > 1 ? 's' : '') : '') +
     (PL_FILTRO ? ' no ' + PL_FILTRO : '');
   /* faixa "no radar": as datas do mês, sempre visíveis acima do calendário */
   var ym = plIso(m.ano, m.mes, 1).slice(0, 7);
@@ -3651,12 +3703,13 @@ function plImprimir(){
   var dd = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
   var out = ['<div class="pp-doc"><div class="pp-head">' +
     '<h1>Planejamento de conteúdo</h1>' +
-    '<p class="pp-sub">Inspira FM 97.7 · redes sociais · agosto a dezembro de 2026' +
+    '<p class="pp-sub">Inspira FM 97.7 · redes sociais · agosto de 2026 a dezembro de 2027' +
     (PL_FILTRO ? ' · ' + escHtml(PL_FILTRO) : '') + '</p>' +
     '<p class="pp-meta">Gerado em ' + escHtml(dd) + '</p></div>'];
   PL_MESES.forEach(function(m, i){
     var porDia = plMesPorDia(i);
     var dias = Object.keys(porDia).map(Number).sort(function(a, b){ return a - b; });
+    if(!dias.length) return; /* com o calendário indo até dez/2027, mês vazio não imprime */
     var total = 0;
     dias.forEach(function(dia){ total += porDia[dia].length; });
     out.push('<section class="pp-month"><h2 class="pp-month-h">' + m.nome + ' de ' + m.ano +
@@ -3669,11 +3722,6 @@ function plImprimir(){
       PL_DATAS[isoD].forEach(function(nome){ dest.push(isoD.slice(8, 10) + ' ' + nome); });
     });
     if(dest.length) out.push('<p class="pp-radar"><b>No radar:</b> ' + dest.map(escHtml).join(' · ') + '</p>');
-    if(!dias.length){
-      out.push('<p class="pp-empty">Nada planejado neste mês' +
-        (PL_FILTRO ? ' no ' + escHtml(PL_FILTRO) : '') + '.</p></section>');
-      return;
-    }
     dias.forEach(function(dia){
       var iso = plIso(m.ano, m.mes, dia);
       var dow = new Date(m.ano, m.mes, dia).getDay();
@@ -3683,7 +3731,7 @@ function plImprimir(){
       porDia[dia].forEach(function(r){
         var d = r.d;
         var oc = plOc(d, iso);
-        var meta = [d.horario, d.formato, (d.redes || []).join(' + ')].filter(Boolean).map(escHtml).join(' · ');
+        var meta = [d.horario, d.formato, (d.redes || []).join(' + '), d.resp ? 'resp.: ' + d.resp : ''].filter(Boolean).map(escHtml).join(' · ');
         out.push('<li>' +
           (d.tipo && d.tipo !== 'unico' ? '<span class="pp-fixo" title="quadro fixo">↻</span> ' : '') +
           '<b>' + escHtml(d.titulo || '') + '</b>' +
@@ -3726,7 +3774,9 @@ function plVerFill(){
   document.getElementById('plDet').style.setProperty('--rc', PL_CORES[(d.redes || [])[0]] || 'var(--teal-700)');
   document.getElementById('plDetTitulo').textContent = d.titulo || '';
   document.getElementById('plDetMeta').textContent = plBr(PL_DET.iso) + ' · ' +
-    [d.formato, d.horario, (d.redes || []).join(' + ')].filter(Boolean).join(' · ');
+    [d.formato, d.horario, (d.redes || []).join(' + '), d.resp ? 'resp.: ' + d.resp : ''].filter(Boolean).join(' · ');
+  var late = document.getElementById('plDetLate');
+  late.hidden = !plAtrasada(d, PL_DET.iso);
   var rec = document.getElementById('plDetRec');
   rec.textContent = plRecTexto(d) ? '↻ ' + plRecTexto(d) + ' — o status abaixo vale só para este dia.' : '';
   rec.hidden = !rec.textContent;
@@ -3740,10 +3790,19 @@ function plVerFill(){
     b.querySelector('.pl-tg-ic').textContent = par[1] ? '✓' : '○';
     b.disabled = !pode;
   });
-  var ta = document.getElementById('plDetSobre');
   /* não sobrescrever o que a pessoa está digitando quando o snapshot re-renderiza */
-  if(document.activeElement !== ta) ta.value = oc.sobre || '';
-  ta.readOnly = !pode;
+  [['plDetSobre', oc.sobre], ['plDetLink', oc.link], ['plDetAlc', oc.alcance], ['plDetCur', oc.curtidas]]
+    .forEach(function(par){
+      var el = document.getElementById(par[0]);
+      if(document.activeElement !== el) el.value = par[1] === undefined || par[1] === null ? '' : par[1];
+      el.readOnly = !pode;
+    });
+  /* resultado (link + métricas) só faz sentido depois de postar */
+  document.getElementById('plDetPos').hidden = !(oc.post || oc.link || oc.alcance || oc.curtidas);
+  var a = document.getElementById('plDetLinkA');
+  var linkOk = oc.link && /^https?:\/\//i.test(oc.link);
+  a.hidden = !linkOk;
+  if(linkOk) a.href = oc.link;
   document.getElementById('plDetSalvar').hidden = !pode;
   document.getElementById('plDetEditar').hidden = !canPlan();
 }
@@ -3768,8 +3827,17 @@ function plSobreSave(){
   if(!PL_DET || !canPlanStatus()) return;
   var row = plRowById(PL_DET.id);
   if(!row) return;
+  function num(id){
+    var v = document.getElementById(id).value.trim().replace(/\./g, '').replace(',', '.');
+    return v === '' || isNaN(Number(v)) ? null : Number(v);
+  }
   var upd = { oc: {} };
-  upd.oc[PL_DET.iso] = { sobre: document.getElementById('plDetSobre').value.trim() };
+  upd.oc[PL_DET.iso] = {
+    sobre: document.getElementById('plDetSobre').value.trim(),
+    link: document.getElementById('plDetLink').value.trim(),
+    alcance: num('plDetAlc'),
+    curtidas: num('plDetCur')
+  };
   var btn = document.getElementById('plDetSalvar');
   btnBusy(btn, true);
   db.collection('planejamento').doc(PL_DET.id).set(upd, { merge: true }).then(function(){
@@ -3779,6 +3847,86 @@ function plSobreSave(){
   }).catch(function(){ flashMsg('plDetMsg', 'Sem permissão para salvar.'); })
     .finally(function(){ btnBusy(btn, false); });
 }
+/* =========== desempenho por conteúdo: postagens, cumprimento e métricas =========== */
+function plPerfToggle(){
+  PL_PERF = !PL_PERF;
+  var w = document.getElementById('plPerfWrap');
+  w.hidden = !PL_PERF;
+  document.getElementById('plPerfBtn').textContent = PL_PERF ? 'Fechar desempenho' : 'Desempenho';
+  if(PL_PERF){
+    plPerfRender();
+    w.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  }
+}
+function plPerfRender(){
+  var host = document.getElementById('plPerfTabela');
+  if(!host) return;
+  var hoje = plHojeIso();
+  var fim = hoje < PL_MAX ? hoje : PL_MAX;
+  /* todos os dias do calendário até hoje, uma vez só (a expansão vale pra toda pauta) */
+  var dias = [];
+  var c = new Date(2026, 7, 1);
+  while(true){
+    var iso = plIso(c.getFullYear(), c.getMonth(), c.getDate());
+    if(iso > fim) break;
+    dias.push({ iso: iso, dow: c.getDay() });
+    c.setDate(c.getDate() + 1);
+  }
+  var nf = function(n){ return Math.round(n).toLocaleString('pt-BR'); };
+  var linhas = [];
+  var tPlan = 0, tPost = 0, tAlcS = 0, tAlcN = 0, tCurS = 0, tCurN = 0;
+  plRows.forEach(function(r){
+    var d = r.d, oc = d.oc || {};
+    var plan = 0, post = 0, atras = 0, alcS = 0, alcN = 0, curS = 0, curN = 0;
+    dias.forEach(function(x){
+      if(!plNoDia(d, x.iso, x.dow)) return;
+      plan++;
+      var o = oc[x.iso] || {};
+      if(o.post) post++;
+      else if(x.iso < hoje) atras++;
+      if(typeof o.alcance === 'number'){ alcS += o.alcance; alcN++; }
+      if(typeof o.curtidas === 'number'){ curS += o.curtidas; curN++; }
+    });
+    if(!plan) return; /* pauta só no futuro ainda não conta */
+    tPlan += plan; tPost += post; tAlcS += alcS; tAlcN += alcN; tCurS += curS; tCurN += curN;
+    linhas.push({
+      titulo: d.titulo || '', formato: d.formato || '', redes: d.redes || [], resp: d.resp || '',
+      plan: plan, post: post, atras: atras,
+      alcMed: alcN ? alcS / alcN : null, curMed: curN ? curS / curN : null
+    });
+  });
+  if(!linhas.length){
+    host.innerHTML = '<div class="proj-empty">Nada pra medir ainda — as contas começam quando as primeiras publicações do calendário vencem.</div>';
+    return;
+  }
+  linhas.sort(function(a, b){
+    return (b.alcMed || -1) - (a.alcMed || -1) || b.post - a.post || a.titulo.localeCompare(b.titulo);
+  });
+  var html = '<div class="pl-scroll"><table class="pl-perf"><thead><tr>' +
+    '<th>Conteúdo</th><th>Planejadas*</th><th>Postadas</th><th>Cumprimento</th>' +
+    '<th>Alcance médio</th><th>Curtidas médias</th></tr></thead><tbody>';
+  linhas.forEach(function(l){
+    var dot = l.redes.map(function(rede){
+      return '<i class="pl-dot" style="background:' + (PL_CORES[rede] || '#888') + '" title="' + escHtml(rede) + '"></i>';
+    }).join('');
+    var pct = Math.round(l.post / l.plan * 100);
+    html += '<tr><td>' + dot + ' <b>' + escHtml(l.titulo) + '</b><small>' +
+      escHtml([l.formato, l.resp ? 'resp.: ' + l.resp : ''].filter(Boolean).join(' · ')) + '</small></td>' +
+      '<td>' + l.plan + '</td>' +
+      '<td>' + l.post + (l.atras ? ' <span class="pl-perf-late">' + l.atras + ' atrasada' + (l.atras > 1 ? 's' : '') + '</span>' : '') + '</td>' +
+      '<td><b style="color:' + (pct >= 80 ? '#2E7D32' : pct >= 50 ? '#8A5A00' : '#A3271C') + '">' + pct + '%</b></td>' +
+      '<td>' + (l.alcMed === null ? '—' : nf(l.alcMed)) + '</td>' +
+      '<td>' + (l.curMed === null ? '—' : nf(l.curMed)) + '</td></tr>';
+  });
+  var tPct = tPlan ? Math.round(tPost / tPlan * 100) : 0;
+  html += '</tbody><tfoot><tr><td><b>Total</b></td><td>' + tPlan + '</td><td>' + tPost + '</td>' +
+    '<td><b>' + tPct + '%</b></td>' +
+    '<td>' + (tAlcN ? nf(tAlcS / tAlcN) : '—') + '</td>' +
+    '<td>' + (tCurN ? nf(tCurS / tCurN) : '—') + '</td></tr></tfoot></table></div>' +
+    '<p class="pl-perf-nota">* ocorrências do calendário até hoje (quadro fixo conta cada repetição). ' +
+    'Alcance e curtidas: média do que foi preenchido no detalhe de cada publicação postada.</p>';
+  host.innerHTML = html;
+}
 function plOpen(id, d){
   if(!canPlan()) return;
   plVerFechar();
@@ -3786,6 +3934,7 @@ function plOpen(id, d){
   document.getElementById('plTituloIn').value = d.titulo || '';
   document.getElementById('plFormato').value = PL_FORMATOS.indexOf(d.formato) > -1 ? d.formato : PL_FORMATOS[0];
   document.getElementById('plHora').value = d.horario || '';
+  document.getElementById('plResp').value = d.resp || '';
   var redes = d.redes || [];
   document.querySelectorAll('#plRedes input').forEach(function(i){ i.checked = redes.indexOf(i.value) > -1; });
   var tipo = d.tipo || 'unico';
@@ -3817,6 +3966,7 @@ function plSave(){
     titulo: titulo,
     formato: document.getElementById('plFormato').value,
     horario: document.getElementById('plHora').value.trim(),
+    resp: document.getElementById('plResp').value.trim(),
     redes: redes,
     tipo: tipo,
     data: '', diasSemana: [], de: '', ate: '',
@@ -3827,7 +3977,7 @@ function plSave(){
   if(tipo === 'unico'){
     doc.data = document.getElementById('plData').value;
     if(!doc.data){ flashMsg('plMsg', 'Escolha a data da publicação.'); return; }
-    if(doc.data < PL_MIN || doc.data > PL_MAX){ flashMsg('plMsg', 'O calendário vai de agosto a dezembro de 2026.'); return; }
+    if(doc.data < PL_MIN || doc.data > PL_MAX){ flashMsg('plMsg', 'O calendário vai de agosto de 2026 a dezembro de 2027.'); return; }
   }
   if(tipo === 'semanal'){
     doc.diasSemana = Array.prototype.slice.call(document.querySelectorAll('#plDias input:checked')).map(function(i){ return Number(i.value); });
@@ -3843,7 +3993,7 @@ function plSave(){
     doc.ate = document.getElementById('plAte').value;
     if(!doc.de || !doc.ate){ flashMsg('plMsg', 'Preencha o começo e o fim do período.'); return; }
     if(doc.de > doc.ate){ flashMsg('plMsg', 'A data de início vem antes da de término.'); return; }
-    if(doc.ate < PL_MIN || doc.de > PL_MAX){ flashMsg('plMsg', 'O calendário vai de agosto a dezembro de 2026.'); return; }
+    if(doc.ate < PL_MIN || doc.de > PL_MAX){ flashMsg('plMsg', 'O calendário vai de agosto de 2026 a dezembro de 2027.'); return; }
   }
   var btn = document.getElementById('plSalvar');
   btnBusy(btn, true);

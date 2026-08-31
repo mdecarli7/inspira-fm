@@ -9,7 +9,8 @@
 
 registrarModulo({ id: 'home-setor', extensaoDe: 'inicio', init: hsInit });
 
-var hsCard = null, hsComDados = null, hsBuscandoCom = false, hsGrade = null, hsBuscandoGrade = false;
+var hsCard = null, hsComDados = null, hsBuscandoCom = false, hsGrade = null, hsBuscandoGrade = false,
+    hsPlan = null, hsBuscandoPlan = false;
 
 function hsInit(){
   if(!ME) return;
@@ -24,6 +25,8 @@ function hsInit(){
   /* dados sob demanda, 1× por sessão, só de quem interessa ao papel */
   if(typeof canCom === 'function' && canCom() && !hsComDados && !hsBuscandoCom) hsBuscarComercial();
   if(ME.setor === 'Rádio Ao Vivo' && !hsGrade && !hsBuscandoGrade) hsBuscarGrade();
+  if((ME.setor === 'Marketing' || ME.setor === 'Agência Externa' || (typeof canRe === 'function' && canRe()))
+    && !hsPlan && !hsBuscandoPlan) hsBuscarPlan();
   hsRender();
   /* os streams da Home (campanhas, ideias) chegam async — refaz a linha de
      novidades quando eles já povoaram */
@@ -58,6 +61,49 @@ function hsBuscarComercial(){
     hsBuscandoCom = false;
   });
 }
+function hsBuscarPlan(){
+  hsBuscandoPlan = true;
+  col('planejamento').get().then(function(qs){
+    hsPlan = [];
+    qs.forEach(function(d){ hsPlan.push(d.data()); });
+    hsRender();
+  }).catch(function(){ hsBuscandoPlan = false; });
+}
+/* Meus conteúdos no Planejamento: casa o campo "resp" da pauta com o nome/apelido
+   de quem está logado (o resp é texto livre — "Amanda e Wendy" casa com as duas).
+   Usa os helpers globais do runtime (plNoDia/plOc/plIso/plHojeIso). */
+function hsMeuPlano(){
+  if(!hsPlan || !hsPlan.length || typeof plNoDia !== 'function') return null;
+  var eu = [ME.apelido, ME.nome].filter(Boolean).map(function(s){ return String(s).toLowerCase(); });
+  if(!eu.length) return null;
+  var meus = hsPlan.filter(function(d){
+    var resp = String(d.resp || '').toLowerCase();
+    if(!resp) return false;
+    return eu.some(function(n){ return resp.indexOf(n) > -1; });
+  });
+  if(!meus.length) return null;
+  var hoje = plHojeIso();
+  var produzir = 0, postar = 0, atrasadas = 0;
+  /* atrasadas: do início do calendário até ontem; a produzir/postar: hoje + 6 dias */
+  var c = new Date(2026, 7, 1);
+  var fim = new Date();
+  fim.setDate(fim.getDate() + 6);
+  var fimIso = plIso(fim.getFullYear(), fim.getMonth(), fim.getDate());
+  while(true){
+    var iso = plIso(c.getFullYear(), c.getMonth(), c.getDate());
+    if(iso > fimIso) break;
+    var dow = c.getDay();
+    meus.forEach(function(d){
+      if(!plNoDia(d, iso, dow)) return;
+      var o = plOc(d, iso);
+      if(o.post) return;
+      if(iso < hoje){ atrasadas++; return; }
+      if(o.prod) postar++; else produzir++;
+    });
+    c.setDate(c.getDate() + 1);
+  }
+  return { produzir: produzir, postar: postar, atrasadas: atrasadas };
+}
 function hsBuscarGrade(){
   hsBuscandoGrade = true;
   db.collection('programacao').doc('radio-ao-vivo').get().then(function(s){
@@ -70,6 +116,16 @@ function hsBuscarGrade(){
 function hsRender(){
   if(!hsCard || !ME) return;
   var linhas = [];
+
+  /* meus conteúdos no Planejamento (quem aparece como responsável em alguma pauta) */
+  var mp = hsMeuPlano();
+  if(mp && (mp.produzir || mp.postar || mp.atrasadas)){
+    var p = [];
+    if(mp.atrasadas) p.push('<b style="color:#c62828">' + mp.atrasadas + ' atrasada(s)</b>');
+    if(mp.produzir) p.push('<b>' + mp.produzir + '</b> pra produzir esta semana');
+    if(mp.postar) p.push('<b>' + mp.postar + '</b> pronta(s) pra postar');
+    linhas.push('<li>Seus conteúdos: ' + p.join(' · ') + ' — <a class="mini-link" href="#planejamento">abrir planejamento →</a></li>');
+  }
 
   /* bloco por setor / permissão */
   if(typeof canCom === 'function' && canCom()){
