@@ -3316,7 +3316,7 @@ function contaSave(){
 /* Cada documento de 'planejamento' é UMA pauta; a recorrência mora no próprio doc
    (tipo: unico | semanal | periodo) e é expandida aqui na renderização — apagar o
    doc apaga todas as repetições de uma vez, que é o que se espera de um quadro fixo. */
-var plBound = false, plRows = [], PL = null, PL_MES = -1, PL_MODO = 'cal', PL_FILTRO = null;
+var plBound = false, plRows = [], PL = null, PL_MES = -1, PL_MODO = 'cal', PL_FILTRO = null, PL_DET = null;
 var PL_MESES = [
   { ano: 2026, mes: 7,  nome: 'Agosto' },
   { ano: 2026, mes: 8,  nome: 'Setembro' },
@@ -3362,6 +3362,17 @@ var PL_DATAS = {
   '2026-12-31': ['Ano Novo']
 };
 function canPlan(){ return ME && ['colaborador', 'diretor', 'admin'].indexOf(ME.role) > -1; }
+/* Status de produção (produzido/postado/sobre): diretoria + setor Marketing.
+   Gate de UI, não segurança — as rules de 'planejamento' já liberam todo aprovado. */
+function canPlanStatus(){ return canRe() || !!(ME && ME.setor === 'Marketing'); }
+/* status/sobre de UMA ocorrência: mapa d.oc chaveado pela data ISO do dia.
+   Quadro fixo marca cada repetição separadamente — postar terça não marca quinta. */
+function plOc(d, iso){ return (d && d.oc && d.oc[iso]) || {}; }
+function plRowById(id){
+  var achou = null;
+  plRows.forEach(function(r){ if(r.id === id) achou = r; });
+  return achou;
+}
 function plIso(ano, mes, dia){
   return ano + '-' + String(mes + 1).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
 }
@@ -3456,6 +3467,16 @@ function planInit(){
       renderPlan();
     });
     document.getElementById('plImprimir').addEventListener('click', plImprimir);
+    /* painel de detalhe da ocorrência (status + sobre) */
+    document.getElementById('plDetFechar').addEventListener('click', plVerFechar);
+    document.getElementById('plDetProd').addEventListener('click', function(){ plStFlip('prod'); });
+    document.getElementById('plDetPost').addEventListener('click', function(){ plStFlip('post'); });
+    document.getElementById('plDetSalvar').addEventListener('click', plSobreSave);
+    document.getElementById('plDetEditar').addEventListener('click', function(){
+      if(!PL_DET) return;
+      var row = plRowById(PL_DET.id);
+      if(row){ plVerFechar(); plOpen(row.id, row.d); }
+    });
     /* solta o modo de impressão quando a caixa de diálogo fecha (imprimir ou cancelar) */
     window.addEventListener('afterprint', function(){ document.body.classList.remove('pl-printing'); });
     /* um clique serve pros dois modos: editar no chip, excluir no ×, adicionar no + do dia */
@@ -3463,13 +3484,8 @@ function planInit(){
       document.getElementById(hostId).addEventListener('click', function(ev){
         var x = ev.target.closest('[data-pldel]');
         if(x){ plDelete(x.dataset.pldel); return; }
-        var e = ev.target.closest('[data-pledit]');
-        if(e){
-          var row = null;
-          plRows.forEach(function(r){ if(r.id === e.dataset.pledit) row = r; });
-          if(row) plOpen(row.id, row.d);
-          return;
-        }
+        var e = ev.target.closest('[data-plver]');
+        if(e){ plVer(e.dataset.plver, e.dataset.pliso); return; }
         var a = ev.target.closest('[data-pladd]');
         if(a && canPlan()) plOpen(null, { tipo: 'unico', data: a.dataset.pladd });
       });
@@ -3487,6 +3503,7 @@ function planInit(){
       plRows = [];
       qs.forEach(function(doc){ plRows.push({ id: doc.id, d: doc.data() }); });
       renderPlan();
+      if(PL_DET) plVerFill(); /* outro usuário mexeu: painel aberto acompanha */
     }, function(){
       document.getElementById('plCal').innerHTML =
         '<div class="proj-empty" style="grid-column:1/-1">Não foi possível carregar o planejamento. As regras da coleção <b>planejamento</b> foram publicadas?</div>';
@@ -3534,17 +3551,23 @@ function plMesPorDia(idx){
   }
   return porDia;
 }
-function plChip(r){
+function plChip(r, iso){
   var d = r.d;
+  var oc = plOc(d, iso);
   var cor = PL_CORES[(d.redes || [])[0]] || 'var(--teal-700)';
   var dots = (d.redes || []).map(function(rede){
     return '<i class="pl-dot" style="background:' + (PL_CORES[rede] || '#888') + '" title="' + escHtml(rede) + '"></i>';
   }).join('');
   var tip = (d.redes || []).join(' + ') + ' · ' + (d.formato || '') +
-    (d.horario ? ' · ' + d.horario : '') + (d.obs ? ' — ' + d.obs : '');
-  return '<div class="pl-chip" style="--rc:' + cor + '">' +
-    '<button type="button" class="pl-chip-main" data-pledit="' + r.id + '" title="' + escHtml(tip) + '">' +
-    dots +
+    (d.horario ? ' · ' + d.horario : '') +
+    (oc.post ? ' · postado ✓' : oc.prod ? ' · produzido' : '') +
+    (oc.sobre ? ' — ' + oc.sobre : d.obs ? ' — ' + d.obs : '');
+  var st = oc.post
+    ? '<span class="pl-st ok" title="Postado">✓</span>'
+    : oc.prod ? '<span class="pl-st meio" title="Produzido — falta postar">◐</span>' : '';
+  return '<div class="pl-chip' + (oc.post ? ' feito' : '') + '" style="--rc:' + cor + '">' +
+    '<button type="button" class="pl-chip-main" data-plver="' + r.id + '" data-pliso="' + iso + '" title="' + escHtml(tip) + '">' +
+    dots + st +
     '<span class="pl-fmt">' + escHtml(PL_FMT_CURTO[d.formato] || d.formato || '') + '</span>' +
     (d.horario ? '<span class="pl-hora">' + escHtml(d.horario) + '</span>' : '') +
     (d.tipo && d.tipo !== 'unico' ? '<span class="pl-rec" title="' + escHtml(plRecTexto(d)) + '">↻</span>' : '') +
@@ -3557,10 +3580,15 @@ function renderPlan(){
   if(PL_MES < 0 || !plBound) return;
   var m = PL_MESES[PL_MES];
   var porDia = plDoMes();
-  var total = 0;
-  Object.keys(porDia).forEach(function(k){ total += porDia[k].length; });
+  var total = 0, postados = 0;
+  Object.keys(porDia).forEach(function(k){
+    total += porDia[k].length;
+    var isoK = plIso(m.ano, m.mes, Number(k));
+    porDia[k].forEach(function(r){ if(plOc(r.d, isoK).post) postados++; });
+  });
   document.getElementById('plTitulo').textContent = m.nome + ' de ' + m.ano + ' · ' +
     (total ? total + ' publicaç' + (total > 1 ? 'ões' : 'ão') : 'nada planejado ainda') +
+    (postados ? ' · ' + postados + ' já no ar' : '') +
     (PL_FILTRO ? ' no ' + PL_FILTRO : '');
   /* faixa "no radar": as datas do mês, sempre visíveis acima do calendário */
   var ym = plIso(m.ano, m.mes, 1).slice(0, 7);
@@ -3593,7 +3621,7 @@ function renderPlan(){
       html += '<div class="pl-dia' + (dow === 0 || dow === 6 ? ' fds' : '') + (iso === hojeIso ? ' hoje' : '') + '">' +
         '<span class="pl-num">' + dia + '</span>' +
         (PL_DATAS[iso] || []).map(function(n){ return '<span class="pl-data-nome">' + escHtml(n) + '</span>'; }).join('') +
-        (porDia[dia] || []).map(plChip).join('') +
+        (porDia[dia] || []).map(function(r){ return plChip(r, iso); }).join('') +
         (canPlan() ? '<button type="button" class="pl-add" data-pladd="' + iso + '" title="Adicionar publicação em ' + plBr(iso) + '" aria-label="Adicionar publicação em ' + plBr(iso) + '">+</button>' : '') +
         '</div>';
     }
@@ -3608,7 +3636,7 @@ function renderPlan(){
             '<small>' + plDiaNome(dow) + (iso === hojeIso ? ' · hoje' : '') + '</small>' +
             (PL_DATAS[iso] || []).map(function(n){ return '<small class="pl-l-evt">' + escHtml(n) + '</small>'; }).join('') +
             '</div>' +
-            '<div class="pl-l-itens">' + porDia[dia].map(plChip).join('') + '</div></div>';
+            '<div class="pl-l-itens">' + porDia[dia].map(function(r){ return plChip(r, iso); }).join('') + '</div></div>';
         }).join('')
       : '<div class="proj-empty">Nada planejado em ' + m.nome + (PL_FILTRO ? ' no ' + PL_FILTRO : '') + ' ainda.' +
         (canPlan() ? ' Clique em <b>+ Nova publicação</b> ou no <b>+</b> de um dia no calendário.' : '') + '</div>';
@@ -3654,11 +3682,14 @@ function plImprimir(){
         (ev.length ? ' — ' + ev.map(escHtml).join(', ') : '') + '</div><ul class="pp-items">');
       porDia[dia].forEach(function(r){
         var d = r.d;
+        var oc = plOc(d, iso);
         var meta = [d.horario, d.formato, (d.redes || []).join(' + ')].filter(Boolean).map(escHtml).join(' · ');
         out.push('<li>' +
           (d.tipo && d.tipo !== 'unico' ? '<span class="pp-fixo" title="quadro fixo">↻</span> ' : '') +
           '<b>' + escHtml(d.titulo || '') + '</b>' +
           (meta ? ' — <span class="pp-it-meta">' + meta + '</span>' : '') +
+          (oc.post ? ' <span class="pp-st ok">✓ postado</span>' : oc.prod ? ' <span class="pp-st">produzido</span>' : '') +
+          (oc.sobre ? '<span class="pp-obs">Sobre: ' + escHtml(oc.sobre) + '</span>' : '') +
           (d.obs ? '<span class="pp-obs">' + escHtml(d.obs) + '</span>' : '') +
           '</li>');
       });
@@ -3671,8 +3702,86 @@ function plImprimir(){
   document.body.classList.add('pl-printing');
   window.print();
 }
+/* =========== detalhe de uma ocorrência: status produzido/postado + "sobre" =========== */
+function plVer(id, iso){
+  if(!plRowById(id)) return;
+  PL_DET = { id: id, iso: iso };
+  PL = null;
+  document.getElementById('plForm').hidden = true;
+  plVerFill();
+  var p = document.getElementById('plDet');
+  p.hidden = false;
+  p.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+}
+function plVerFechar(){
+  PL_DET = null;
+  document.getElementById('plDet').hidden = true;
+}
+function plVerFill(){
+  if(!PL_DET) return;
+  var row = plRowById(PL_DET.id);
+  if(!row){ plVerFechar(); return; } /* pauta foi excluída com o painel aberto */
+  var d = row.d, oc = plOc(d, PL_DET.iso);
+  var pode = canPlanStatus();
+  document.getElementById('plDet').style.setProperty('--rc', PL_CORES[(d.redes || [])[0]] || 'var(--teal-700)');
+  document.getElementById('plDetTitulo').textContent = d.titulo || '';
+  document.getElementById('plDetMeta').textContent = plBr(PL_DET.iso) + ' · ' +
+    [d.formato, d.horario, (d.redes || []).join(' + ')].filter(Boolean).join(' · ');
+  var rec = document.getElementById('plDetRec');
+  rec.textContent = plRecTexto(d) ? '↻ ' + plRecTexto(d) + ' — o status abaixo vale só para este dia.' : '';
+  rec.hidden = !rec.textContent;
+  var obs = document.getElementById('plDetObs');
+  obs.textContent = d.obs ? 'Obs.: ' + d.obs : '';
+  obs.hidden = !d.obs;
+  [['plDetProd', !!oc.prod], ['plDetPost', !!oc.post]].forEach(function(par){
+    var b = document.getElementById(par[0]);
+    b.classList.toggle('on', par[1]);
+    b.setAttribute('aria-pressed', par[1] ? 'true' : 'false');
+    b.querySelector('.pl-tg-ic').textContent = par[1] ? '✓' : '○';
+    b.disabled = !pode;
+  });
+  var ta = document.getElementById('plDetSobre');
+  /* não sobrescrever o que a pessoa está digitando quando o snapshot re-renderiza */
+  if(document.activeElement !== ta) ta.value = oc.sobre || '';
+  ta.readOnly = !pode;
+  document.getElementById('plDetSalvar').hidden = !pode;
+  document.getElementById('plDetEditar').hidden = !canPlan();
+}
+function plStFlip(campo){
+  if(!PL_DET || !canPlanStatus()) return;
+  var row = plRowById(PL_DET.id);
+  if(!row) return;
+  var oc = plOc(row.d, PL_DET.iso);
+  var val = !oc[campo];
+  var patch = {};
+  patch[campo] = val;
+  if(campo === 'post' && val) patch.prod = true; /* foi ao ar = está produzido */
+  var upd = { oc: {} };
+  upd.oc[PL_DET.iso] = patch;
+  db.collection('planejamento').doc(PL_DET.id).set(upd, { merge: true }).then(function(){
+    auditar('editar', 'planejamento', PL_DET ? PL_DET.id : '',
+      (campo === 'post' ? 'postado' : 'produzido') + (val ? ' ✓' : ' desmarcado') +
+      ' — ' + (row.d.titulo || '') + ' (' + plBr(PL_DET ? PL_DET.iso : '') + ')');
+  }).catch(function(){ flashMsg('plDetMsg', 'Sem permissão para marcar.'); });
+}
+function plSobreSave(){
+  if(!PL_DET || !canPlanStatus()) return;
+  var row = plRowById(PL_DET.id);
+  if(!row) return;
+  var upd = { oc: {} };
+  upd.oc[PL_DET.iso] = { sobre: document.getElementById('plDetSobre').value.trim() };
+  var btn = document.getElementById('plDetSalvar');
+  btnBusy(btn, true);
+  db.collection('planejamento').doc(PL_DET.id).set(upd, { merge: true }).then(function(){
+    auditar('editar', 'planejamento', PL_DET ? PL_DET.id : '',
+      'sobre — ' + (row.d.titulo || '') + ' (' + plBr(PL_DET ? PL_DET.iso : '') + ')');
+    flashMsg('plDetMsg', 'Salvo.');
+  }).catch(function(){ flashMsg('plDetMsg', 'Sem permissão para salvar.'); })
+    .finally(function(){ btnBusy(btn, false); });
+}
 function plOpen(id, d){
   if(!canPlan()) return;
+  plVerFechar();
   PL = { id: id };
   document.getElementById('plTituloIn').value = d.titulo || '';
   document.getElementById('plFormato').value = PL_FORMATOS.indexOf(d.formato) > -1 ? d.formato : PL_FORMATOS[0];
