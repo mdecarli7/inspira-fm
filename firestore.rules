@@ -312,9 +312,12 @@ service cloud.firestore {
       allow read, create, update: if canComercial();
       allow delete: if signedIn() && myRole() in ['diretor', 'admin'];
     }
-    // Agenda do comercial (reuniões, follow-ups, prazos, tarefas) — 1 doc por compromisso
+    // Agenda (reuniões, follow-ups, prazos, tarefas) — 1 doc por compromisso.
+    // Desde 08/10/2026 vive no menu Marketing: todo aprovado LÊ (marketing acompanha
+    // os prazos das campanhas); criar/editar/apagar segue sendo do comercial.
     match /agenda_comercial/{id} {
-      allow read, create, update, delete: if canComercial();
+      allow read: if aprovado();
+      allow create, update, delete: if canComercial();
     }
     // Repositório de documentos aprovados (mídia kit, apresentações, propostas).
     // Plano Spark, sem Storage: o arquivo em si é link externo https — validado aqui
@@ -322,12 +325,35 @@ service cloud.firestore {
     // Leitura aberta a todo aprovado: o Marketing consome mídia kit e apresentações
     // na página Materiais. Cuidado com o que se cadastra aqui — link de proposta ou
     // tabela fica visível pra equipe inteira (preço fechado vive só em config/comercial).
+    // Desde 08/10/2026 o link pode ficar vazio quando o material tem PDF anexado
+    // (arquivoId aponta pra arquivos/{id}); fora isso, continua https obrigatório.
     match /documentos/{id} {
       allow read: if aprovado();
       allow create, update: if canComercial()
         && request.resource.data.link is string
-        && request.resource.data.link.matches('https://.*');
+        && (
+          request.resource.data.link.matches('https://.*')
+          || (
+            request.resource.data.link == ''
+            && request.resource.data.arquivoId is string
+            && request.resource.data.arquivoId != ''
+          )
+        );
       allow delete: if signedIn() && myRole() in ['diretor', 'admin'];
+    }
+    // Anexos em PDF (08/10/2026): base64 de até 700 KB num doc próprio, referenciado
+    // por documentos/ ou contratos/ (arquivoId). Plano Spark não tem Storage.
+    // Só o comercial lê — contrato assinado não é pra equipe inteira. Imutável:
+    // trocar o PDF = criar outro doc e apagar o antigo (o app faz isso).
+    match /arquivos/{id} {
+      allow read: if canComercial();
+      allow create: if canComercial()
+        && request.resource.data.b64 is string
+        && request.resource.data.tipo == 'application/pdf'
+        && request.resource.data.tam is number
+        && request.resource.data.tam <= 716800;
+      allow update: if false;
+      allow delete: if canComercial();
     }
   }
 }
