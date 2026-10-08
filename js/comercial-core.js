@@ -84,3 +84,65 @@ function comHoje(){
   var d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
+
+/* ---- anexos em PDF (coleção arquivos) ----
+   Plano Spark não tem Storage. Um PDF pequeno (até 700 KB) vira base64 num
+   doc próprio da coleção `arquivos`, separado do registro que o referencia
+   (documentos/contratos): assim a lista do Painel e dos Contratos continua
+   leve — o conteúdo só baixa no clique em "Abrir PDF". Acima do limite, o
+   caminho é o link do Drive, como sempre. Rules: `arquivos` atrás de
+   canComercial() (ler/criar), excluir só diretoria. */
+var COM_ARQ_MAX = 700 * 1024;
+var COM_ARQ_MSG_REGRAS = 'Anexar PDF depende das regras novas (coleção arquivos) publicadas no Console do Firebase.';
+
+/* markup do campo de anexo: input + estado + botão de remover.
+   pfx = prefixo dos ids (ex.: 'docrArq' gera docrArqInput, docrArqInfo, docrArqRemover) */
+function comArqCampo(pfx, rotulo){
+  return '<label style="display:block">' + escHtml(rotulo || 'Anexar PDF (até 700 KB)') +
+    '<input class="fin-input" type="file" id="' + pfx + 'Input" accept="application/pdf,.pdf"></label>' +
+    '<p id="' + pfx + 'Info" style="margin:.3rem 0 0;font-size:.85rem;color:var(--muted)"></p>' +
+    '<button type="button" class="mini" id="' + pfx + 'Remover" hidden>Remover PDF anexado</button>';
+}
+/* lê o arquivo escolhido → {nome, tam, b64}; rejeita o que não é PDF ou passa do limite */
+function comArqLer(file){
+  return new Promise(function(res, rej){
+    if(!file) return res(null);
+    var pdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+    if(!pdf) return rej(new Error('Só PDF.'));
+    if(file.size > COM_ARQ_MAX) return rej(new Error('PDF com ' + Math.round(file.size / 1024) + ' KB — o limite é 700 KB. Acima disso, suba no Drive e cole o link.'));
+    var fr = new FileReader();
+    fr.onload = function(){ res({ nome: file.name, tam: file.size, b64: String(fr.result).split(',')[1] || '' }); };
+    fr.onerror = function(){ rej(new Error('Não foi possível ler o arquivo.')); };
+    fr.readAsDataURL(file);
+  });
+}
+/* grava em arquivos/{id}; refCol/refId dizem quem usa o anexo (pra auditoria e limpeza) */
+function comArqSalvar(arq, refCol, refId){
+  return col('arquivos').add({
+    nome: arq.nome, tipo: 'application/pdf', tam: arq.tam, b64: arq.b64,
+    refCol: refCol || '', refId: refId || '',
+    criadoPor: ME.nome || ME.email,
+    criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function(ref){ return ref.id; });
+}
+/* abre o PDF numa aba nova (blob local — nada sai do navegador) */
+function comArqAbrir(id, msgId){
+  if(!id) return;
+  var janela = window.open('', '_blank'); /* abre antes do await: bloqueador de popup */
+  col('arquivos').doc(id).get().then(function(s){
+    if(!s.exists) throw new Error('nf');
+    var d = s.data();
+    var bin = atob(d.b64 || ''), u8 = new Uint8Array(bin.length);
+    for(var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    var url = URL.createObjectURL(new Blob([u8], { type: 'application/pdf' }));
+    if(janela) janela.location = url; else window.open(url, '_blank');
+  }).catch(function(){
+    if(janela) janela.close();
+    if(msgId) flashMsg(msgId, 'Não foi possível abrir o PDF — anexo removido ou regras não publicadas.');
+  });
+}
+function comArqExcluir(id){
+  if(!id) return Promise.resolve();
+  return col('arquivos').doc(id).delete().catch(function(){});
+}
+function comArqTam(tam){ return Math.round((tam || 0) / 1024) + ' KB'; }

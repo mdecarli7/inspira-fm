@@ -21,7 +21,10 @@
   (`npx serve scripts`), entrar com Google e exportar. **O JSON gerado tem a folha
   salarial: guardar fora do repositório** (já coberto pelo `.gitignore`).
 - **⚠️ Pendências que dependem do Console do Firebase** (não dá pra resolver em código):
-  publicar o `firestore.rules`, ligar *email enumeration protection*, bloquear
+  publicar o `firestore.rules` (incluindo as rules de 08/10/2026 ainda NÃO escritas no
+  arquivo, a confirmar com o Matheus: coleção `arquivos` e `documentos` sem link
+  obrigatório quando há anexo; `agenda_comercial` legível por todo aprovado pra
+  Marketing ver a Agenda), ligar *email enumeration protection*, bloquear
   auto-cadastro (hoje qualquer pessoa da internet vira `request.auth != null`),
   conferir que o provedor *Anonymous* está desligado e ativar *point-in-time recovery*.
 - **⚠️ Pendência de performance:** a Home baixa todas as campanhas e ideias, cada uma
@@ -62,9 +65,22 @@
   markup e dados em `js/analise-02.js`, com bloco comparativo 01 × 02). O Relatório 01
   (`#analise`, HTML em `content/base.analise` no Firestore) fica como histórico, com faixa
   apontando pro novo. Relatório novo = módulo novo `js/analise-NN.js` + retargetar o menu.
-- **Comercial** (menu reorganizado em 29/07/2026):
-  - **Painel · Nossos Produtos · Agenda · Clientes · Contratos** — gate `com` (diretoria
-    ou flag `verComercial`).
+- **Comercial** (menu reorganizado em 29/07/2026; Radar e anexos em 08/10/2026):
+  - **Painel · Nossos Produtos · Clientes · Radar de clientes · Contratos** — gate `com`
+    (diretoria ou flag `verComercial`). A **Agenda saiu daqui e vive no Marketing**
+    (08/10/2026): gate `mktcom`, pra marketing e comercial acompanharem os prazos das
+    campanhas na mesma linha do tempo. Escrever na agenda segue sendo do comercial.
+  - **Radar de clientes** (`js/comercial-radar.js`) — todo potencial anunciante da região
+    por segmento/cidade/porte/prioridade, ANTES de virar prospecção. Vive na MESMA coleção
+    `clientes` com `radar:true` (sem coleção nova = sem mexer nas rules); o
+    `comercial-clientes.js` ignora esses docs. "Mover pra carteira" = `radar:false` +
+    `status:'prospecto'` no mesmo doc. `radarStatus:'descartado'` tira da lista sem apagar.
+  - **Anexo de PDF em Materiais e Contratos** (`comArq*` no `comercial-core.js`): PDF até
+    700 KB vira base64 num doc próprio da coleção `arquivos` (`{nome, tam, b64, refCol,
+    refId}`); o registro guarda só `arquivoId/arquivoNome/arquivoTam` — lista continua leve,
+    o conteúdo baixa no clique. Link https segue valendo (e é o caminho acima de 700 KB).
+    **Depende de rules novas** (`arquivos` atrás de `canComercial()`, e `documentos`
+    aceitando link vazio quando há `arquivoId`) — ver "Pendências do Console".
   - **Nossos Produtos** (`js/comercial-produtos.js`) — catálogo por canal de divulgação
     (radio / redes / youtube / siteapp) com valor de tabela e `descontoMax` (%). Edita o
     MESMO array `config/comercial.produtos` da aba "Produtos e tabela" do Painel — a aba
@@ -127,7 +143,8 @@
   `comercial-core/painel/clientes/agenda/contratos/docs` (módulo comercial, gate
   `com` = diretoria ou flag `verComercial`), `home-setor` (card "Seu dia" no Início),
   `analises-mensais` (histórico manual de Site/MobRadio), `nav-setores` (gates de menu
-  por setor), `analise-02` (Relatório 02 de redes sociais + comparativo com o 01).
+  por setor), `analise-02` (Relatório 02 de redes sociais + comparativo com o 01),
+  `comercial-radar` (radar de potenciais clientes, dentro da coleção `clientes`).
   **A tabela de preços do comercial vive SÓ em `config/comercial`**
   (repo é público — preço nunca em código).
 - **⚠️ Três views não têm markup no `index.html`** — o HTML delas vem do Firestore

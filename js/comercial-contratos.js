@@ -13,6 +13,7 @@
 registrarModulo({ id: 'contratos', need: 'com', init: ctrInit });
 
 var ctrBound = false, CTR_TAB = 'ativos', CTR = [], CTR_OK = false, CTR_EDIT = null;
+var CTR_ARQ = null, CTR_ARQ_ID = '', CTR_ARQ_NOME = '';   /* anexo PDF do contrato assinado */
 
 var CTR_MODELOS = [
   ['patrocinio', 'Patrocínio'],
@@ -98,6 +99,7 @@ function ctrFormHtml(){
       '<label>Id do negócio (opcional)<input class="fin-input" id="ctrFNegocioId"></label>' +
       '<label>Id da campanha (opcional)<input class="fin-input" id="ctrFCampanhaId"></label>' +
     '</div>' +
+    '<div style="margin:.6rem 0 0">' + comArqCampo('ctrArq', 'Ou anexar o PDF assinado (até 700 KB)') + '</div>' +
     '<label style="display:block;margin:.6rem 0 0">Observações<textarea class="fin-input" id="ctrFObs" rows="2" style="width:100%"></textarea></label>' +
     '<label style="display:block;margin:.5rem 0"><input type="checkbox" id="ctrFRenova"> Renovação automática</label>' +
     '<p style="margin:.6rem 0 0">' +
@@ -130,11 +132,23 @@ function ctrBind(){
   });
   document.getElementById('ctrNovo').addEventListener('click', function(){ ctrFormAbrir(null); });
   document.getElementById('ctrRows').addEventListener('click', function(ev){
+    var a = ev.target.closest('[data-arq]');
+    if(a){ comArqAbrir(a.dataset.arq, 'ctrMsg'); return; }
     var b = ev.target.closest('[data-edit]'); if(!b) return;
     ctrFormAbrir(b.dataset.edit);
   });
   document.getElementById('ctrFProduto').addEventListener('change', ctrProdutoEscolhido);
   document.getElementById('ctrFSalvar').addEventListener('click', ctrSalvar);
+  document.getElementById('ctrArqInput').addEventListener('change', function(ev){
+    var f = ev.target.files && ev.target.files[0];
+    comArqLer(f).then(function(arq){ CTR_ARQ = arq; ctrArqInfo(); })
+      .catch(function(e){ ev.target.value = ''; CTR_ARQ = null; flashMsg('ctrMsg', e.message); ctrArqInfo(); });
+  });
+  document.getElementById('ctrArqRemover').addEventListener('click', function(){
+    CTR_ARQ = null; CTR_ARQ_ID = ''; CTR_ARQ_NOME = '';
+    document.getElementById('ctrArqInput').value = '';
+    ctrArqInfo();
+  });
   document.getElementById('ctrFCancelar').addEventListener('click', ctrFormFechar);
   document.getElementById('ctrFExcluir').addEventListener('click', ctrExcluir);
   document.getElementById('ctrFJur').addEventListener('click', ctrGerarJuridico);
@@ -229,8 +243,10 @@ function ctrLinha(c){
   }
   var stCls = d.status === 'ativo' ? 'baixo' : (d.status === 'cancelado' ? 'alto' : 'sd');
   var doc = /^https:\/\//.test(d.linkDocAssinado || '')
-    ? '<a href="' + escHtml(d.linkDocAssinado) + '" target="_blank" rel="noopener">abrir</a>'
-    : '—';
+    ? '<a href="' + escHtml(d.linkDocAssinado) + '" target="_blank" rel="noopener">link</a>'
+    : '';
+  if(d.arquivoId) doc += (doc ? ' · ' : '') + '<button type="button" class="mini" data-arq="' + escHtml(d.arquivoId) + '" title="' + escHtml(d.arquivoNome || 'PDF') + '">PDF</button>';
+  if(!doc) doc = '—';
   return '<tr>' +
     '<td>' + escHtml(d.clienteNome || '') + '</td>' +
     '<td>' + escHtml(d.produtoNome || '') + '</td>' +
@@ -265,6 +281,11 @@ function ctrFormAbrir(id){
   document.getElementById('ctrFRenova').checked = !!(c && c.renovacaoAuto);
   document.getElementById('ctrFLink').value = c ? (c.linkDocAssinado || '') : '';
   document.getElementById('ctrFObs').value = c ? (c.obs || '') : '';
+  CTR_ARQ = null;
+  CTR_ARQ_ID = c ? (c.arquivoId || '') : '';
+  CTR_ARQ_NOME = c ? (c.arquivoNome || '') : '';
+  document.getElementById('ctrArqInput').value = '';
+  ctrArqInfo();
   document.getElementById('ctrFExcluir').hidden = !(id && canRe());
   document.getElementById('ctrFJur').hidden = !canRe();
   document.getElementById('ctrForm').hidden = false;
@@ -272,7 +293,15 @@ function ctrFormAbrir(id){
 }
 function ctrFormFechar(){
   CTR_EDIT = null;
+  CTR_ARQ = null; CTR_ARQ_ID = ''; CTR_ARQ_NOME = '';
   document.getElementById('ctrForm').hidden = true;
+}
+function ctrArqInfo(){
+  var info = document.getElementById('ctrArqInfo');
+  var rem = document.getElementById('ctrArqRemover');
+  if(CTR_ARQ){ info.textContent = 'PDF escolhido: ' + CTR_ARQ.nome + ' (' + comArqTam(CTR_ARQ.tam) + ') — grava ao salvar.'; rem.hidden = false; }
+  else if(CTR_ARQ_ID){ info.textContent = 'PDF anexado: ' + (CTR_ARQ_NOME || 'arquivo') + '.'; rem.hidden = false; }
+  else { info.textContent = 'Sem PDF anexado. Acima de 700 KB, use o link.'; rem.hidden = true; }
 }
 /* produto da tabela escolhido: pré-preenche nome e valor (editáveis) */
 function ctrProdutoEscolhido(){
@@ -335,17 +364,31 @@ function ctrSalvar(){
   var btn = document.getElementById('ctrFSalvar');
   btnBusy(btn, true);
   var rot = doc.clienteNome + (doc.produtoNome ? ' — ' + doc.produtoNome : '');
-  var p = CTR_EDIT
-    ? col('contratos').doc(CTR_EDIT).update(doc).then(function(){ auditar('editar', 'contratos', CTR_EDIT, rot); })
-    : col('contratos').add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp() }, doc))
-        .then(function(ref){ auditar('criar', 'contratos', ref.id, rot); });
+  var antes = null, i;
+  if(CTR_EDIT){ for(i = 0; i < CTR.length; i++) if(CTR[i].id === CTR_EDIT){ antes = CTR[i].d; break; } }
+  var arqAntigo = antes ? (antes.arquivoId || '') : '';
+  var pArq = CTR_ARQ
+    ? comArqSalvar(CTR_ARQ, 'contratos', CTR_EDIT || '').then(function(id){ return { id: id, nome: CTR_ARQ.nome, tam: CTR_ARQ.tam }; })
+    : Promise.resolve(CTR_ARQ_ID ? { id: CTR_ARQ_ID, nome: CTR_ARQ_NOME, tam: antes ? antes.arquivoTam || 0 : 0 } : null);
+  var p = pArq.then(function(arq){
+    doc.arquivoId = arq ? arq.id : '';
+    doc.arquivoNome = arq ? arq.nome : '';
+    doc.arquivoTam = arq ? arq.tam : 0;
+    return CTR_EDIT
+      ? col('contratos').doc(CTR_EDIT).update(doc).then(function(){ auditar('editar', 'contratos', CTR_EDIT, rot); })
+      : col('contratos').add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp() }, doc))
+          .then(function(ref){ auditar('criar', 'contratos', ref.id, rot); });
+  }).then(function(){
+    if(arqAntigo && arqAntigo !== doc.arquivoId) comArqExcluir(arqAntigo);
+  });
   p.then(function(){
     btnBusy(btn, false);
     ctrFormFechar();
     flashMsg('ctrMsg', 'Contrato salvo.');
-  }).catch(function(){
+  }).catch(function(e){
     btnBusy(btn, false);
-    flashMsg('ctrMsg', 'Não foi possível salvar — sem permissão?');
+    var perm = e && /permission|insufficient/i.test(String(e.code || e.message || ''));
+    flashMsg('ctrMsg', perm && CTR_ARQ ? COM_ARQ_MSG_REGRAS : 'Não foi possível salvar — sem permissão?');
   });
 }
 
@@ -353,8 +396,9 @@ function ctrExcluir(){
   if(!CTR_EDIT || !canRe()) return;
   var nome = document.getElementById('ctrFCliente').value.trim() || CTR_EDIT;
   if(!confirm('Excluir o contrato de "' + nome + '"? Não dá pra desfazer.')) return;
-  var id = CTR_EDIT;
+  var id = CTR_EDIT, arq = CTR_ARQ_ID;
   col('contratos').doc(id).delete().then(function(){
+    if(arq) comArqExcluir(arq);
     auditar('apagar', 'contratos', id, nome);
     ctrFormFechar();
     flashMsg('ctrMsg', 'Contrato excluído.');

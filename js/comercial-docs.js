@@ -12,6 +12,9 @@
 registrarModulo({ id: 'docs-comerciais', need: 'com', init: docrInit });
 
 var docrBound = false, DOCR = [], DOCR_OK = false, DOCR_EDIT = null;
+var DOCR_ARQ = null;      /* {nome,tam,b64} lido do input, ainda não gravado */
+var DOCR_ARQ_ID = '';     /* id em arquivos/ do anexo já gravado (edição) */
+var DOCR_ARQ_NOME = '';
 
 var DOCR_TIPOS = [
   ['midiakit', 'Mídia kit'],
@@ -64,11 +67,12 @@ function docrMarkup(){
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.6rem">' +
           '<label>Nome*<input class="fin-input" id="docrFNome" maxlength="120"></label>' +
           '<label>Tipo<select class="fin-input" id="docrFTipoSel">' + ops() + '</select></label>' +
-          '<label>Link (https)*<input class="fin-input" id="docrFLink" type="url" placeholder="https://…"></label>' +
+          '<label>Link (https)<input class="fin-input" id="docrFLink" type="url" placeholder="https://… (Drive, Canva, site)"></label>' +
           '<label>Versão<input class="fin-input" id="docrFVersao" maxlength="40" placeholder="ex.: 2026-07, v2"></label>' +
           '<label>Cliente (opcional)<input class="fin-input" id="docrFClienteNome" maxlength="120"></label>' +
           '<label>Id do cliente (opcional)<input class="fin-input" id="docrFClienteId"></label>' +
         '</div>' +
+        '<div style="margin:.6rem 0 0">' + comArqCampo('docrArq', 'Ou anexar o PDF aqui (até 700 KB)') + '</div>' +
         '<label style="display:block;margin:.6rem 0 0">Observações<textarea class="fin-input" id="docrFObs" rows="2" style="width:100%"></textarea></label>' +
         '<label style="display:block;margin:.5rem 0"><input type="checkbox" id="docrFAprovado"> Material aprovado pra uso</label>' +
         '<p style="margin:.6rem 0 0">' +
@@ -89,8 +93,27 @@ function docrBind(){
   document.getElementById('docrBusca').addEventListener('input', docrRender);
   document.getElementById('docrNovo').addEventListener('click', function(){ docrFormAbrir(null); });
   document.getElementById('docrLista').addEventListener('click', function(ev){
+    var a = ev.target.closest('[data-arq]');
+    if(a){ comArqAbrir(a.dataset.arq, 'docrMsg'); return; }
     var b = ev.target.closest('[data-edit]'); if(!b) return;
     docrFormAbrir(b.dataset.edit);
+  });
+  document.getElementById('docrArqInput').addEventListener('change', function(ev){
+    var f = ev.target.files && ev.target.files[0];
+    comArqLer(f).then(function(arq){
+      DOCR_ARQ = arq;
+      docrArqInfo();
+    }).catch(function(e){
+      ev.target.value = '';
+      DOCR_ARQ = null;
+      flashMsg('docrMsg', e.message);
+      docrArqInfo();
+    });
+  });
+  document.getElementById('docrArqRemover').addEventListener('click', function(){
+    DOCR_ARQ = null; DOCR_ARQ_ID = ''; DOCR_ARQ_NOME = '';
+    document.getElementById('docrArqInput').value = '';
+    docrArqInfo();
   });
   document.getElementById('docrFSalvar').addEventListener('click', docrSalvar);
   document.getElementById('docrFCancelar').addEventListener('click', docrFormFechar);
@@ -139,8 +162,9 @@ function docrCard(c){
   var obs = String(d.obs || '');
   if(obs.length > 140) obs = obs.slice(0, 140) + '…';
   var abrir = /^https:\/\//.test(d.link || '')
-    ? '<a href="' + escHtml(d.link) + '" target="_blank" rel="noopener">Abrir</a> '
+    ? '<a href="' + escHtml(d.link) + '" target="_blank" rel="noopener">Abrir link</a> '
     : '';
+  if(d.arquivoId) abrir += '<button type="button" class="mini" data-arq="' + escHtml(d.arquivoId) + '" title="' + escHtml((d.arquivoNome || 'PDF') + (d.arquivoTam ? ' · ' + comArqTam(d.arquivoTam) : '')) + '">Abrir PDF</button> ';
   return '<div class="bs-card" style="margin-bottom:0">' +
     '<h4 style="margin:0 0 .3rem">' + escHtml(d.nome || '(sem nome)') + '</h4>' +
     '<p style="margin:.2rem 0">' +
@@ -169,20 +193,35 @@ function docrFormAbrir(id){
   document.getElementById('docrFClienteId').value = c ? (c.clienteId || '') : '';
   document.getElementById('docrFObs').value = c ? (c.obs || '') : '';
   document.getElementById('docrFAprovado').checked = !!(c && c.aprovado);
+  DOCR_ARQ = null;
+  DOCR_ARQ_ID = c ? (c.arquivoId || '') : '';
+  DOCR_ARQ_NOME = c ? (c.arquivoNome || '') : '';
+  document.getElementById('docrArqInput').value = '';
+  docrArqInfo();
   document.getElementById('docrFExcluir').hidden = !(id && canRe());
   document.getElementById('docrForm').hidden = false;
   document.getElementById('docrFNome').focus();
 }
 function docrFormFechar(){
   DOCR_EDIT = null;
+  DOCR_ARQ = null; DOCR_ARQ_ID = ''; DOCR_ARQ_NOME = '';
   document.getElementById('docrForm').hidden = true;
+}
+/* estado do anexo no form: novo escolhido, já gravado, ou nenhum */
+function docrArqInfo(){
+  var info = document.getElementById('docrArqInfo');
+  var rem = document.getElementById('docrArqRemover');
+  if(DOCR_ARQ){ info.textContent = 'PDF escolhido: ' + DOCR_ARQ.nome + ' (' + comArqTam(DOCR_ARQ.tam) + ') — grava ao salvar.'; rem.hidden = false; }
+  else if(DOCR_ARQ_ID){ info.textContent = 'PDF anexado: ' + (DOCR_ARQ_NOME || 'arquivo') + '.'; rem.hidden = false; }
+  else { info.textContent = 'Sem PDF anexado. Acima de 700 KB, use o link.'; rem.hidden = true; }
 }
 
 function docrSalvar(){
   var nome = document.getElementById('docrFNome').value.trim();
   if(!nome){ flashMsg('docrMsg', 'Informe o nome do material.'); return; }
   var link = document.getElementById('docrFLink').value.trim();
-  if(!/^https:\/\//.test(link)){ flashMsg('docrMsg', 'O link é obrigatório e só vale endereço https://.'); return; }
+  if(link && !/^https:\/\//.test(link)){ flashMsg('docrMsg', 'Link: só vale endereço https://.'); return; }
+  if(!link && !DOCR_ARQ && !DOCR_ARQ_ID){ flashMsg('docrMsg', 'Informe um link ou anexe o PDF.'); return; }
   var chk = document.getElementById('docrFAprovado').checked;
   /* quem aprovou: carimba quem marcou o checkbox; edição que já estava
      aprovada preserva o carimbo original */
@@ -205,17 +244,31 @@ function docrSalvar(){
   };
   var btn = document.getElementById('docrFSalvar');
   btnBusy(btn, true);
-  var p = DOCR_EDIT
-    ? col('documentos').doc(DOCR_EDIT).update(doc).then(function(){ auditar('editar', 'documentos', DOCR_EDIT, nome); })
-    : col('documentos').add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp() }, doc))
-        .then(function(ref){ auditar('criar', 'documentos', ref.id, nome); });
+  /* anexo: grava o PDF primeiro (doc próprio em arquivos/), depois o registro
+     aponta pra ele. Anexo antigo substituído/removido é apagado no fim. */
+  var arqAntigo = antes ? (antes.arquivoId || '') : '';
+  var pArq = DOCR_ARQ
+    ? comArqSalvar(DOCR_ARQ, 'documentos', DOCR_EDIT || '').then(function(id){ return { id: id, nome: DOCR_ARQ.nome, tam: DOCR_ARQ.tam }; })
+    : Promise.resolve(DOCR_ARQ_ID ? { id: DOCR_ARQ_ID, nome: DOCR_ARQ_NOME, tam: antes ? antes.arquivoTam || 0 : 0 } : null);
+  var p = pArq.then(function(arq){
+    doc.arquivoId = arq ? arq.id : '';
+    doc.arquivoNome = arq ? arq.nome : '';
+    doc.arquivoTam = arq ? arq.tam : 0;
+    return DOCR_EDIT
+      ? col('documentos').doc(DOCR_EDIT).update(doc).then(function(){ auditar('editar', 'documentos', DOCR_EDIT, nome); })
+      : col('documentos').add(Object.assign({ criadoEm: firebase.firestore.FieldValue.serverTimestamp() }, doc))
+          .then(function(ref){ auditar('criar', 'documentos', ref.id, nome); });
+  }).then(function(){
+    if(arqAntigo && arqAntigo !== doc.arquivoId) comArqExcluir(arqAntigo);
+  });
   p.then(function(){
     btnBusy(btn, false);
     docrFormFechar();
     flashMsg('docrMsg', 'Material salvo.');
-  }).catch(function(){
+  }).catch(function(e){
     btnBusy(btn, false);
-    flashMsg('docrMsg', 'Não foi possível salvar — sem permissão?');
+    var perm = e && /permission|insufficient/i.test(String(e.code || e.message || ''));
+    flashMsg('docrMsg', perm && (DOCR_ARQ || !link) ? COM_ARQ_MSG_REGRAS : 'Não foi possível salvar — sem permissão?');
   });
 }
 
@@ -224,7 +277,9 @@ function docrExcluir(){
   var nome = document.getElementById('docrFNome').value.trim() || DOCR_EDIT;
   if(!confirm('Excluir o material "' + nome + '"? O arquivo no Drive/Canva continua existindo; some só o registro daqui.')) return;
   var id = DOCR_EDIT;
+  var arq = DOCR_ARQ_ID;
   col('documentos').doc(id).delete().then(function(){
+    if(arq) comArqExcluir(arq);
     auditar('apagar', 'documentos', id, nome);
     docrFormFechar();
     flashMsg('docrMsg', 'Material excluído.');

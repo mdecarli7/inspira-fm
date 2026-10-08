@@ -68,7 +68,8 @@ function cliMarkup(){
       '<div class="camp-tabs" id="cliTabs">' + abas + '</div>' +
       '<div class="proj-toolbar">' +
         '<h3 style="margin:0">Carteira</h3>' +
-        '<button type="button" class="btn primary" id="cliNovo">+ Adicionar cliente</button>' +
+        '<span><a class="btn ghost" href="#radar-comercial" style="margin-right:.4rem">Radar de clientes</a>' +
+        '<button type="button" class="btn primary" id="cliNovo">+ Adicionar cliente</button></span>' +
       '</div>' +
       '<div class="radar-busca">' +
         '<label for="cliBusca" class="sr-only">Buscar na carteira</label>' +
@@ -218,7 +219,9 @@ function cliListen(){
   if(UNSUB.cli) return;
   UNSUB.cli = col('clientes').orderBy('atualizadoEm', 'desc').onSnapshot(function(qs){
     CLI_ROWS = [];
-    qs.forEach(function(doc){ CLI_ROWS.push({ id: doc.id, d: doc.data() }); });
+    /* radar:true = potencial cliente ainda no Radar (comercial-radar.js); entra
+       na carteira só quando alguém move pra cá (radar vira false) */
+    qs.forEach(function(doc){ var d = doc.data(); if(d.radar !== true) CLI_ROWS.push({ id: doc.id, d: d }); });
     cliRender();
     /* ficha aberta acompanha o dado vivo; cliente sumiu = fecha */
     if(CLI_SEL){

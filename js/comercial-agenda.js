@@ -9,7 +9,7 @@
  * escHtml, btnBusy, flashMsg, auditar, liveAnnounce, reduceMotion).
  * ===================================================================== */
 
-registrarModulo({ id: 'agenda-comercial', need: 'com', init: agcInit });
+registrarModulo({ id: 'agenda-comercial', need: 'mktcom', init: agcInit });
 
 var agcBound = false;
 var AGC_ROWS = [];   /* itens da coleção agenda_comercial: {id, d} */
@@ -28,7 +28,9 @@ var AGC_SEM = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 
 /* ---- entrada (router chama ao abrir a view) ---- */
 function agcInit(){
-  if(!canCom()) return;
+  /* desde 08/10/2026 a Agenda vive no menu Marketing: quem vê Campanhas vê a
+     Agenda (gate mktcom). Escrever segue sendo do comercial (rules + botão). */
+  if(!GATES.mktcom()) return;
   if(!agcBound){
     var sec = document.getElementById('view-agenda-comercial');
     if(!sec) return; /* casca ainda não está no index — não trava o resto */
@@ -49,9 +51,9 @@ function agcMarkup(sec){
         '<path class="wave-drift w2" d="M-100,560 C300,480 660,640 1040,550 C1260,500 1420,570 1540,530 L1540,720 L-100,720 Z" fill="var(--teal-950)"/>' +
       '</svg>' +
       '<div class="wrap">' +
-        '<p class="crumb">Comercial · Agenda</p>' +
-        '<h1 id="agc-title">Agenda comercial</h1>' +
-        '<p class="sub">Reuniões, follow-ups, prazos e tarefas da equipe comercial num só lugar — com os prazos das campanhas em comercialização já mesclados.</p>' +
+        '<p class="crumb">Marketing · Agenda</p>' +
+        '<h1 id="agc-title">Agenda</h1>' +
+        '<p class="sub">Prazos das campanhas em comercialização, reuniões, follow-ups e tarefas num só lugar — pra marketing e comercial acompanharem a mesma linha do tempo.</p>' +
       '</div>' +
     '</div>' +
     '<div class="section"><div class="wrap">' +
@@ -64,7 +66,7 @@ function agcMarkup(sec){
         '</select>' +
         '<label class="adm-check" style="align-self:center"><input type="checkbox" id="agcFMeus"> <span>só os meus</span></label>' +
         '<label class="adm-check" style="align-self:center"><input type="checkbox" id="agcFFeitos"> <span>mostrar feitos</span></label>' +
-        '<button type="button" class="mini" id="agcNovo" style="margin-left:auto">+ Novo compromisso</button>' +
+        '<button type="button" class="mini" id="agcNovo" style="margin-left:auto"' + (canCom() ? '' : ' hidden') + '>+ Novo compromisso</button>' +
       '</div>' +
 
       '<div id="agcForm" hidden style="border:1px solid var(--line);border-radius:.9rem;background:var(--surface);padding:1rem 1.1rem;margin-bottom:1.2rem">' +
@@ -140,7 +142,9 @@ function agcListen(){
     }, function(){
       delete UNSUB.agc;
       var host = document.getElementById('agcLista');
-      if(host) host.innerHTML = '<div class="load-note">Sem acesso — a flag verComercial foi liberada e as regras publicadas?</div>';
+      if(host) host.innerHTML = '<div class="load-note">' + (canCom()
+        ? 'Sem acesso — a flag verComercial foi liberada e as regras publicadas?'
+        : 'Sua conta vê a Agenda pelo Marketing, mas os dados dependem das regras novas de agenda_comercial publicadas no Console.') + '</div>';
     });
   }
   /* prazos de campanha (só leitura): campanhas em comercialização com comPrazo
