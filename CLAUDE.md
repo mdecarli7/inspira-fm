@@ -21,10 +21,10 @@
   (`npx serve scripts`), entrar com Google e exportar. **O JSON gerado tem a folha
   salarial: guardar fora do repositório** (já coberto pelo `.gitignore`).
 - **⚠️ Pendências que dependem do Console do Firebase** (não dá pra resolver em código):
-  publicar o `firestore.rules` (incluindo as rules de 08/10/2026 ainda NÃO escritas no
-  arquivo, a confirmar com o Matheus: coleção `arquivos` e `documentos` sem link
-  obrigatório quando há anexo; `agenda_comercial` legível por todo aprovado pra
-  Marketing ver a Agenda), ligar *email enumeration protection*, bloquear
+  publicar o `firestore.rules` quando mudar (a versão de 08/10/2026, com `arquivos`,
+  `documentos` sem link obrigatório quando há anexo e `agenda_comercial` legível por
+  todo aprovado, FOI publicada pelo Matheus em 08/10/2026), ligar *email enumeration
+  protection*, bloquear
   auto-cadastro (hoje qualquer pessoa da internet vira `request.auth != null`),
   conferir que o provedor *Anonymous* está desligado e ativar *point-in-time recovery*.
 - **⚠️ Pendência de performance:** a Home baixa todas as campanhas e ideias, cada uma
@@ -79,8 +79,9 @@
     700 KB vira base64 num doc próprio da coleção `arquivos` (`{nome, tam, b64, refCol,
     refId}`); o registro guarda só `arquivoId/arquivoNome/arquivoTam` — lista continua leve,
     o conteúdo baixa no clique. Link https segue valendo (e é o caminho acima de 700 KB).
-    **Depende de rules novas** (`arquivos` atrás de `canComercial()`, e `documentos`
-    aceitando link vazio quando há `arquivoId`) — ver "Pendências do Console".
+    Rules publicadas em 08/10/2026: `arquivos` (comercial cria/apaga; PDF de Materiais
+    legível por todo aprovado, PDF de contrato só comercial) e `documentos` aceitando
+    link vazio quando há `arquivoId`.
   - **Nossos Produtos** (`js/comercial-produtos.js`) — catálogo por canal de divulgação
     (radio / redes / youtube / siteapp) com valor de tabela e `descontoMax` (%). Edita o
     MESMO array `config/comercial.produtos` da aba "Produtos e tabela" do Painel — a aba
