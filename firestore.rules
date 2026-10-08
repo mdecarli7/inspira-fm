@@ -343,10 +343,12 @@ service cloud.firestore {
     }
     // Anexos em PDF (08/10/2026): base64 de até 700 KB num doc próprio, referenciado
     // por documentos/ ou contratos/ (arquivoId). Plano Spark não tem Storage.
-    // Só o comercial lê — contrato assinado não é pra equipe inteira. Imutável:
+    // Leitura: PDF de Materiais (refCol 'documentos') é pra todo aprovado — o Marketing
+    // abre mídia kit e apresentações; PDF de contrato assinado só o comercial. Imutável:
     // trocar o PDF = criar outro doc e apagar o antigo (o app faz isso).
     match /arquivos/{id} {
-      allow read: if canComercial();
+      allow read: if canComercial()
+        || (aprovado() && resource.data.refCol == 'documentos');
       allow create: if canComercial()
         && request.resource.data.b64 is string
         && request.resource.data.tipo == 'application/pdf'
