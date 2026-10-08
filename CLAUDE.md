@@ -1,6 +1,6 @@
 # CLAUDE.md — Rádio Inspira FM
 
-@../../_padroes/PADRAO-AGENCIA.md
+@C:/Users/Mribe/Desktop/MD7/docs/padroes-agencia/PADRAO-AGENCIA.md
 
 ## Este projeto
 
@@ -58,6 +58,10 @@
   Brainstorm (últimas ideias). Destaques editáveis pela diretoria.
 - **Minha conta** — perfil do usuário (nome, apelido, nascimento, setor).
 - **Análises** (todos) — Site · Dial · MobRadio · Redes Sociais, nesta ordem no menu.
+  **Redes Sociais** abre o relatório mais recente (`#analise-02`, Relatório 02 de 08/10/2026,
+  markup e dados em `js/analise-02.js`, com bloco comparativo 01 × 02). O Relatório 01
+  (`#analise`, HTML em `content/base.analise` no Firestore) fica como histórico, com faixa
+  apontando pro novo. Relatório novo = módulo novo `js/analise-NN.js` + retargetar o menu.
 - **Comercial** (menu reorganizado em 29/07/2026):
   - **Painel · Nossos Produtos · Agenda · Clientes · Contratos** — gate `com` (diretoria
     ou flag `verComercial`).
@@ -123,7 +127,8 @@
   `comercial-core/painel/clientes/agenda/contratos/docs` (módulo comercial, gate
   `com` = diretoria ou flag `verComercial`), `home-setor` (card "Seu dia" no Início),
   `analises-mensais` (histórico manual de Site/MobRadio), `nav-setores` (gates de menu
-  por setor). **A tabela de preços do comercial vive SÓ em `config/comercial`**
+  por setor), `analise-02` (Relatório 02 de redes sociais + comparativo com o 01).
+  **A tabela de preços do comercial vive SÓ em `config/comercial`**
   (repo é público — preço nunca em código).
 - **⚠️ Três views não têm markup no `index.html`** — o HTML delas vem do Firestore
   via `innerHTML`: `view-analise` ← `content/base.analise`, `view-organograma` ←
@@ -191,6 +196,6 @@ Conteúdo do dia a dia (campanhas, quadros, radar, processos, jurídico, program
 
 ## Ligado ao Obsidian
 
-- Dashboard: `Matheus 1.0 obsidian → 01 - Clientes → Radio Inspira FM` → [[_Rádio Inspira FM]]
+- Dashboard: `MD7/segundo-cerebro → 01 - Clientes → Radio Inspira FM` → [[_Rádio Inspira FM]]
 - Design System: [[_Rádio Inspira FM — Design System]]
 - Plataforma interna: [[Rádio Inspira FM — Plataforma Interna]]
